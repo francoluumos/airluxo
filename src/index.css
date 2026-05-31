@@ -1,0 +1,226 @@
+@import "tailwindcss";
+
+/* ============================================================
+   AIRLUXO — design tokens
+   Uber-functional monochrome × Swiss luxury automotive
+   ============================================================ */
+@theme {
+  --color-ink: #0b0b0c;        /* primary near-black            */
+  --color-void: #050506;       /* deepest — dark surfaces       */
+  --color-coal: #161618;       /* dark cards                    */
+  --color-graphite: #2a2a2e;   /* dark borders / hairlines      */
+  --color-paper: #f6f5f1;      /* warm off-white background     */
+  --color-cloud: #ffffff;      /* light cards                   */
+  --color-mist: #e7e4db;       /* light hairlines / dividers    */
+  --color-stone: #76746d;      /* muted text                    */
+  --color-ash: #a8a59b;        /* faint text on dark            */
+  --color-gold: #b89150;       /* champagne accent — the jewel  */
+  --color-gold-soft: #d8b878;  /* gold on dark                  */
+  --color-go: #3f7d5a;         /* available / positive          */
+
+  --font-display: "Clash Display", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 22px;
+
+  --ease-lux: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-feature-settings: "ss01", "cv01";
+}
+
+/* --- typography helpers --- */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* AIRLUXO wordmark — semibold + airier than display text */
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.66rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- atmosphere --- */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.spotlight {
+  /* use background-IMAGE (not the `background` shorthand) so it never resets
+     background-color: on the dark how-it-works section it layers over bg-void,
+     and as the login overlay it stays transparent over the car image. */
+  background-image:
+    radial-gradient(120% 90% at 78% -10%, rgba(184, 145, 80, 0.16), transparent 55%),
+    radial-gradient(90% 120% at -10% 120%, rgba(255, 255, 255, 0.05), transparent 50%);
+}
+
+/* hairline divider */
+.hairline {
+  border-color: var(--color-mist);
+}
+
+/* --- gold underline mark --- */
+.mark::after {
+  content: "";
+  display: block;
+  width: 26px;
+  height: 2px;
+  margin-top: 0.85rem;
+  background: var(--color-gold);
+}
+
+/* --- custom scrollbar --- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-mist);
+  border-radius: 99px;
+  border: 3px solid var(--color-paper);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d4d0c4;
+}
+
+/* --- focus ring --- */
+.ring-lux:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+/* --- shimmer for image placeholders --- */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(100deg, #e7e4db 30%, #f3f1ea 50%, #e7e4db 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* marquee */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  animation: marquee 32s linear infinite;
+}
+
+/* subtle floating */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* --- fleet map (Leaflet) --- */
+.alx-map { z-index: 0; background: var(--color-paper); }
+/* warm the cool Positron tiles toward the paper palette */
+.alx-map .leaflet-tile-pane {
+  filter: sepia(0.14) saturate(0.78) brightness(1.03) contrast(0.94) hue-rotate(-8deg);
+}
+.alx-map .leaflet-control-zoom a {
+  background: var(--color-cloud);
+  color: var(--color-ink);
+  border-color: var(--color-mist);
+}
+.alx-map .leaflet-control-zoom a:hover { background: var(--color-paper); }
+.alx-map .leaflet-bar { border: none; box-shadow: 0 10px 24px -16px rgba(11, 11, 12, 0.5); border-radius: 12px; overflow: hidden; }
+.alx-map .leaflet-control-attribution {
+  background: rgba(246, 245, 241, 0.72);
+  color: var(--color-stone);
+  font-size: 10px;
+  backdrop-filter: blur(4px);
+}
+.alx-map .leaflet-control-attribution a { color: var(--color-stone); }
+
+.alx-pin-wrap { background: none; border: none; }
+/* soft pulsing gold halo behind each pin */
+.alx-halo {
+  position: absolute;
+  left: 50%;
+  top: 40px;
+  width: 30px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(184, 145, 80, 0.45) 0%, rgba(184, 145, 80, 0) 70%);
+  animation: alx-pulse 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes alx-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.85); opacity: 0.55; }
+  50% { transform: translate(-50%, -50%) scale(1.5); opacity: 0.1; }
+}
+.alx-pin {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  margin-left: -18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: linear-gradient(135deg, var(--color-gold-soft), var(--color-gold));
+  border: 2px solid var(--color-ink);
+  box-shadow: 0 10px 20px -6px rgba(11, 11, 12, 0.55);
+  display: grid;
+  place-items: center;
+  transition: transform 0.18s ease;
+  cursor: pointer;
+}
+.alx-pin:hover { transform: rotate(-45deg) scale(1.1); }
+.alx-pin span {
+  transform: rotate(45deg);
+  font-family: var(--font-display, serif);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-ink);
+  line-height: 1;
+}
+.alx-map .leaflet-popup-content-wrapper {
+  background: var(--color-ink);
+  color: var(--color-cloud);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px -16px rgba(11, 11, 12, 0.6);
+}
+.alx-map .leaflet-popup-content { margin: 9px 13px; }
+.alx-map .leaflet-popup-tip { background: var(--color-ink); }
+.alx-pop-city { font-weight: 700; font-size: 13px; }
+.alx-pop-meta { font-size: 11px; opacity: 0.7; margin-top: 1px; }

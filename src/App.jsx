@@ -1,0 +1,83 @@
+import { useState, useEffect } from 'react';
+import { AnimatePresence } from 'motion/react';
+import Home from './components/Home.jsx';
+import CarDetail from './components/CarDetail.jsx';
+import PartnerLogin from './components/PartnerLogin.jsx';
+import PartnerDashboard from './components/PartnerDashboard.jsx';
+import { AuthProvider, useAuth } from './lib/auth.jsx';
+import MobileLicence from './components/MobileLicence.jsx';
+import Embed from './components/Embed.jsx';
+import Docs from './components/Docs.jsx';
+import ResetPassword from './components/ResetPassword.jsx';
+import PrivacyPolicy from './components/PrivacyPolicy.jsx';
+import CookieBanner from './components/CookieBanner.jsx';
+
+function Shell() {
+  const { session, loading } = useAuth();
+  const [route, setRoute] = useState('home'); // home | partner
+  const [activeCar, setActiveCar] = useState(null);
+
+  // lock body scroll when the car modal is open
+  useEffect(() => {
+    document.body.style.overflow = activeCar ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [activeCar]);
+
+  const goHome = () => { setRoute('home'); setActiveCar(null); window.scrollTo(0, 0); };
+  const goPartner = () => { window.scrollTo(0, 0); setRoute('partner'); };
+
+  if (loading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-paper">
+        <div className="flex flex-col items-center gap-4">
+          <span className="wordmark text-2xl">AIR<span className="text-gold">LUXO</span></span>
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="grain" />
+
+      {route === 'home' && (
+        <Home onOpenCar={setActiveCar} onPartner={goPartner} />
+      )}
+
+      {/* Partner area is auth-gated: no session → login, session → dashboard */}
+      {route === 'partner' && (
+        session
+          ? <PartnerDashboard onExit={goHome} />
+          : <PartnerLogin onBack={goHome} onAuthed={goPartner} />
+      )}
+
+      <AnimatePresence>
+        {activeCar && <CarDetail car={activeCar} onClose={() => setActiveCar(null)} />}
+      </AnimatePresence>
+    </>
+  );
+}
+
+export default function App() {
+  const params = new URLSearchParams(window.location.search);
+  // Phone hand-off for licence capture: ?licence=<sessionId> renders the mobile page.
+  const licenceSession = params.get('licence');
+  if (licenceSession) return <MobileLicence sessionId={licenceSession} />;
+  // White-label embed for partner sites: ?embed=<partnerId>.
+  const embedPartner = params.get('embed');
+  if (embedPartner) return <Embed partnerId={embedPartner} />;
+  // Partner guide + changelog (opened in a new tab from Settings): ?docs.
+  if (params.has('docs')) return <Docs />;
+  // Password-recovery landing from the reset email: ?reset=1 (token in the URL hash).
+  if (params.has('reset') || window.location.hash.includes('type=recovery')) return <ResetPassword />;
+  // Privacy & cookie policy (opened from the banner + footer): ?privacy.
+  if (params.has('privacy')) return <PrivacyPolicy />;
+
+  return (
+    <AuthProvider>
+      <Shell />
+      <CookieBanner />
+    </AuthProvider>
+  );
+}
