@@ -5,7 +5,7 @@
 // Secrets:
 //   RESEND_API_KEY      (required) — Resend API key.
 //   RESEND_AUDIENCE_ID  (required) — the Audience to add contacts to.
-//   RESEND_FROM         (optional) — sender; defaults to the Resend sandbox.
+//   RESEND_FROM         (optional) — sender; defaults to "AirLuxo News <noreply@send.airluxo.ch>".
 //   RESEND_REPLY_TO     (optional) — reply-to address.
 // No-ops gracefully (200 { skipped }) if the required secrets are unset.
 
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
   }
 
   // Best-effort welcome email — never blocks the subscription result.
-  const from = Deno.env.get("RESEND_FROM") || "AIRLUXO <onboarding@resend.dev>";
+  const from = Deno.env.get("RESEND_FROM") || "AirLuxo News <noreply@send.airluxo.ch>";
   try {
     await fetch("https://api.resend.com/emails", {
       method: "POST",

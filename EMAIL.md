@@ -47,7 +47,7 @@ Supabase dashboard → project `airluxo` → **Edge Functions → Secrets** (or 
 ```
 RESEND_API_KEY      = re_xxxxxxxxxxxxxxxxxxxx
 RESEND_AUDIENCE_ID  = <audience id from step 3>
-RESEND_FROM         = AIRLUXO <bookings@send.airluxo.ch>
+RESEND_FROM         = AirLuxo News <noreply@send.airluxo.ch>
 RESEND_REPLY_TO     = hello@airluxo.ch        # a real monitored inbox
 ```
 

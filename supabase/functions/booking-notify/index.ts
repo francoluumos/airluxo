@@ -4,7 +4,7 @@
 // server-side with the service role, then sends via Resend.
 //
 // Secrets: RESEND_API_KEY (required to actually send), RESEND_FROM (optional,
-// defaults to Resend's shared sandbox sender). No-ops gracefully if unset.
+// defaults to "AirLuxo News <noreply@send.airluxo.ch>"). No-ops gracefully if unset.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
   const to = u?.user?.email;
   if (!to) return json({ error: "partner email not found" }, 404);
 
-  const from = Deno.env.get("RESEND_FROM") || "AIRLUXO <onboarding@resend.dev>";
+  const from = Deno.env.get("RESEND_FROM") || "AirLuxo News <noreply@send.airluxo.ch>";
   const dates = b.end_date && b.end_date !== b.start_date ? `${b.start_date} → ${b.end_date}` : b.start_date;
   const addons = [
     b.cross_border ? "Cross-border" : null,
