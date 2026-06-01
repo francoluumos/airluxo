@@ -11,8 +11,16 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { getStripe, createPaymentIntent } from '../lib/stripe.js';
 import { verifyLicence, createLicenceSession, getLicenceSession } from '../lib/licence.js';
 import { track } from '../lib/analytics.js';
+import { useAuth } from '../lib/auth.jsx';
+import { supabase } from '../lib/supabase.js';
 
 export default function CarDetail({ car, onClose }) {
+  // Null-safe: the white-label embed renders CarDetail outside AuthProvider, and
+  // there we intentionally keep anonymous guest checkout (no login gate).
+  const auth = useAuth();
+  const user = auth?.user ?? null;
+  const customer = auth?.customer ?? null;
+  const openAuth = auth?.openAuth ?? null;
   const rateOptions = [
     { id: 'day', label: 'Per day', unit: 'day', price: car.pricePerDay },
     ...(car.rate_tiers || []).map((t, i) => ({ id: `t${i}`, label: t.label, unit: t.label, price: t.price })),
@@ -46,6 +54,21 @@ export default function CarDetail({ car, onClose }) {
   const [paymentIntentId, setPaymentIntentId] = useState(null);
   const [serverBreakdown, setServerBreakdown] = useState(null);
   const [logistics, setLogistics] = useState(null);
+
+  // Prefill the booking from the signed-in customer's profile + licence on file.
+  useEffect(() => {
+    if (!customer) return;
+    setGuest((g) => ({ email: g.email || customer.email || '', phone: g.phone || customer.phone || '' }));
+    const l = customer.licence;
+    if (customer.licence_verified && l) {
+      setLicence({
+        first_name: l.first_name || '', last_name: l.last_name || '',
+        birth_date: l.birth_date || '', valid_from: l.valid_from || '',
+        categories: Array.isArray(l.categories) ? l.categories.join(', ') : '', number: l.number || '',
+      });
+      setLicenceScanned(true);
+    }
+  }, [customer]);
 
   // Opening hours for a given ISO date (keyed mon..sun). null = unknown (no constraint).
   const DOW = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -98,6 +121,7 @@ export default function CarDetail({ car, onClose }) {
   function buildPayload(piId, payStatus, bd) {
     return {
       listing_id: car.id,
+      user_id: user?.id ?? null,
       guest_name: `${licence.first_name.trim()} ${licence.last_name.trim()}`.trim(),
       guest_email: guest.email.trim(),
       guest_phone: guest.phone.trim(),
@@ -134,6 +158,20 @@ export default function CarDetail({ car, onClose }) {
     try {
       await createBooking(buildPayload(piId, payStatus, bd));
       track('booking_confirmed', { listing_id: car.id, make: car.make, model: car.model });
+      // Save the verified licence on file so future bookings are prefilled (best-effort).
+      if (user && licenceScanned && licence.number.trim()) {
+        supabase.from('customers').update({
+          licence_verified: true,
+          licence: {
+            first_name: licence.first_name.trim() || null,
+            last_name: licence.last_name.trim() || null,
+            birth_date: licence.birth_date.trim() || null,
+            valid_from: licence.valid_from.trim() || null,
+            categories: licence.categories.split(',').map((s) => s.trim()).filter(Boolean),
+            number: licence.number.trim() || null,
+          },
+        }).eq('id', user.id).then(() => {});
+      }
       setBooked(true);
     } catch (e) {
       setErr(e.message || 'Could not complete the booking.');
@@ -144,6 +182,9 @@ export default function CarDetail({ car, onClose }) {
     setErr('');
     if (!datesChosen) { setErr('Please select your dates first.'); return; }
     if (hoursBlocked) { setErr('Choose a pick-up time within the location’s opening hours.'); return; }
+    // Require an account to book on the main site (Airbnb-style). In the embed
+    // (no auth context) openAuth is null → keep anonymous guest checkout.
+    if (openAuth && !user) { openAuth({ kind: 'book', carId: car.id }); return; }
     track('booking_started', { listing_id: car.id, make: car.make, model: car.model });
     setPhase('details');
   }

@@ -10,6 +10,8 @@ import { fetchFleetAvailability } from '../lib/bookings.js';
 import { chf } from '../lib/format.js';
 import { track } from '../lib/analytics.js';
 import { openConsentSettings } from '../lib/consent.js';
+import { useAuth } from '../lib/auth.jsx';
+import { fetchFavouriteIds, addFavourite, removeFavourite } from '../lib/favourites.js';
 import { searchSwissPlaces } from '../lib/geocode.js';
 import FleetMap, { CITY_COORDS } from './FleetMap.jsx';
 import NewsletterSignup from './NewsletterSignup.jsx';
@@ -40,7 +42,7 @@ const rise = {
   show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
 };
 
-export default function Home({ onOpenCar, onPartner }) {
+export default function Home({ onOpenCar, onPartner, onAccount }) {
   const [cat, setCat] = useState('All');
   const [q, setQ] = useState('');
   const [cars, setCars] = useState(null); // null = loading
@@ -51,7 +53,27 @@ export default function Home({ onOpenCar, onPartner }) {
   const [heroCal, setHeroCal] = useState(false);
   const [fleetCal, setFleetCal] = useState(false);
   const [near, setNear] = useState(null); // { label, lat, lng } from the free-text "Where" search
+  const [favs, setFavs] = useState(() => new Set()); // saved listing_ids
+  const { session, openAuth } = useAuth();
   const hero = CARS[1]; // Huracán — fixed marketing visual
+
+  // Hydrate saved-car hearts for the signed-in customer.
+  useEffect(() => {
+    if (!session) { setFavs(new Set()); return; }
+    let active = true;
+    fetchFavouriteIds().then((s) => { if (active) setFavs(s); });
+    return () => { active = false; };
+  }, [session]);
+
+  // Toggle a saved car; logged-out taps open the auth modal instead.
+  const toggleFav = (id) => {
+    if (!session) { openAuth(); return; }
+    const saved = favs.has(id);
+    setFavs((prev) => { const n = new Set(prev); saved ? n.delete(id) : n.add(id); return n; });
+    (saved ? removeFavourite(id) : addFavourite(id)).catch(() => {
+      setFavs((prev) => { const n = new Set(prev); saved ? n.add(id) : n.delete(id); return n; }); // revert on error
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -159,7 +181,7 @@ export default function Home({ onOpenCar, onPartner }) {
 
   return (
     <div className="min-h-screen">
-      <Nav onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })} onPartner={onPartner} />
+      <Nav onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })} onPartner={onPartner} onAccount={onAccount} />
 
       {/* ============ HERO ============ */}
       <section className="relative overflow-hidden">
@@ -362,7 +384,7 @@ export default function Home({ onOpenCar, onPartner }) {
             className="mt-9 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
           >
             {fleet.map((car) => (
-              <CarCard key={car.id} car={car} onOpen={openCar} />
+              <CarCard key={car.id} car={car} onOpen={openCar} isFav={favs.has(car.id)} onToggleFav={() => toggleFav(car.id)} />
             ))}
           </motion.div>
         )}

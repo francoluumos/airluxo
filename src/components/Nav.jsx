@@ -1,6 +1,6 @@
-import { Icon } from './Icons.jsx';
+import AccountMenu from './AccountMenu.jsx';
 
-export default function Nav({ onHome, onPartner, dark = false }) {
+export default function Nav({ onHome, onPartner, onAccount, dark = false }) {
   const tone = dark
     ? { text: 'text-cloud', sub: 'text-ash hover:text-cloud', line: 'border-graphite', btn: 'bg-cloud text-ink hover:bg-paper' }
     : { text: 'text-ink', sub: 'text-stone hover:text-ink', line: 'border-mist', btn: 'bg-ink text-cloud hover:bg-void' };
@@ -23,16 +23,11 @@ export default function Nav({ onHome, onPartner, dark = false }) {
         <div className="flex items-center gap-2.5">
           <button
             onClick={onPartner}
-            className={`ring-lux hidden text-sm font-semibold sm:block ${tone.sub} transition-colors`}
-          >
-            Partner login
-          </button>
-          <button
-            onClick={onPartner}
-            className={`ring-lux rounded-full px-4 py-2 text-sm font-semibold transition-colors ${tone.btn}`}
+            className={`ring-lux hidden rounded-full px-4 py-2 text-sm font-semibold transition-colors sm:block ${tone.btn}`}
           >
             List your cars
           </button>
+          <AccountMenu onAccount={onAccount} onPartner={onPartner} dark={dark} />
         </div>
       </div>
     </header>

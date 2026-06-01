@@ -4,6 +4,8 @@ import Home from './components/Home.jsx';
 import CarDetail from './components/CarDetail.jsx';
 import PartnerLogin from './components/PartnerLogin.jsx';
 import PartnerDashboard from './components/PartnerDashboard.jsx';
+import CustomerAccount from './components/CustomerAccount.jsx';
+import AuthModal from './components/AuthModal.jsx';
 import { AuthProvider, useAuth } from './lib/auth.jsx';
 import MobileLicence from './components/MobileLicence.jsx';
 import Embed from './components/Embed.jsx';
@@ -13,18 +15,22 @@ import PrivacyPolicy from './components/PrivacyPolicy.jsx';
 import CookieBanner from './components/CookieBanner.jsx';
 
 function Shell() {
-  const { session, loading } = useAuth();
-  const [route, setRoute] = useState('home'); // home | partner
+  const { session, loading, authModal, closeAuth } = useAuth();
+  const [route, setRoute] = useState('home'); // home | partner | account
+  const [accountTab, setAccountTab] = useState('trips');
   const [activeCar, setActiveCar] = useState(null);
 
-  // lock body scroll when the car modal is open
+  // lock body scroll when the car modal or auth modal is open
   useEffect(() => {
-    document.body.style.overflow = activeCar ? 'hidden' : '';
+    const open = activeCar || authModal;
+    document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
-  }, [activeCar]);
+  }, [activeCar, authModal]);
 
   const goHome = () => { setRoute('home'); setActiveCar(null); window.scrollTo(0, 0); };
   const goPartner = () => { window.scrollTo(0, 0); setRoute('partner'); };
+  const goAccount = (tab = 'trips') => { setAccountTab(tab); setRoute('account'); window.scrollTo(0, 0); };
+  const openCar = (car) => { setRoute('home'); setActiveCar(car); };
 
   if (loading) {
     return (
@@ -42,7 +48,7 @@ function Shell() {
       <div className="grain" />
 
       {route === 'home' && (
-        <Home onOpenCar={setActiveCar} onPartner={goPartner} />
+        <Home onOpenCar={setActiveCar} onPartner={goPartner} onAccount={goAccount} />
       )}
 
       {/* Partner area is auth-gated: no session → login, session → dashboard */}
@@ -52,8 +58,17 @@ function Shell() {
           : <PartnerLogin onBack={goHome} onAuthed={goPartner} />
       )}
 
+      {/* Customer profile (trips / saved / licence / account) */}
+      {route === 'account' && (
+        <CustomerAccount initialTab={accountTab} onExit={goHome} onOpenCar={openCar} />
+      )}
+
       <AnimatePresence>
         {activeCar && <CarDetail car={activeCar} onClose={() => setActiveCar(null)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {authModal && <AuthModal intent={authModal.intent} onClose={closeAuth} />}
       </AnimatePresence>
     </>
   );

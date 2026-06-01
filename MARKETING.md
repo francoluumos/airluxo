@@ -34,11 +34,24 @@ Tag loosely: 💎 high fit · ⚠️ watch-outs · 🧭 strategic decision.
 - **De-risked first step:** use the booth purely for **lead capture** — a "List your car / join the owner waitlist" signup + email collection. Gauge owner demand with zero P2P ops built. Build the P2P side only if the waitlist justifies it.
 - **Watch-outs ⚠️:** event permits/insurance for the booth; have a polished one-card pitch + the marketplace live on a screen.
 
+## 4. AI content engine — mine Instagram for ideas, generate with Higgsfield 💎⚠️
+**Idea:** Maintain a curated set of Instagram accounts (saved in an "airluxo" collection — supercar pages, luxury-lifestyle, rental competitors, local hotspots). **Scrape their reels & posts with Apify** to surface what's working (formats, hooks, trending audio, cadence, top performers), turn those into content briefs, and **automate production with the Higgsfield MCP/CLI** (on-brand car reels & images). Also flag **collab / cross-promo candidates** from the same data.
+
+**Feedback — strong organic-growth lever, but keep humans in the loop and scrape for *inspiration*, not reposting.**
+- **Pipeline:** Apify `instagram-scraper` actor pulls posts/reels for the saved handles → rank by engagement/recency to spot winning formats & hooks → derive briefs → **Higgsfield generates** clips/stills (lock an on-brand composition, like our `studio-shot` pattern) → **human review** → schedule/post. Higgsfield MCP is already connected; Apify needs an account + API token + the chosen actor.
+- **Collabs 🤝:** the same scrape ranks complementary accounts (watches, hotels, alpine lifestyle, detailers) by engagement + likely audience overlap → shortlist for cross-promo, gifted experiences, or co-branded reels. Ties into the hotel (#1) and Airbnb-host (#2) channels.
+- **Watch-outs ⚠️:**
+  - **IP / copyright:** use scraped content to learn *patterns*, never to repost others' footage. Generate our own assets.
+  - **Instagram ToS + Apify:** scraping public IG is legally grey and IG actively rate-limits/blocks — keep volume low, research-only, no harvesting of personal data. Apify actors break when IG changes; expect maintenance.
+  - **Brand risk of full automation:** don't auto-publish raw AI output — IG penalises spammy/synthetic posting and off-brand clips erode a luxury image. Keep a human approval gate. Mind **reel music licensing** (use IG's licensed library, not scraped audio).
+- **Start small:** one weekly batch — scrape the saved list, pick 2–3 proven formats, generate a couple of Higgsfield reels, post manually, watch retention/saves in PostHog/IG insights before automating further.
+
 ---
 
 ## Cross-cutting enablers (turn ideas into machines)
 - **Referral / promo-code / affiliate system** — unique codes, attribution, partner commissions. Unlocks hotels (#1) and Airbnb hosts (#2). → candidate for BACKLOG.
 - **Trackable landing pages / UTM** — already have PostHog; tag campaign sources so we can measure each channel's bookings.
 - **The embed widget + home delivery** — already built; lead with them in every pitch.
+- **AI content pipeline (Apify scrape → Higgsfield generate → human review → post)** — see #4. → candidate for BACKLOG once it moves past manual weekly batches.
 
-_Last updated: 2026-05-31._
+_Last updated: 2026-06-01._
