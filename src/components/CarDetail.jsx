@@ -21,7 +21,8 @@ export default function CarDetail({ car, onClose }) {
   const auth = useAuth();
   const user = auth?.user ?? null;
   const customer = auth?.customer ?? null;
-  const openAuth = auth?.openAuth ?? null;
+  const signInWithGoogle = auth?.signInWithGoogle ?? null;
+  const sendEmailLink = auth?.sendEmailLink ?? null;
   const rateOptions = [
     { id: 'day', label: 'Per day', unit: 'day', price: car.pricePerDay },
     ...(car.rate_tiers || []).map((t, i) => ({ id: `t${i}`, label: t.label, unit: t.label, price: t.price })),
@@ -216,9 +217,8 @@ export default function CarDetail({ car, onClose }) {
     setErr('');
     if (!datesChosen) { setErr('Please select your dates first.'); return; }
     if (hoursBlocked) { setErr('Choose a pick-up time within the location’s opening hours.'); return; }
-    // Require an account to book on the main site (Airbnb-style). In the embed
-    // (no auth context) openAuth is null → keep anonymous guest checkout.
-    if (openAuth && !user) { openAuth({ kind: 'book', carId: car.id }); return; }
+    // No login gate — guests book unauthenticated; we offer account creation on
+    // the confirmation screen (the booking auto-links to it by email).
     track('booking_started', { listing_id: car.id, make: car.make, model: car.model });
     setPhase('details');
   }
@@ -586,7 +586,10 @@ export default function CarDetail({ car, onClose }) {
                 )}
 
                 {booked ? (
-                  <div className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-go py-4 text-sm font-bold text-cloud"><Icon.Check width={17} height={17} /> Reservation requested</div>
+                  <div className="mt-4 space-y-3">
+                    <div className="flex w-full items-center justify-center gap-2 rounded-2xl bg-go py-4 text-sm font-bold text-cloud"><Icon.Check width={17} height={17} /> Reservation requested</div>
+                    {signInWithGoogle && !user && <PostBookingAccount email={guest.email} onGoogle={signInWithGoogle} onEmail={sendEmailLink} />}
+                  </div>
                 ) : phase === 'payment' && clientSecret ? (
                   <div className="mt-4 border-t border-mist pt-4">
                     <div className="mb-3 text-[0.65rem] uppercase tracking-wider text-stone">Payment · authorise {chf(discountedTotal)}</div>
@@ -825,6 +828,38 @@ function PromoField({ promo, input, setInput, onApply, onClear, busy, err }) {
         </button>
       </div>
       {err && <p className="mt-1.5 text-xs text-red-600">{err}</p>}
+    </div>
+  );
+}
+
+// Shown on the booking confirmation to guests who aren't signed in — finish
+// account setup (Google or an email link); the booking auto-links by email.
+function PostBookingAccount({ email, onGoogle, onEmail }) {
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState('');
+  async function google() { setBusy('google'); try { await onGoogle({ kind: 'account' }); } catch { setBusy(''); } }
+  async function link() {
+    if (!email) return;
+    setBusy('email');
+    const { error } = await onEmail(email, { kind: 'account' });
+    setBusy('');
+    if (!error) setSent(true);
+  }
+  if (sent) {
+    return (
+      <div className="rounded-2xl border border-mist bg-cloud p-4 text-sm text-stone">
+        Check your inbox — we sent a sign-in link to <span className="font-semibold text-ink">{email}</span> to set up your account and manage this trip.
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl border border-mist bg-cloud p-4">
+      <div className="text-sm font-bold text-ink">Create your account</div>
+      <p className="mt-1 text-xs text-stone">Manage this trip, save your details &amp; licence, and book faster next time.</p>
+      <div className="mt-3 flex flex-col gap-2">
+        <button type="button" onClick={google} disabled={!!busy} className="ring-lux flex items-center justify-center gap-2 rounded-xl border border-mist bg-paper py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-mist/40 disabled:opacity-60">Continue with Google</button>
+        <button type="button" onClick={link} disabled={!!busy || !email} className="ring-lux rounded-xl bg-ink py-2.5 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">{busy === 'email' ? 'Sending…' : 'Email me a sign-in link'}</button>
+      </div>
     </div>
   );
 }

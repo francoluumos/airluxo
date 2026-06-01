@@ -93,6 +93,13 @@ const SECTIONS = [
 const CHANGELOG = [
   {
     date: '2026-06-01',
+    version: 'Build 0.6',
+    items: [
+      'Booking no longer requires signing in first — guests can book straight through. After confirming, they’re offered a one-tap account (Google or an email link) to manage the trip and check out faster; the booking links to it automatically. Lower friction, better conversion.',
+    ],
+  },
+  {
+    date: '2026-06-01',
     version: 'Build 0.5',
     items: [
       'Subscription tiers are now wired to real mechanics: your AIRLUXO commission depends on your plan — Free 15%, Pro 9%, Max 3% — applied automatically to every booking and reflected in Earnings and the bookings table.',

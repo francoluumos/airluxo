@@ -9,7 +9,7 @@ AIRLUXO has **two kinds of accounts**, both on the same Supabase `auth.users`:
 
 A signup is routed to the right table by the `handle_new_user` trigger: if the signup carries a `company_name` (the partner form always sets it) → `partners`; otherwise (Google / email magic-link, or explicit `role=customer`) → `customers`. A given email can only be one or the other — Supabase links a later Google/email login to an existing account with the same verified email.
 
-> **Login is required to book** on the main marketplace (gated in `CarDetail.startReserve`). The white-label **embed** (`?embed=`) renders outside the auth context and intentionally stays **anonymous guest checkout** — handled by a null-safe `useAuth()` in `CarDetail`.
+> **Booking does not require login.** Guests complete a booking unauthenticated, and the confirmation screen offers one-tap account creation (Google or an email sign-in link, prefilled with the booking email) via `PostBookingAccount` in `CarDetail`. The new account auto-links to the booking by email (the `bookings` customer SELECT policy matches `guest_email`). The white-label **embed** has no auth context (null-safe `useAuth()`), so it simply stays anonymous with no account prompt.
 
 ---
 
@@ -56,9 +56,9 @@ Tabs: **My trips · Saved · Licence · Account**. Licence tab reuses `LicenceCa
 - `src/components/CarDetail.jsx` — booking gate + profile prefill + `user_id` stamping + licence-on-file save.
 - `src/lib/favourites.js` + `src/components/CarCard.jsx` — wishlist hearts.
 
-## Known limitation (v1)
+## Notes
 
-Google and email both redirect away, so the "resume *this* booking after login" intent isn't replayed across the redirect — the user returns signed-in and re-clicks **Reserve** (which now passes the gate). Persisting + replaying the intent is a follow-up.
+Account creation (Google / email link) redirects away and back. Because booking no longer depends on login, there's no redirect-resume concern for the booking flow — the booking is already saved before the account prompt, and it auto-links by email when the guest finishes signing up.
 
 ## Deferred
 
