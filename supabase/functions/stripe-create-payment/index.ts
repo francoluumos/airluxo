@@ -5,7 +5,7 @@
 // charge and AIRLUXO's application fee can't be tampered with. verify_jwt OFF.
 //
 // Secret: STRIPE_SECRET_KEY
-// Body: { listing_id, rate_id, quantity, cross_border, delivery }
+// Body: { listing_id, rate_id, quantity, cross_border, delivery, protection }
 //   rate_id: "day" | "t<index>" (index into the listing's rate_tiers)
 // Returns: { skip:true } | { clientSecret, paymentIntentId, breakdown }
 
@@ -40,13 +40,13 @@ async function stripe(path: string, params: Record<string, string>) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { listing_id, rate_id, quantity, cross_border, delivery, start_date, end_date, pickup_time, return_time, promo_code } = await req.json();
+    const { listing_id, rate_id, quantity, cross_border, delivery, protection, start_date, end_date, pickup_time, return_time, promo_code } = await req.json();
     if (!listing_id) return json({ error: "listing_id required" }, 400);
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: listing } = await admin
       .from("listings")
-      .select("partner_id, make, model, price_per_day, rate_tiers, cross_border_allowed, cross_border_fee, delivery_available, delivery_fee, location_id, status")
+      .select("partner_id, make, model, price_per_day, rate_tiers, cross_border_allowed, cross_border_fee, delivery_available, delivery_fee, protection_available, protection_fee, deposit_amount, location_id, status")
       .eq("id", listing_id).maybeSingle();
     if (!listing || listing.status === "Draft") return json({ error: "Listing not available" }, 404);
 
@@ -86,6 +86,11 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Damage protection — a partner-keeps pass-through. Deliberately kept OUT of the
+    // subtotal so it carries no guest service fee and no host commission: the guest
+    // pays it and the partner receives 100% of it.
+    const protFee = protection && listing.protection_available ? Number(listing.protection_fee || 0) : 0;
+
     const addons = cbFee + delFee + ahFee;
     const subtotal = base + addons;
     if (subtotal <= 0) return json({ error: "Invalid price" }, 400);
@@ -104,9 +109,10 @@ Deno.serve(async (req) => {
     }
 
     const service = Math.round(subtotal * GUEST_SERVICE);
-    const total = subtotal + service;
+    const total = subtotal + service + protFee;
     const hostRate = COMMISSION[partner.plan as string] ?? COMMISSION.free;
-    let partnerNet = subtotal - Math.round(subtotal * hostRate);
+    // Partner net = commissionable subtotal less host commission, plus the full protection fee.
+    let partnerNet = (subtotal - Math.round(subtotal * hostRate)) + protFee;
 
     // ---- promo / referral code (authoritative): discount + affiliate commission ----
     // Discount validity (incl. max-uses) is computed by the validate_promo RPC; we
@@ -159,6 +165,7 @@ Deno.serve(async (req) => {
       breakdown: {
         base_amount: base, addons_amount: addons, service_fee: service, total_amount: finalTotal,
         discount_amount: discount, promo_code: appliedCode, affiliate_commission: commission,
+        protection_fee: protFee, deposit_amount: protFee > 0 ? Number(listing.deposit_amount || 0) : 0,
       },
     });
   } catch (e) {

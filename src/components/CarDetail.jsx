@@ -37,6 +37,7 @@ export default function CarDetail({ car, onClose }) {
   const [crossBorder, setCrossBorder] = useState(false);
   const [delivery, setDelivery] = useState(false);
   const [deliveryAddr, setDeliveryAddr] = useState('');
+  const [protection, setProtection] = useState(false);
   const [booked, setBooked] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | details | licence | payment
   const [guest, setGuest] = useState({ email: '', phone: '' });
@@ -119,9 +120,12 @@ export default function CarDetail({ car, onClose }) {
   // after-hours surcharge when pickup/return falls outside the location's hours
   const afterHoursApplies = afterHoursOk && (pickupStatus === 'outside' || returnStatus === 'outside');
   const afterHoursFee = afterHoursApplies ? Number(logistics?.after_hours_fee || 0) : 0;
+  // Damage protection is a partner-keeps pass-through: it sits outside the subtotal
+  // so it carries no AIRLUXO service fee and no host commission (partner keeps 100%).
+  const protectionFee = protection && car.protection_available ? (car.protection_fee || 0) : 0;
   const subtotal = base + crossBorderFee + deliveryFee + afterHoursFee;
   const serviceFee = Math.round(subtotal * FEES.guestService);
-  const total = subtotal + serviceFee;
+  const total = subtotal + serviceFee + protectionFee;
   const discount = promo?.discount || 0;
   const discountedTotal = Math.max(0, total - discount);
   const deliveryMissingAddr = delivery && !deliveryAddr.trim();
@@ -166,6 +170,11 @@ export default function CarDetail({ car, onClose }) {
       cross_border: crossBorder && !!car.cross_border_allowed,
       delivery: delivery && !!car.delivery_available,
       delivery_address: delivery ? (deliveryAddr.trim() || null) : null,
+      protection: protection && !!car.protection_available,
+      // partner-keeps fee (recorded separately from addons_amount, which is commissionable)
+      protection_fee: bd ? (bd.protection_fee ?? 0) : protectionFee,
+      // the security deposit this protection waives, recorded for the trip record
+      deposit_amount: (protection && car.protection_available) ? (car.deposit_amount || 0) : 0,
       // prefer server-recomputed amounts (authoritative) when a payment ran
       base_amount: bd ? bd.base_amount : base,
       addons_amount: bd ? bd.addons_amount : (crossBorderFee + deliveryFee + afterHoursFee),
@@ -313,6 +322,7 @@ export default function CarDetail({ car, onClose }) {
         quantity: qty,
         crossBorder: crossBorder && !!car.cross_border_allowed,
         delivery: delivery && !!car.delivery_available,
+        protection: protection && !!car.protection_available,
         startDate: startISO,
         endDate: endISO,
         pickupTime,
@@ -517,9 +527,25 @@ export default function CarDetail({ car, onClose }) {
                 </div>
 
                 {/* add-ons */}
-                {(car.cross_border_allowed || car.delivery_available) && (
+                {(car.cross_border_allowed || car.delivery_available || car.protection_available) && (
                   <div className="mt-3 space-y-2">
                     <div className="text-[0.65rem] uppercase tracking-wider text-stone">Add-ons</div>
+                    {car.protection_available && (
+                      <div className="rounded-xl border border-gold/30 bg-gold/5 px-4 py-2.5">
+                        <label className="flex cursor-pointer items-center justify-between">
+                          <span className="flex items-center gap-2.5 text-sm font-semibold">
+                            <input type="checkbox" checked={protection} onChange={(e) => setProtection(e.target.checked)} className="ring-lux h-4 w-4 accent-ink" />
+                            <span className="flex items-center gap-1.5"><Icon.Shield width={15} height={15} className="text-gold" /> Damage protection</span>
+                          </span>
+                          <span className="text-sm font-semibold tnum text-stone">+{chf(car.protection_fee || 0)}</span>
+                        </label>
+                        <p className="mt-1.5 text-xs text-stone">
+                          {car.deposit_amount
+                            ? <>Reduces your excess to CHF 0 — no {chf(car.deposit_amount)} security deposit to put down.</>
+                            : <>Reduces your damage excess to CHF 0 for the trip.</>}
+                        </p>
+                      </div>
+                    )}
                     {car.cross_border_allowed && (
                       <label className="flex cursor-pointer items-center justify-between rounded-xl border border-mist bg-cloud px-4 py-2.5">
                         <span className="flex items-center gap-2.5 text-sm font-semibold">
@@ -558,6 +584,7 @@ export default function CarDetail({ car, onClose }) {
                   {crossBorderFee > 0 && <Row label="Cross-border surcharge" value={`+${chf(crossBorderFee)}`} muted />}
                   {deliveryFee > 0 && <Row label="Delivery & collection" value={`+${chf(deliveryFee)}`} muted />}
                   {afterHoursFee > 0 && <Row label="After-hours handover" value={`+${chf(afterHoursFee)}`} muted />}
+                  {protectionFee > 0 && <Row label="Damage protection · zero excess" value={`+${chf(protectionFee)}`} muted />}
                   <Row
                     label={
                       <span className="flex items-center gap-1.5">

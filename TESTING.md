@@ -55,7 +55,16 @@ Sample code seeded: **`BEAURIVAGE10`** (10% off, platform-funded, 5% commission)
 ## 7. Mobile
 - [ ] On a phone, focus an input in the booking/auth modals → **page no longer zooms/blows up** (16px inputs fix).
 
-## 8. Regression (make sure nothing broke)
+## 8. Damage-protection add-on (zero-excess · Stage A)
+*Partner-keeps pass-through: the protection fee carries **no** AIRLUXO service fee and **no** host commission — the partner receives 100% of it.*
+- [ ] **Partner setup**: dashboard → edit (or add) a **Stripe-connected** car → enable **"Offer damage protection (zero excess)"** → set a *protection fee* (e.g. 250) and *security deposit it waives* (e.g. 5000) → Save. Reload → values persist.
+- [ ] **Guest sees it**: open that car → **Add-ons** shows "Damage protection" with the fee and copy *"Reduces your excess to CHF 0 — no CHF 5'000 security deposit…"*.
+- [ ] **Toggle math**: tick it → a **"Damage protection · zero excess"** line appears and the total rises by exactly the fee. Untick → it disappears. (Service-fee line does **not** change — protection isn't service-fee'd.)
+- [ ] **Pay** with test card → **Reservation requested**.
+- [ ] (I'll verify via MCP) booking row has `protection = true`, `protection_fee` = the fee, `deposit_amount` = the waived deposit; the Stripe app fee equals `service + commission` only (partner payout includes the **full** protection fee).
+- [ ] Car **without** protection enabled → no protection row in Add-ons (regression).
+
+## 9. Regression (make sure nothing broke)
 - [ ] Existing booking + Stripe payment (no code, logged in or out) still works end-to-end.
 - [ ] White-label **embed** (`?embed=<partnerId>`) still books **anonymously** with no account prompt.
 - [ ] Partner login + dashboard unaffected.

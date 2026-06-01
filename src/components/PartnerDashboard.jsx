@@ -1536,6 +1536,7 @@ function AddCar({ onClose, onCreated }) {
     price_per_day: '', mileage_per_day: '250',
     cross_border_allowed: false, cross_border_fee: '',
     delivery_available: false, delivery_fee: '', delivery_note: '',
+    protection_available: false, protection_fee: '', deposit_amount: '',
   });
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
@@ -1676,6 +1677,9 @@ function AddCar({ onClose, onCreated }) {
         delivery_available: f.delivery_available,
         delivery_fee: f.delivery_available && f.delivery_fee ? Number(f.delivery_fee) : null,
         delivery_note: f.delivery_available ? (f.delivery_note.trim() || null) : null,
+        protection_available: f.protection_available,
+        protection_fee: f.protection_available && f.protection_fee ? Number(f.protection_fee) : null,
+        deposit_amount: f.protection_available && f.deposit_amount ? Number(f.deposit_amount) : null,
         status: 'Available',
       });
       await onCreated();
@@ -1901,6 +1905,25 @@ function AddCar({ onClose, onCreated }) {
                     )}
                   </AnimatePresence>
                 </div>
+
+                {/* damage protection (partner keeps 100%) */}
+                <div className="rounded-2xl border border-mist bg-cloud p-4">
+                  <label className="flex cursor-pointer items-center justify-between">
+                    <span className="text-sm font-semibold">Offer damage protection (zero excess)</span>
+                    <input type="checkbox" checked={f.protection_available} onChange={(e) => setF((p) => ({ ...p, protection_available: e.target.checked }))} className="ring-lux h-4 w-4 accent-ink" />
+                  </label>
+                  <AnimatePresence initial={false}>
+                    {f.protection_available && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <div className="space-y-3 pt-3">
+                          <FormInput label="Protection fee (CHF · per trip)" type="number" placeholder="250" value={f.protection_fee} onChange={set('protection_fee')} />
+                          <FormInput label="Security deposit it waives (CHF)" type="number" placeholder="5000" value={f.deposit_amount} onChange={set('deposit_amount')} />
+                          <p className="text-xs text-stone">Guests can pay this to drop their damage excess to CHF 0. You keep the full fee — AIRLUXO takes no commission on it.</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </>
             )}
 
@@ -1960,6 +1983,9 @@ function EditCar({ car, onClose, onSaved }) {
     delivery_available: !!car.delivery_available,
     delivery_fee: car.delivery_fee != null ? String(car.delivery_fee) : '',
     delivery_note: car.delivery_note || '',
+    protection_available: !!car.protection_available,
+    protection_fee: car.protection_fee != null ? String(car.protection_fee) : '',
+    deposit_amount: car.deposit_amount != null ? String(car.deposit_amount) : '',
   });
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
@@ -2006,6 +2032,9 @@ function EditCar({ car, onClose, onSaved }) {
         delivery_available: f.delivery_available,
         delivery_fee: f.delivery_available && f.delivery_fee ? Number(f.delivery_fee) : null,
         delivery_note: f.delivery_available ? (f.delivery_note.trim() || null) : null,
+        protection_available: f.protection_available,
+        protection_fee: f.protection_available && f.protection_fee ? Number(f.protection_fee) : null,
+        deposit_amount: f.protection_available && f.deposit_amount ? Number(f.deposit_amount) : null,
         rate_tiers: tiers.filter((t) => t.label.trim() && Number(t.price) > 0).map((t) => ({ label: t.label.trim(), price: Number(t.price) })),
       };
       if (file) {
@@ -2127,6 +2156,20 @@ function EditCar({ car, onClose, onSaved }) {
               <div className="space-y-3 pt-3">
                 <FormInput label="Delivery fee (CHF · round-trip)" type="number" value={f.delivery_fee} onChange={set('delivery_fee')} />
                 <FormInput label="Delivery note (optional)" value={f.delivery_note} onChange={set('delivery_note')} />
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-mist bg-cloud p-4">
+            <label className="flex cursor-pointer items-center justify-between">
+              <span className="text-sm font-semibold">Offer damage protection (zero excess)</span>
+              <input type="checkbox" checked={f.protection_available} onChange={(e) => setF((p) => ({ ...p, protection_available: e.target.checked }))} className="ring-lux h-4 w-4 accent-ink" />
+            </label>
+            {f.protection_available && (
+              <div className="space-y-3 pt-3">
+                <FormInput label="Protection fee (CHF · per trip)" type="number" value={f.protection_fee} onChange={set('protection_fee')} />
+                <FormInput label="Security deposit it waives (CHF)" type="number" value={f.deposit_amount} onChange={set('deposit_amount')} />
+                <p className="text-xs text-stone">Guests pay this to drop their damage excess to CHF 0. You keep the full fee — no AIRLUXO commission.</p>
               </div>
             )}
           </div>
