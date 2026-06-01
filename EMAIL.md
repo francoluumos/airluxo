@@ -1,0 +1,67 @@
+# Email (Resend)
+
+AIRLUXO sends all email through **Resend**. Three flows:
+
+| Flow | Function | Trigger | Secrets used |
+|------|----------|---------|--------------|
+| Partner new-booking alert | `booking-notify` | booking created | `RESEND_API_KEY`, `RESEND_FROM` |
+| Guest booking confirmation | `booking-confirm` | booking created | `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` |
+| Newsletter signup → Audience + welcome | `newsletter-subscribe` | footer signup form | `RESEND_API_KEY`, `RESEND_AUDIENCE_ID`, `RESEND_FROM` |
+
+All three **no-op gracefully** until the secrets are set — so nothing sends by accident.
+
+> **One shared backend.** There is a single Supabase project (`shoeopxxjawmusgnjxfh`) behind *both* the production and staging frontends. These secrets are set once and apply to both. A booking made on `staging.airluxo.ch` will send real email just like production. Use test addresses when testing on staging.
+
+## One-time setup
+
+### 1. Verify a sending domain in Resend
+In the [Resend dashboard](https://resend.com) → **Domains** → **Add Domain**, add a **subdomain** (don't use the bare `airluxo.ch` — a subdomain protects the root domain's reputation):
+
+```
+send.airluxo.ch
+```
+
+Resend then shows a set of DNS records (MX, SPF/TXT, DKIM, and a DMARC suggestion). **Copy them exactly** — the DKIM keys are unique to your domain.
+
+### 2. Add those records at Hostpoint
+DNS for `airluxo.ch` lives at **Hostpoint** (Control Panel → Domains → `airluxo.ch` → DNS). Add each record Resend listed. They'll look roughly like:
+
+| Type | Host / Name | Value | Notes |
+|------|-------------|-------|-------|
+| MX | `send` | `feedback-smtp.<region>.amazonses.com` (prio 10) | bounce/complaint handling |
+| TXT | `send` | `v=spf1 include:amazonses.com ~all` | SPF |
+| TXT/CNAME | `resend._domainkey.send` (as shown) | (long DKIM value from Resend) | DKIM — copy verbatim |
+| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:dmarc@airluxo.ch` | recommended |
+
+> Hostpoint asks for the **host** part only (e.g. `send`, not `send.airluxo.ch`). Wait a few minutes, then click **Verify** in Resend.
+
+### 3. Create the newsletter Audience
+Resend → **Audiences** → create one (e.g. "AIRLUXO Newsletter"). Copy its **Audience ID**.
+
+### 4. Create an API key
+Resend → **API Keys** → create one with **Sending access**. Copy it (shown once).
+
+### 5. Set the Supabase secrets
+Supabase dashboard → project `airluxo` → **Edge Functions → Secrets** (or **Project Settings → Edge Functions**), add:
+
+```
+RESEND_API_KEY      = re_xxxxxxxxxxxxxxxxxxxx
+RESEND_AUDIENCE_ID  = <audience id from step 3>
+RESEND_FROM         = AIRLUXO <bookings@send.airluxo.ch>
+RESEND_REPLY_TO     = hello@airluxo.ch        # a real monitored inbox
+```
+
+(Or via CLI: `supabase secrets set RESEND_API_KEY=... --project-ref shoeopxxjawmusgnjxfh`.)
+
+No redeploy needed — edge functions pick up secrets on the next invocation.
+
+## Verify it works
+- **Newsletter:** submit the footer form on staging with a test address → you should receive the welcome email and see the contact appear in the Resend Audience.
+- **Booking:** make a test booking → guest gets "Booking received", partner gets "New booking".
+- Check **Resend → Logs** for delivery status, and Supabase **Edge Function logs** for `{ sent: true }` vs `{ skipped: ... }`.
+
+## Newsletter (Broadcasts)
+Send campaigns from Resend → **Broadcasts**, targeting the Audience. Resend adds the unsubscribe link and manages opt-outs automatically (keeps you GDPR/FADP compliant). The signup form is single opt-in; switch to double opt-in later if desired.
+
+## Later: separate marketing vs transactional
+For stronger deliverability you can split senders so a marketing issue never delays a booking email — e.g. verify a second subdomain `news.airluxo.ch` and give `newsletter-subscribe` its own `RESEND_FROM`. Not needed at launch volume.
