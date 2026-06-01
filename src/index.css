@@ -224,3 +224,10 @@ body {
 .alx-map .leaflet-popup-tip { background: var(--color-ink); }
 .alx-pop-city { font-weight: 700; font-size: 13px; }
 .alx-pop-meta { font-size: 11px; opacity: 0.7; margin-top: 1px; }
+
+/* Mobile: stop iOS Safari auto-zooming when a small-font input is focused
+   (any input < 16px triggers it, which blows up modals). Accessibility-safe —
+   we bump the font to 16px on small screens rather than locking the viewport. */
+@media (max-width: 640px) {
+  input, select, textarea { font-size: 16px; }
+}
