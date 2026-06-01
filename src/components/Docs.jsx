@@ -92,6 +92,17 @@ const SECTIONS = [
 
 const CHANGELOG = [
   {
+    date: '2026-06-01',
+    version: 'Build 0.2',
+    items: [
+      'Customer accounts: drivers can now create an account and sign in — one tap with Google, or a passwordless email magic-link — from the new account menu in the top-right.',
+      'Booking now requires a quick sign-in (on the main marketplace) — every booking is tied to a customer, and their email, phone and verified licence are prefilled on the next trip. The embeddable widget on partner sites stays guest-checkout (no login).',
+      'Customer profile: “My trips” (upcoming & past bookings), “Saved” cars, the driver’s licence kept on file, and account settings. Past bookings made before signing up auto-link by email.',
+      'Saved cars: a heart on every car card adds it to the customer’s wishlist.',
+      'Transactional email now sends from the verified domain (AirLuxo News <noreply@send.airluxo.ch>).',
+    ],
+  },
+  {
     date: '2026-05-30',
     version: 'Build 0.1',
     items: [

@@ -74,7 +74,7 @@ export default function AccountMenu({ onAccount, onPartner, dark = false }) {
 
 function Avatar({ customer, signedIn }) {
   if (customer?.avatar_url) {
-    return <img src={customer.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />;
+    return <img src={customer.avatar_url} alt="" referrerPolicy="no-referrer" className="h-7 w-7 rounded-full object-cover" />;
   }
   const initials = signedIn
     ? (customer?.full_name || customer?.email || '?').trim().slice(0, 1).toUpperCase()

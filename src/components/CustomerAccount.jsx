@@ -111,7 +111,7 @@ function TripGroup({ title, rows }) {
 
 function StatusPill({ status }) {
   const map = {
-    Confirmed: 'bg-go/12 text-go', Pending: 'bg-gold/15 text-gold-deep',
+    Confirmed: 'bg-go/12 text-go', Pending: 'bg-gold/15 text-gold',
     Cancelled: 'bg-red-100 text-red-700', Completed: 'bg-mist text-stone',
   };
   return <span className={`mt-1 inline-block rounded-full px-2.5 py-1 text-[0.7rem] font-bold ${map[status] || 'bg-mist text-stone'}`}>{status}</span>;
