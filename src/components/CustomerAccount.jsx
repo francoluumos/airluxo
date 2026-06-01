@@ -153,7 +153,10 @@ function Licence() {
   const verified = customer?.licence_verified && l;
 
   async function save(lic) {
-    const { error } = await supabase.from('customers').update({ licence: lic, licence_verified: true }).eq('id', user.id);
+    // upsert (not update): a partner-identity session has no customers row yet,
+    // and update().eq() would silently match 0 rows.
+    const { error } = await supabase.from('customers')
+      .upsert({ id: user.id, email: user.email, licence: lic, licence_verified: true }, { onConflict: 'id' });
     if (error) throw error;
     await refreshCustomer();
     setEditing(false);
@@ -214,7 +217,7 @@ function PersonalInfo({ customer, user, refreshCustomer }) {
     setUploading(true);
     try {
       const url = await uploadListingPhoto(file);
-      await supabase.from('customers').update({ avatar_url: url }).eq('id', user.id);
+      await supabase.from('customers').upsert({ id: user.id, email: user.email, avatar_url: url }, { onConflict: 'id' });
       await refreshCustomer();
     } catch { /* ignore */ } finally { setUploading(false); }
   }
@@ -223,8 +226,7 @@ function PersonalInfo({ customer, user, refreshCustomer }) {
     e.preventDefault();
     setBusy(true); setSaved(false);
     const { error } = await supabase.from('customers')
-      .update({ full_name: form.full_name.trim() || null, phone: form.phone.trim() || null, address })
-      .eq('id', user.id);
+      .upsert({ id: user.id, email: user.email, full_name: form.full_name.trim() || null, phone: form.phone.trim() || null, address }, { onConflict: 'id' });
     setBusy(false);
     if (!error) { setSaved(true); refreshCustomer(); }
   }
@@ -244,16 +246,15 @@ function PersonalInfo({ customer, user, refreshCustomer }) {
         </label>
       </div>
 
-      <form onSubmit={save} className="mt-5 space-y-4">
-        <Field label="Full name" value={form.full_name} onChange={(v) => setForm((f) => ({ ...f, full_name: v }))} placeholder="Franco Steiner" />
-        <Field label="Phone" value={form.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} placeholder="+41 79 123 45 67" />
-        <div>
-          <span className="mb-1.5 block text-sm font-semibold text-ink">Email</span>
-          <div className="rounded-2xl border border-mist bg-mist/30 px-4 py-3.5 text-sm text-stone">{customer?.email || user?.email}</div>
+      <form onSubmit={save} className="mt-5 space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Full name" value={form.full_name} onChange={(v) => setForm((f) => ({ ...f, full_name: v }))} placeholder="Franco Steiner" />
+          <Field label="Phone" value={form.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} placeholder="+41 79 …" />
         </div>
+        <Field label="Login email" value={customer?.email || user?.email || ''} disabled />
         <AddressField value={address} onPick={setAddress} />
         <div className="flex items-center gap-3 pt-1">
-          <button type="submit" disabled={busy} className="ring-lux rounded-2xl bg-ink px-6 py-3 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
+          <button type="submit" disabled={busy} className="ring-lux rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">
             {busy ? 'Saving…' : 'Save changes'}
           </button>
           {saved && <span className="text-sm font-semibold text-go">Saved ✓</span>}
@@ -274,7 +275,7 @@ function EmailPrefs({ customer, user, refreshCustomer }) {
     setOn(next); setBusy(true); setErr('');
     try {
       await setNewsletter(customer?.email || user?.email, next);
-      await supabase.from('customers').update({ marketing_opt_in: next }).eq('id', user.id);
+      await supabase.from('customers').upsert({ id: user.id, email: user.email, marketing_opt_in: next }, { onConflict: 'id' });
       refreshCustomer();
     } catch (e) {
       setOn(!next); // revert
@@ -285,7 +286,7 @@ function EmailPrefs({ customer, user, refreshCustomer }) {
   return (
     <section>
       <SectionTitle>Email preferences</SectionTitle>
-      <div className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-mist bg-cloud px-5 py-4">
+      <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-mist bg-cloud px-4 py-3">
         <div>
           <div className="text-sm font-semibold text-ink">Newsletter</div>
           <div className="mt-0.5 text-xs text-stone">New arrivals, rare drives and members-only releases.</div>
@@ -320,10 +321,10 @@ function PrivacySection({ user, signOut, onExit }) {
     <section>
       <SectionTitle>Privacy &amp; cookies</SectionTitle>
       <div className="mt-4 space-y-2.5">
-        <button onClick={openConsentSettings} className="ring-lux flex w-full items-center justify-between rounded-2xl border border-mist bg-cloud px-5 py-4 text-sm font-semibold text-ink transition-colors hover:bg-mist/40">
+        <button onClick={openConsentSettings} className="ring-lux flex w-full items-center justify-between rounded-xl border border-mist bg-cloud px-4 py-3 text-sm font-semibold text-ink transition-colors hover:bg-mist/40">
           Manage cookies <Icon.Arrow width={16} height={16} className="text-stone" />
         </button>
-        <a href="?privacy" className="ring-lux flex w-full items-center justify-between rounded-2xl border border-mist bg-cloud px-5 py-4 text-sm font-semibold text-ink transition-colors hover:bg-mist/40">
+        <a href="?privacy" className="ring-lux flex w-full items-center justify-between rounded-xl border border-mist bg-cloud px-4 py-3 text-sm font-semibold text-ink transition-colors hover:bg-mist/40">
           Privacy &amp; Cookie Policy <Icon.ArrowUpRight width={16} height={16} className="text-stone" />
         </a>
       </div>
@@ -372,13 +373,13 @@ function AddressField({ value, onPick }) {
 
   return (
     <div className="relative">
-      <span className="mb-1.5 block text-sm font-semibold text-ink">Saved address <span className="font-normal text-stone">(optional)</span></span>
+      <span className="mb-1.5 block text-sm font-semibold">Saved address <span className="font-normal text-stone">(optional)</span></span>
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => results.length && setOpen(true)}
         placeholder="Start typing a Swiss address…"
-        className="ring-lux w-full rounded-2xl border border-mist bg-cloud px-4 py-3.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone"
+        className="ring-lux w-full rounded-xl border border-mist bg-cloud px-4 py-3 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone"
       />
       {open && results.length > 0 && (
         <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-mist bg-paper py-1 shadow-xl">
@@ -396,8 +397,9 @@ function AddressField({ value, onPick }) {
 }
 
 /* ── shared bits ───────────────────────────────────────────────────────── */
+// Matches the partner dashboard's SubLabel for a uniform look.
 function SectionTitle({ children }) {
-  return <h2 className="font-display text-xl">{children}</h2>;
+  return <div className="mb-3 text-[0.7rem] font-bold uppercase tracking-wider text-stone">{children}</div>;
 }
 
 function Toggle({ on, busy, onClick }) {
@@ -414,13 +416,15 @@ function Row({ k, v }) {
   return <div className="flex justify-between gap-4"><dt className="text-stone">{k}</dt><dd className="font-medium text-ink">{v}</dd></div>;
 }
 
-function Field({ label, value, onChange, placeholder }) {
+// Mirrors the partner dashboard's FormInput so both forms look identical.
+function Field({ label, value, onChange, placeholder, type, disabled }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-semibold text-ink">{label}</span>
+      <span className="mb-1.5 block text-sm font-semibold">{label}</span>
       <input
-        value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="ring-lux w-full rounded-2xl border border-mist bg-cloud px-4 py-3.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone"
+        type={type} value={value} disabled={disabled}
+        onChange={(e) => onChange?.(e.target.value)} placeholder={placeholder}
+        className="ring-lux w-full rounded-xl border border-mist bg-cloud px-4 py-3 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone disabled:opacity-60"
       />
     </label>
   );
