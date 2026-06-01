@@ -100,7 +100,7 @@ export default function AuthModal({ intent, onClose }) {
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-semibold text-ink">Email</span>
                   <span className="flex items-center gap-3 rounded-2xl border border-mist bg-cloud px-4 py-3.5 transition-colors focus-within:border-ink">
-                    <span className="text-stone"><Icon.ArrowUpRight width={16} height={16} /></span>
+                    <span className="text-stone"><MailGlyph /></span>
                     <input
                       type="email" required value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -141,6 +141,15 @@ function GoogleMark() {
       <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
       <path fill="#FBBC05" d="M3.97 10.72A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.29-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.05l3.01-2.33z" />
       <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95L3.97 7.28C4.68 5.16 6.66 3.58 9 3.58z" />
+    </svg>
+  );
+}
+
+function MailGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3.5 7 8.5 6 8.5-6" />
     </svg>
   );
 }

@@ -81,8 +81,18 @@ function Avatar({ customer, signedIn }) {
     : null;
   return (
     <span className="grid h-7 w-7 place-items-center rounded-full bg-ink text-[0.7rem] font-bold text-cloud">
-      {initials || <Icon.Seat width={14} height={14} />}
+      {initials || <UserGlyph />}
     </span>
+  );
+}
+
+// Simple person silhouette for the signed-out avatar placeholder.
+function UserGlyph() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="8" r="3.4" />
+      <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+    </svg>
   );
 }
 
