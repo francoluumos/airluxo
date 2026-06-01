@@ -62,6 +62,16 @@ A first-draft **Plans** UI is already in the partner dashboard (static cards). F
 - **Why tiers:** marketplace+SaaS hybrid — partners self-select up as they grow (trade commission for a subscription).
 - **To build:** `partners.plan` column (free/pro/max); Stripe **Billing/Subscriptions** for the monthly fee; **enforce car limits** on listing creation; **apply the tier's commission rate** in `stripe-create-payment` (replace the flat 3% host commission) + the dashboard earnings math; gate features (placement, analytics, API) by plan; upgrade/downgrade flow + proration.
 
+## Founder / admin dashboard (AIRLUXO back office)
+A **company-internal** dashboard for the founder — distinct from the partner dashboard — to run the platform. Gated to founder accounts only (e.g. an `is_admin` flag on a profile / an allow-listed email + a dedicated route or subdomain like `admin.airluxo.ch`; never client-trusted — enforce with RLS / an admin-only edge function using the service role).
+- **Platform KPIs:** GMV, bookings, take-rate / net revenue, active partners & cars, fleet utilisation, demand-vs-supply by city (we already log `search_performed` results_count in PostHog), funnel drop-off.
+- **Promo / referral admin:** create & manage promo codes (the v1 stopgap is editing the Supabase table directly), see **redemptions per code/affiliate** and **commission owed** for out-of-band payouts. (Direct successor to the promo-code system.)
+- **Partner management:** review/approve new partners, see Stripe-Connect payout status, suspend/flag, impersonate-for-support (read-only).
+- **Customer overview:** accounts, bookings, licence-verification status (sensitive PII — strict access + audit).
+- **Finance:** payouts, application-fee revenue, refunds/cancellations, affiliate commissions, export for accounting.
+- **Marketing ops:** the AI content pipeline (MARKETING #4), campaign/UTM performance, channel attribution.
+- **Build notes:** likely its own route/area reusing the dashboard shell; most reads need a service-role edge function or admin-scoped RLS since founders must see across all partners/customers (normal RLS scopes to own rows). Start read-only (KPIs + promo redemptions) and add management actions incrementally.
+
 ## Growth & operations enablers
 _Captured from [MARKETING.md](MARKETING.md) and [OPERATIONS.md](OPERATIONS.md) — the product pieces those ideas depend on._
 - **Referral / promo-code / affiliate tracking.** Unique discount/referral codes with attribution + partner commissions. Unlocks the hotel-concierge and luxury-Airbnb-host channels (give each partner a trackable code, pay commission on attributed bookings). Needs: a `promo_codes` / `referrals` model, code redemption in the booking flow (discount applied + server-validated), attribution + a partner/affiliate payout view. Pair with UTM tagging (we already have PostHog) to measure channel performance.

@@ -46,6 +46,15 @@ Tag loosely: 💎 high fit · ⚠️ watch-outs · 🧭 strategic decision.
   - **Brand risk of full automation:** don't auto-publish raw AI output — IG penalises spammy/synthetic posting and off-brand clips erode a luxury image. Keep a human approval gate. Mind **reel music licensing** (use IG's licensed library, not scraped audio).
 - **Start small:** one weekly batch — scrape the saved list, pick 2–3 proven formats, generate a couple of Higgsfield reels, post manually, watch retention/saves in PostHog/IG insights before automating further.
 
+## 5. Offline placements at high-net-worth venues (ads / flyers) 💎⚠️
+**Idea:** Advertise physically where our ICP already gathers — **luxury hotels, golf clubs, cigar lounges**, and possibly **Rotary clubs** (plus yacht/private members' clubs, watch boutiques, fine dining). Tasteful printed cards / small framed displays / a card at the concierge or valet desk.
+
+**Feedback — high-signal audience targeting; the catch is permission, material quality, and tracking.**
+- **Why it works:** these venues concentrate exactly the affluent, experience-seeking audience we want — very little wasted spend vs broad digital. Pairs with the hotel-concierge channel (#1).
+- **Make it trackable:** every placement gets a **unique QR → a UTM'd landing page and/or a venue-specific promo code**, so we can see scans → bookings per venue (we already have PostHog; promo codes are the referral enabler below). Otherwise it's unmeasurable spend.
+- **Watch-outs ⚠️:** **get permission** — don't just drop flyers (looks cheap/unauthorized and can get pulled); the **material must look luxury** (heavy stock, restrained design) or it hurts the brand; **Rotary & private clubs are relationship networks**, so a **member introduction or a short talk/sponsored evening lands far better than flyers**; some venues will expect a kickback/partnership (tie to the concierge commission in #1).
+- **How to start:** pilot a handful of venues in one city (Geneva / Zürich / St. Moritz), a **distinct QR + code per venue**, premium cards, measure scans→bookings over a few weeks before scaling. Lead with a partner venue that already fits (a hotel from #1).
+
 ---
 
 ## Cross-cutting enablers (turn ideas into machines)
