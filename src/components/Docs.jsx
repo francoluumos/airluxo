@@ -93,6 +93,13 @@ const SECTIONS = [
 const CHANGELOG = [
   {
     date: '2026-06-01',
+    version: 'Build 0.4',
+    items: [
+      'Promo & referral codes: guests can apply a discount code in the booking flow (shown as a line in the price breakdown). Codes also attribute the booking to a referrer (e.g. a hotel) with a commission, and each code sets whether AIRLUXO or the partner funds the discount. All amounts are recomputed server-side, so the discount can never reduce a partner payout below zero.',
+    ],
+  },
+  {
+    date: '2026-06-01',
     version: 'Build 0.3',
     items: [
       'Customer profile expanded: add or replace your driver’s licence any time (same scan / phone hand-off as booking) — kept on file and used to prefill future bookings.',

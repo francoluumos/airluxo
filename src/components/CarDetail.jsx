@@ -13,6 +13,7 @@ import { verifyLicence, createLicenceSession, getLicenceSession } from '../lib/l
 import { track } from '../lib/analytics.js';
 import { useAuth } from '../lib/auth.jsx';
 import { supabase } from '../lib/supabase.js';
+import { validatePromo, promoReasonText } from '../lib/promo.js';
 
 export default function CarDetail({ car, onClose }) {
   // Null-safe: the white-label embed renders CarDetail outside AuthProvider, and
@@ -53,6 +54,10 @@ export default function CarDetail({ car, onClose }) {
   const [clientSecret, setClientSecret] = useState(null);
   const [paymentIntentId, setPaymentIntentId] = useState(null);
   const [serverBreakdown, setServerBreakdown] = useState(null);
+  const [promoInput, setPromoInput] = useState('');
+  const [promo, setPromo] = useState(null); // applied code: { code, label, discount }
+  const [promoErr, setPromoErr] = useState('');
+  const [promoBusy, setPromoBusy] = useState(false);
   const [logistics, setLogistics] = useState(null);
 
   // Prefill the booking from the signed-in customer's profile + licence on file.
@@ -116,7 +121,33 @@ export default function CarDetail({ car, onClose }) {
   const subtotal = base + crossBorderFee + deliveryFee + afterHoursFee;
   const serviceFee = Math.round(subtotal * FEES.guestService);
   const total = subtotal + serviceFee;
+  const discount = promo?.discount || 0;
+  const discountedTotal = Math.max(0, total - discount);
   const deliveryMissingAddr = delivery && !deliveryAddr.trim();
+
+  // Keep an applied promo's discount honest if the subtotal changes.
+  useEffect(() => {
+    if (!promo?.code || subtotal <= 0) return;
+    let active = true;
+    validatePromo(promo.code, subtotal).then((v) => {
+      if (!active) return;
+      if (v?.valid) setPromo((p) => (p ? { ...p, discount: Number(v.discount) || 0 } : p));
+      else setPromo(null);
+    });
+    return () => { active = false; };
+  }, [promo?.code, subtotal]);
+
+  async function applyPromo() {
+    setPromoErr('');
+    const code = promoInput.trim();
+    if (!code) return;
+    setPromoBusy(true);
+    const v = await validatePromo(code, subtotal);
+    setPromoBusy(false);
+    if (v?.valid) setPromo({ code: code.toUpperCase(), label: v.label || code.toUpperCase(), discount: Number(v.discount) || 0 });
+    else { setPromo(null); setPromoErr(promoReasonText(v?.reason)); }
+  }
+  function clearPromo() { setPromo(null); setPromoInput(''); setPromoErr(''); }
 
   function buildPayload(piId, payStatus, bd) {
     return {
@@ -138,7 +169,10 @@ export default function CarDetail({ car, onClose }) {
       base_amount: bd ? bd.base_amount : base,
       addons_amount: bd ? bd.addons_amount : (crossBorderFee + deliveryFee + afterHoursFee),
       service_fee: bd ? bd.service_fee : serviceFee,
-      total_amount: bd ? bd.total_amount : total,
+      total_amount: bd ? bd.total_amount : discountedTotal,
+      promo_code: bd ? (bd.promo_code ?? null) : (promo?.code || null),
+      discount_amount: bd ? (bd.discount_amount ?? 0) : discount,
+      affiliate_commission: bd ? (bd.affiliate_commission ?? 0) : 0,
       licence_verified: true,
       licence: {
         first_name: licence.first_name.trim() || null,
@@ -283,6 +317,7 @@ export default function CarDetail({ car, onClose }) {
         endDate: endISO,
         pickupTime,
         returnTime: isDay ? returnTime : pickupTime,
+        promoCode: promo?.code,
       });
       if (res.unavailable) { setErr('Those dates are no longer available — please pick another range.'); return; }
       // Partner not connected to Stripe yet → book without payment.
@@ -533,17 +568,28 @@ export default function CarDetail({ car, onClose }) {
                     value={chf(serviceFee)}
                     muted
                   />
+                  {discount > 0 && (
+                    <div className="flex items-center justify-between text-go">
+                      <span className="font-semibold">Discount · {promo.label}</span>
+                      <span className="font-semibold tnum">−{chf(discount)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between border-t border-mist pt-3">
                     <span className="font-display text-base">Total</span>
-                    <span className="font-display text-xl tnum">{chf(total)}</span>
+                    <span className="font-display text-xl tnum">{chf(discountedTotal)}</span>
                   </div>
                 </div>
+
+                {/* promo / referral code */}
+                {!booked && phase !== 'payment' && (
+                  <PromoField promo={promo} input={promoInput} setInput={setPromoInput} onApply={applyPromo} onClear={clearPromo} busy={promoBusy} err={promoErr} />
+                )}
 
                 {booked ? (
                   <div className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-go py-4 text-sm font-bold text-cloud"><Icon.Check width={17} height={17} /> Reservation requested</div>
                 ) : phase === 'payment' && clientSecret ? (
                   <div className="mt-4 border-t border-mist pt-4">
-                    <div className="mb-3 text-[0.65rem] uppercase tracking-wider text-stone">Payment · authorise {chf(total)}</div>
+                    <div className="mb-3 text-[0.65rem] uppercase tracking-wider text-stone">Payment · authorise {chf(discountedTotal)}</div>
                     <PaymentStep clientSecret={clientSecret} onPaid={() => finalize(paymentIntentId, 'authorized', serverBreakdown)} onError={setErr} />
                   </div>
                 ) : phase === 'licence' ? (
@@ -751,6 +797,34 @@ function Row({ label, value, muted }) {
     <div className={`flex items-center justify-between ${muted ? 'text-stone' : 'text-ink'}`}>
       <span>{label}</span>
       <span className="tnum">{value}</span>
+    </div>
+  );
+}
+
+function PromoField({ promo, input, setInput, onApply, onClear, busy, err }) {
+  if (promo) {
+    return (
+      <div className="mt-3 flex items-center justify-between rounded-xl border border-go/30 bg-go/10 px-3.5 py-2.5">
+        <span className="flex items-center gap-2 text-sm font-semibold text-go"><Icon.Check width={15} height={15} /> Code “{promo.code}” applied</span>
+        <button type="button" onClick={onClear} className="ring-lux text-xs font-semibold text-stone transition-colors hover:text-ink">Remove</button>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-3">
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onApply(); } }}
+          placeholder="Promo or referral code"
+          className="ring-lux flex-1 rounded-xl border border-mist bg-paper px-3 py-2.5 text-sm uppercase outline-none transition-colors focus:border-ink placeholder:normal-case placeholder:text-stone"
+        />
+        <button type="button" onClick={onApply} disabled={busy || !input.trim()} className="ring-lux rounded-xl border border-ink/25 px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50">
+          {busy ? '…' : 'Apply'}
+        </button>
+      </div>
+      {err && <p className="mt-1.5 text-xs text-red-600">{err}</p>}
     </div>
   );
 }

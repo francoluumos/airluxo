@@ -39,7 +39,7 @@ async function stripe(path: string, params: Record<string, string>) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { listing_id, rate_id, quantity, cross_border, delivery, start_date, end_date, pickup_time, return_time } = await req.json();
+    const { listing_id, rate_id, quantity, cross_border, delivery, start_date, end_date, pickup_time, return_time, promo_code } = await req.json();
     if (!listing_id) return json({ error: "listing_id required" }, 400);
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -104,11 +104,44 @@ Deno.serve(async (req) => {
 
     const service = Math.round(subtotal * GUEST_SERVICE);
     const total = subtotal + service;
-    const partnerNet = subtotal - Math.round(subtotal * HOST_COMMISSION);
-    const appFee = total - partnerNet;
+    let partnerNet = subtotal - Math.round(subtotal * HOST_COMMISSION);
+
+    // ---- promo / referral code (authoritative): discount + affiliate commission ----
+    // Discount validity (incl. max-uses) is computed by the validate_promo RPC; we
+    // read the code row for funding + commission. Funding decides who absorbs it:
+    //   platform → discount comes out of AIRLUXO's app fee (clamped to it)
+    //   partner  → discount comes out of the partner payout (clamped to it)
+    // Commission is recorded only (paid to the affiliate out of band).
+    let discount = 0, commission = 0, appliedCode: string | null = null;
+    const codeRaw = typeof promo_code === "string" ? promo_code.trim().toUpperCase() : "";
+    if (codeRaw) {
+      const { data: vp } = await admin.rpc("validate_promo", { p_code: codeRaw, p_subtotal: subtotal });
+      const v = Array.isArray(vp) ? vp[0] : vp;
+      if (v?.valid) {
+        const { data: pc } = await admin
+          .from("promo_codes").select("funded_by, commission_type, commission_value, commission_base").eq("code", codeRaw).maybeSingle();
+        discount = Math.max(0, Math.round(Number(v.discount) || 0));
+        appliedCode = codeRaw;
+        if (pc && pc.commission_type !== "none") {
+          const cbase = pc.commission_base === "total" ? total : subtotal;
+          commission = pc.commission_type === "percent"
+            ? Math.round(cbase * Number(pc.commission_value) / 100)
+            : Math.round(Number(pc.commission_value));
+        }
+        if (pc?.funded_by === "partner") {
+          discount = Math.min(discount, partnerNet);   // never push payout below 0
+          partnerNet = partnerNet - discount;
+        } else {
+          discount = Math.min(discount, total - partnerNet); // never push app fee below 0
+        }
+      }
+    }
+
+    const finalTotal = total - discount;
+    const appFee = finalTotal - partnerNet;
 
     const pi = await stripe("payment_intents", {
-      amount: String(Math.round(total * 100)),
+      amount: String(Math.round(finalTotal * 100)),
       currency: "chf",
       capture_method: "manual",
       "automatic_payment_methods[enabled]": "true",
@@ -121,7 +154,10 @@ Deno.serve(async (req) => {
     return json({
       clientSecret: pi.client_secret,
       paymentIntentId: pi.id,
-      breakdown: { base_amount: base, addons_amount: addons, service_fee: service, total_amount: total },
+      breakdown: {
+        base_amount: base, addons_amount: addons, service_fee: service, total_amount: finalTotal,
+        discount_amount: discount, promo_code: appliedCode, affiliate_commission: commission,
+      },
     });
   } catch (e) {
     return json({ error: String((e as Error)?.message || e) }, 500);
