@@ -32,7 +32,7 @@ export default function AccountMenu({ onAccount, onPartner, dark = false }) {
         aria-label="Account menu"
       >
         <Icon.Menu width={16} height={16} className={dark ? 'text-cloud' : 'text-ink'} />
-        <Avatar customer={customer} signedIn={!!session} />
+        <Avatar customer={customer} sessionEmail={session?.user?.email} />
       </button>
 
       <AnimatePresence>
@@ -72,16 +72,16 @@ export default function AccountMenu({ onAccount, onPartner, dark = false }) {
   );
 }
 
-function Avatar({ customer, signedIn }) {
+function Avatar({ customer, sessionEmail }) {
   if (customer?.avatar_url) {
     return <img src={customer.avatar_url} alt="" referrerPolicy="no-referrer" className="h-7 w-7 rounded-full object-cover" />;
   }
-  const initials = signedIn
-    ? (customer?.full_name || customer?.email || '?').trim().slice(0, 1).toUpperCase()
-    : null;
+  // Initial from name → email → session email; never a literal "?".
+  const name = customer?.full_name || customer?.email || sessionEmail || '';
+  const initial = name.trim().slice(0, 1).toUpperCase();
   return (
     <span className="grid h-7 w-7 place-items-center rounded-full bg-ink text-[0.7rem] font-bold text-cloud">
-      {initials || <UserGlyph />}
+      {initial || <UserGlyph />}
     </span>
   );
 }

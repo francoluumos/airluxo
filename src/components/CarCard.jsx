@@ -67,7 +67,7 @@ export default function CarCard({ car, onOpen, isFav, onToggleFav }) {
                 onClick={(e) => { e.stopPropagation(); onToggleFav(); }}
                 aria-label={isFav ? 'Remove from saved' : 'Save car'}
                 aria-pressed={!!isFav}
-                className="ring-lux grid h-8 w-8 place-items-center rounded-full bg-cloud/92 text-ink backdrop-blur transition-transform hover:scale-110"
+                className="ring-lux grid h-8 w-8 place-items-center rounded-full bg-cloud/95 text-ink shadow-[0_2px_10px_rgba(11,11,12,0.18)] backdrop-blur transition-transform hover:scale-110"
               >
                 <Heart filled={isFav} />
               </button>
