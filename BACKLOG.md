@@ -54,7 +54,10 @@ Repo + Vercel + airluxo.ch are DONE; remaining = staging environment. Setup agre
 - **Manual car blocking / internal hold.** From the dashboard (per car in My fleet), let the partner block a car for specific date ranges so it can't be booked — e.g. maintenance, owner use, servicing. Each block captures **who blocked it (name)** and a **reason**. Blocks are **unbookable** dates (marketplace availability respects them) and appear in the **Calendar** and **Bookings** views flagged as *internally blocked* (visually distinct from guest bookings). Likely a `car_blocks` table (listing_id, start_date, end_date, blocked_by_name, reason, created_by) with the calendar/booking views merging blocks + bookings.
 
 ## Monetization — partner subscription tiers
-A first-draft **Plans** UI is already in the partner dashboard (static cards). Full implementation TODO:
+**🚧 Mechanics BUILT 1 Jun 2026 (manual plan; self-serve billing TODO).** `partners.plan` (free/pro/max); per-tier commission (15/9/3%) applied server-side in `stripe-create-payment` and mirrored in the dashboard (`src/lib/plans.js` is the single source of truth); car limits enforced on new listings via the `enforce_car_limit` trigger + UI guard (Free 3 / Pro 25 / Max ∞, existing cars untouched); Plans tab shows the live plan, commission, and car usage. **Plan is set manually** (update `partners.plan` in Supabase) until billing is wired.
+- **⬜ Remaining:** **Stripe Billing/Subscriptions** for the monthly fee (Checkout to subscribe + customer portal to manage + webhook to sync `plan`/status + proration on up/downgrade); feature gates (priority/featured placement, analytics, API access, team members) by plan; downgrade UX when over the new plan's limit (today: new-listing block only).
+
+Original draft notes:
 - **Tiers (draft numbers — tune later):**
   - **Free** — CHF 0/mo · up to **3 cars** · **15%** commission · standard placement, AI studio thumbnails, calendar sync. Low barrier to acquire supply; high take-rate.
   - **Pro** — CHF 49/mo · up to **25 cars** · **9%** commission · priority placement, analytics, faster payouts. Pays for itself once monthly volume makes the lower take-rate beat the fee.

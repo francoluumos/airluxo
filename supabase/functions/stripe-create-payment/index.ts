@@ -13,7 +13,8 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // Must mirror src/lib/data.js FEES
 const GUEST_SERVICE = 0.12;
-const HOST_COMMISSION = 0.03;
+// Per-plan host commission — must mirror src/lib/plans.js
+const COMMISSION: Record<string, number> = { free: 0.15, pro: 0.09, max: 0.03 };
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -50,7 +51,7 @@ Deno.serve(async (req) => {
     if (!listing || listing.status === "Draft") return json({ error: "Listing not available" }, 404);
 
     const { data: partner } = await admin
-      .from("partners").select("stripe_account_id, stripe_charges_enabled").eq("id", listing.partner_id).maybeSingle();
+      .from("partners").select("stripe_account_id, stripe_charges_enabled, plan").eq("id", listing.partner_id).maybeSingle();
     if (!partner?.stripe_account_id || !partner.stripe_charges_enabled) {
       return json({ skip: true, reason: "partner_not_connected" });
     }
@@ -104,7 +105,8 @@ Deno.serve(async (req) => {
 
     const service = Math.round(subtotal * GUEST_SERVICE);
     const total = subtotal + service;
-    let partnerNet = subtotal - Math.round(subtotal * HOST_COMMISSION);
+    const hostRate = COMMISSION[partner.plan as string] ?? COMMISSION.free;
+    let partnerNet = subtotal - Math.round(subtotal * hostRate);
 
     // ---- promo / referral code (authoritative): discount + affiliate commission ----
     // Discount validity (incl. max-uses) is computed by the validate_promo RPC; we

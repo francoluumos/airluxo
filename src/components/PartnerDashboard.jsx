@@ -9,6 +9,7 @@ import { downloadTemplate, exportFleet, parseFleetFile } from '../lib/fleetio.js
 import { makeStudioThumbnail, extractCarDetails } from '../lib/thumbnail.js';
 import { lookupSpecs } from '../lib/carSpecs.js';
 import { FEES } from '../lib/data.js';
+import { PLAN_LIST, planOf, carLimit, commissionRate } from '../lib/plans.js';
 import { fetchMyBookings, updateBookingStatus } from '../lib/bookings.js';
 import { fetchMyBlocks, createBlock, deleteBlock } from '../lib/blocks.js';
 import { startPayoutOnboarding, refreshPayoutStatus, partnerSettle } from '../lib/stripe.js';
@@ -56,6 +57,13 @@ export default function PartnerDashboard({ onExit }) {
   const [bookings, setBookings] = useState(null);
   const [blocks, setBlocks] = useState([]);
   const [err, setErr] = useState('');
+
+  // Car-limit guard: at the plan's limit, send the partner to Plans instead of Add.
+  const carCap = carLimit(partner?.plan);
+  const openAdd = () => {
+    if (carCap != null && (listings?.length || 0) >= carCap) setView('plans');
+    else setAddOpen(true);
+  };
 
   const reload = useCallback(async () => {
     try {
@@ -129,7 +137,7 @@ export default function PartnerDashboard({ onExit }) {
         </nav>
 
         <div className="p-4">
-          <button onClick={() => setAddOpen(true)} className="ring-lux flex w-full items-center justify-center gap-2 rounded-xl bg-gold-soft py-3 text-sm font-bold text-ink transition-colors hover:bg-gold">
+          <button onClick={openAdd} className="ring-lux flex w-full items-center justify-center gap-2 rounded-xl bg-gold-soft py-3 text-sm font-bold text-ink transition-colors hover:bg-gold">
             <Icon.Plus width={17} height={17} /> List a car
           </button>
           <button onClick={handleSignOut} className="ring-lux mt-2 w-full rounded-xl py-2.5 text-center text-xs font-semibold text-ash transition-colors hover:text-cloud">
@@ -154,7 +162,7 @@ export default function PartnerDashboard({ onExit }) {
             <span className="hidden items-center gap-1.5 rounded-full border border-mist bg-cloud px-3 py-1.5 text-xs font-semibold text-ink sm:flex">
               <span className="h-1.5 w-1.5 rounded-full bg-go" /> Live · Supabase
             </span>
-            <button onClick={() => setAddOpen(true)} className="ring-lux flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void">
+            <button onClick={openAdd} className="ring-lux flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void">
               <Icon.Plus width={15} height={15} /> <span className="hidden sm:inline">List a car</span>
             </button>
           </div>
@@ -173,8 +181,8 @@ export default function PartnerDashboard({ onExit }) {
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             >
-              {view === 'overview' && <Overview listings={listings} bookings={bookings} onAdd={() => setAddOpen(true)} setView={setView} />}
-              {view === 'fleet' && <Fleet listings={listings} blocks={blocks} onAdd={() => setAddOpen(true)} reload={reload} />}
+              {view === 'overview' && <Overview listings={listings} bookings={bookings} onAdd={openAdd} setView={setView} />}
+              {view === 'fleet' && <Fleet listings={listings} blocks={blocks} onAdd={openAdd} reload={reload} />}
               {view === 'location' && <LocationView />}
               {view === 'bookings' && <Bookings bookings={bookings} blocks={blocks} reload={reload} />}
               {view === 'calendar' && <Calendar bookings={bookings} blocks={blocks} />}
@@ -227,7 +235,7 @@ function PayoutsBanner() {
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gold/30 bg-gold/15 text-gold"><Icon.Wallet width={20} height={20} /></span>
           <div>
             <div className="font-display text-base">Set up payouts</div>
-            <p className="mt-0.5 max-w-md text-sm text-stone">Connect a Stripe account to receive your earnings. AIRLUXO settles each booking to you automatically, minus the {Math.round(FEES.hostCommission * 100)}% commission.</p>
+            <p className="mt-0.5 max-w-md text-sm text-stone">Connect a Stripe account to receive your earnings. AIRLUXO settles each booking to you automatically, minus the {Math.round(commissionRate(partner?.plan) * 100)}% commission.</p>
             {msg && <p className="mt-2 text-xs font-medium text-ink">{msg}</p>}
           </div>
         </div>
@@ -242,10 +250,11 @@ function PayoutsBanner() {
 
 /* ---------------- Overview ---------------- */
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const netOf = (b) => (Number(b.base_amount || 0) + Number(b.addons_amount || 0)) * (1 - FEES.hostCommission);
+const netOf = (b, rate = FEES.hostCommission) => (Number(b.base_amount || 0) + Number(b.addons_amount || 0)) * (1 - rate);
 
 // Real partner metrics derived from bookings (+ listings for utilisation).
-function computeMetrics(bookings, listings) {
+// `rate` is the partner's plan commission (defaults to the base rate).
+function computeMetrics(bookings, listings, rate = FEES.hostCommission) {
   const active = (bookings ?? []).filter((b) => b.status !== 'Declined' && b.status !== 'Cancelled');
   const now = new Date(); now.setHours(0, 0, 0, 0);
 
@@ -260,7 +269,7 @@ function computeMetrics(bookings, listings) {
     if (!b.start_date) continue;
     const sd = new Date(`${b.start_date}T00:00:00`);
     const k = `${sd.getFullYear()}-${sd.getMonth()}`;
-    if (byKey[k]) byKey[k].v += netOf(b);
+    if (byKey[k]) byKey[k].v += netOf(b, rate);
   }
   const series = buckets.map((b) => ({ m: b.m, v: Math.round(b.v) }));
   const net = series.at(-1).v;
@@ -289,12 +298,13 @@ function computeMetrics(bookings, listings) {
 }
 
 function Overview({ listings, bookings, onAdd, setView }) {
+  const { partner } = useAuth();
   const loading = listings === null;
   const total = loading ? 0 : listings.length;
   const active = loading ? 0 : listings.filter((c) => c.status === 'Available' || c.status === 'Booked').length;
   const bk = bookings ?? [];
   const pending = bk.filter((b) => b.status === 'Pending').length;
-  const m = computeMetrics(bookings, listings);
+  const m = computeMetrics(bookings, listings, commissionRate(partner?.plan));
   const deltaTxt = m.delta == null ? 'first month of trips' : `${m.delta >= 0 ? '+' : ''}${m.delta.toFixed(0)}% vs prev. month`;
 
   return (
@@ -1154,29 +1164,24 @@ function OpeningHoursEditor({ value, onChange }) {
   );
 }
 
-/* ---------------- Plans (subscription tiers — first draft) ---------------- */
-const PLANS = [
-  { id: 'free', name: 'Free', price: 0, commission: 15, cars: 'Up to 3 cars', tagline: 'Get started',
-    features: ['List up to 3 cars', 'AI studio thumbnails', 'Calendar sync (ICS)', 'Standard placement'] },
-  { id: 'pro', name: 'Pro', price: 49, commission: 9, cars: 'Up to 25 cars', tagline: 'For growing fleets', popular: true,
-    features: ['List up to 25 cars', '9% commission', 'Priority placement', 'Performance analytics', 'Faster payouts'] },
-  { id: 'max', name: 'Max', price: 199, commission: 3, cars: 'Unlimited cars', tagline: 'For large operators',
-    features: ['Unlimited cars', '3% commission', 'Featured placement', 'Team members', 'API access', 'Dedicated support'] },
-];
-
+/* ---------------- Plans (subscription tiers) ---------------- */
 function Plans({ listings }) {
-  const current = 'free'; // billing not live yet — everyone is on Free
+  const { partner } = useAuth();
+  const current = partner?.plan || 'free';
+  const cur = planOf(current);
+  const limit = carLimit(current);
   const [msg, setMsg] = useState('');
   const carCount = Array.isArray(listings) ? listings.length : 0;
+  const full = limit != null && carCount >= limit;
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 rounded-xl border border-mist bg-cloud px-4 py-2.5 text-xs text-stone">
-        <span className="rounded bg-mist px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider">Preview</span>
-        Plans are a draft — billing isn't live yet. You're on <span className="font-semibold text-ink">Free</span> · {carCount} car{carCount === 1 ? '' : 's'} listed.
+      <div className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs ${full ? 'border-gold/40 bg-gold/10 text-ink' : 'border-mist bg-cloud text-stone'}`}>
+        You're on <span className="font-semibold text-ink">{cur.name}</span> · {carCount}{limit != null ? ` / ${limit}` : ''} car{carCount === 1 ? '' : 's'} · <span className="font-semibold text-ink">{cur.commission}%</span> commission{full ? ' — you’ve reached your car limit. Upgrade to list more.' : '.'}
       </div>
       <div className="grid gap-5 lg:grid-cols-3">
-        {PLANS.map((p) => {
+        {PLAN_LIST.map((p) => {
           const isCurrent = p.id === current;
+          const carsLabel = p.carLimit ? `Up to ${p.carLimit} cars` : 'Unlimited cars';
           return (
             <div key={p.id} className={`relative flex flex-col rounded-[var(--radius-card)] border p-6 ${p.popular ? 'border-ink shadow-[0_30px_60px_-40px_rgba(11,11,12,0.4)]' : 'border-mist'} bg-cloud`}>
               {p.popular && <span className="absolute -top-2.5 left-6 rounded-full bg-gold px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-ink">Most popular</span>}
@@ -1186,18 +1191,18 @@ function Plans({ listings }) {
                 <span className="font-display text-4xl tnum">{p.price === 0 ? 'CHF 0' : chf(p.price)}</span>
                 <span className="text-sm text-stone">/ month</span>
               </div>
-              <div className="mt-1 text-sm font-semibold text-gold">{p.commission}% commission · {p.cars}</div>
+              <div className="mt-1 text-sm font-semibold text-gold">{p.commission}% commission · {carsLabel}</div>
               <ul className="mt-5 mb-6 space-y-2.5">
                 {p.features.map((f) => (
                   <li key={f} className="flex items-center gap-2 text-sm text-ink"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-go/12 text-go"><Icon.Check width={13} height={13} /></span>{f}</li>
                 ))}
               </ul>
               <button
-                onClick={() => !isCurrent && setMsg(`${p.name} billing is coming soon — Stripe subscriptions are next on the roadmap.`)}
+                onClick={() => !isCurrent && setMsg(`To switch to ${p.name}, contact AIRLUXO — self-serve billing is coming soon. Your commission rate and car limit update as soon as we set your plan.`)}
                 disabled={isCurrent}
                 className={`ring-lux mt-auto w-full rounded-2xl py-3.5 text-sm font-bold transition-colors ${isCurrent ? 'cursor-default border border-mist text-stone' : p.popular ? 'bg-ink text-cloud hover:bg-void' : 'border border-ink text-ink hover:bg-ink hover:text-cloud'}`}
               >
-                {isCurrent ? 'Current plan' : `Upgrade to ${p.name}`}
+                {isCurrent ? 'Current plan' : `Switch to ${p.name}`}
               </button>
             </div>
           );
@@ -1210,18 +1215,20 @@ function Plans({ listings }) {
 
 /* ---------------- Earnings (from real bookings) ---------------- */
 function Earnings({ bookings }) {
+  const { partner } = useAuth();
+  const rate = commissionRate(partner?.plan);
   const rows = (bookings ?? []).filter((b) => b.status !== 'Declined' && b.status !== 'Cancelled');
   const gross = rows.reduce((a, b) => a + Number(b.base_amount) + Number(b.addons_amount || 0), 0);
-  const fee = Math.round(gross * FEES.hostCommission);
+  const fee = Math.round(gross * rate);
   const net = gross - fee;
   return (
     <div className="space-y-7">
       <div className="grid gap-4 sm:grid-cols-3">
         <Kpi label="Gross bookings" value={chf(gross)} sub={`${rows.length} reservation${rows.length === 1 ? '' : 's'}`} icon={<Icon.Calendar2 />} />
-        <Kpi label={`AIRLUXO commission · ${Math.round(FEES.hostCommission * 100)}%`} value={`– ${chf(fee)}`} sub="No listing or monthly fees" icon={<Icon.Wallet />} />
+        <Kpi label={`AIRLUXO commission · ${Math.round(rate * 100)}%`} value={`– ${chf(fee)}`} sub={`${planOf(partner?.plan).name} plan`} icon={<Icon.Wallet />} />
         <Kpi label="Net payout" value={chf(net)} sub="Settled to your IBAN" good icon={<Icon.ArrowUpRight />} />
       </div>
-      <Panel title="Net payouts · 6 months"><BarChart data={computeMetrics(bookings, []).series} /></Panel>
+      <Panel title="Net payouts · 6 months"><BarChart data={computeMetrics(bookings, [], rate).series} /></Panel>
     </div>
   );
 }
@@ -1312,6 +1319,8 @@ const BOOKING_STATUSES = ['Pending', 'Confirmed', 'On trip', 'Completed', 'Decli
 const fmtDate = (s) => (s ? new Date(`${s}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—');
 
 function BookingsTable({ rows, reload, compact }) {
+  const { partner } = useAuth();
+  const rate = commissionRate(partner?.plan);
   const [busyId, setBusyId] = useState(null);
   const [pending, setPending] = useState(null);
 
@@ -1349,7 +1358,7 @@ function BookingsTable({ rows, reload, compact }) {
         <tbody>
           {rows.map((b) => {
             const gross = Number(b.base_amount) + Number(b.addons_amount || 0);
-            const fee = Math.round(gross * FEES.hostCommission);
+            const fee = Math.round(gross * rate);
             const dates = b.end_date && b.end_date !== b.start_date ? `${fmtDate(b.start_date)} → ${fmtDate(b.end_date)}` : fmtDate(b.start_date);
             return (
               <tr key={b.id} className="border-b border-mist/70 last:border-0 transition-colors hover:bg-paper/60">
@@ -1672,7 +1681,10 @@ function AddCar({ onClose, onCreated }) {
       await onCreated();
       setDone(true);
     } catch (err) {
-      setError(err.message || 'Could not save the listing.');
+      const m = err.message || '';
+      setError(/CAR_LIMIT/.test(m)
+        ? 'You’ve reached your plan’s car limit. Upgrade your plan (Plans tab) to list more cars.'
+        : (m || 'Could not save the listing.'));
     } finally {
       setBusy(false);
     }

@@ -93,6 +93,15 @@ const SECTIONS = [
 const CHANGELOG = [
   {
     date: '2026-06-01',
+    version: 'Build 0.5',
+    items: [
+      'Subscription tiers are now wired to real mechanics: your AIRLUXO commission depends on your plan — Free 15%, Pro 9%, Max 3% — applied automatically to every booking and reflected in Earnings and the bookings table.',
+      'Car limits per plan are enforced when listing a new car (Free 3, Pro 25, Max unlimited). Existing cars are never affected; you’re only blocked from adding beyond your limit. The Plans tab shows your usage and flags when you’re full.',
+      'Self-serve billing (Stripe subscriptions) is next — for now we set your plan manually, and your commission/limit update the moment we do.',
+    ],
+  },
+  {
+    date: '2026-06-01',
     version: 'Build 0.4',
     items: [
       'Promo & referral codes: guests can apply a discount code in the booking flow (shown as a line in the price breakdown). Codes also attribute the booking to a referrer (e.g. a hotel) with a commission, and each code sets whether AIRLUXO or the partner funds the discount. All amounts are recomputed server-side, so the discount can never reduce a partner payout below zero.',
