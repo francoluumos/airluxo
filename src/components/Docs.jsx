@@ -93,6 +93,16 @@ const SECTIONS = [
 const CHANGELOG = [
   {
     date: '2026-06-01',
+    version: 'Build 0.3',
+    items: [
+      'Customer profile expanded: add or replace your driver’s licence any time (same scan / phone hand-off as booking) — kept on file and used to prefill future bookings.',
+      'Email preferences: a newsletter toggle that syncs your subscription with our mailing list. Booking confirmations remain transactional and always sent.',
+      'Privacy controls in the profile: manage cookie preferences, open the privacy policy, and a GDPR “delete my account & data” action (past bookings are kept for the partner but unlinked).',
+      'Profile photo upload, and a saved address (Swiss autocomplete) to speed up delivery on future bookings.',
+    ],
+  },
+  {
+    date: '2026-06-01',
     version: 'Build 0.2',
     items: [
       'Customer accounts: drivers can now create an account and sign in — one tap with Google, or a passwordless email magic-link — from the new account menu in the top-right.',

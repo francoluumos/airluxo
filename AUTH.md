@@ -36,9 +36,16 @@ Required for the above to work (project `shoeopxxjawmusgnjxfh`):
 
 ## Data model
 
-- **`public.customers`** — `id` (= `auth.users.id`), `full_name`, `email`, `phone`, `avatar_url`, `licence` (jsonb, verified licence on file), `licence_verified`. RLS: own-row only.
+- **`public.customers`** — `id` (= `auth.users.id`), `full_name`, `email`, `phone`, `avatar_url`, `licence` (jsonb, verified licence on file), `licence_verified`, `marketing_opt_in` (newsletter), `address` (jsonb, saved address). RLS: own-row only.
 - **`public.favourites`** — `(user_id, listing_id)` saved cars. RLS: own-row only.
-- **`bookings.user_id`** — links a booking to its customer. A customer SELECT policy returns rows where `auth.uid() = user_id` **OR** the JWT email matches `guest_email` (auto-links bookings made before the account existed). Bookings remain insertable anonymously (the embed); the main site stamps `user_id`.
+- **`bookings.user_id`** — links a booking to its customer. A customer SELECT policy returns rows where `auth.uid() = user_id` **OR** the JWT email matches `guest_email` (auto-links bookings made before the account existed). Bookings remain insertable anonymously (the embed); the main site stamps `user_id`. The FK is `ON DELETE SET NULL` so account deletion keeps the booking for the partner but unlinks the person.
+
+## Edge functions
+- **`delete-account`** (verify_jwt on) — GDPR "delete my account & data". Identifies the caller from their JWT, then service-role-deletes the auth user → cascades `customers` + `favourites`, nulls `bookings.user_id`.
+- **`newsletter-subscribe`** (verify_jwt off) — subscribe/unsubscribe a contact in the Resend Audience; pass `{ subscribed: false }` to opt out. Used by the profile newsletter toggle and the footer signup.
+
+## Customer profile (`CustomerAccount.jsx`)
+Tabs: **My trips · Saved · Licence · Account**. Licence tab reuses `LicenceCapture.jsx` (the booking KYC flow) to add/replace a licence on file. Account tab: personal info + avatar upload (`uploadListingPhoto`) + saved address (Swiss geo autocomplete), email preferences (newsletter toggle → `setNewsletter`), and privacy (cookie settings via `openConsentSettings`, privacy link, delete account).
 
 ## Frontend touch-points
 

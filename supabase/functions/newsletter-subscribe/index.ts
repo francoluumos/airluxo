@@ -17,8 +17,13 @@ const cors = {
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-// Conservative RFC-5322-ish check — good enough to reject obvious junk.
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Conservative check — good enough to reject obvious junk (no regex so the
+// source stays easy to deploy verbatim).
+const validEmail = (e: string) => {
+  const at = e.indexOf("@");
+  const dot = e.lastIndexOf(".");
+  return at > 0 && dot > at + 1 && dot < e.length - 1 && !e.includes(" ");
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -26,14 +31,33 @@ Deno.serve(async (req) => {
 
   let email: string | undefined;
   let source: string | undefined;
-  try { ({ email, source } = await req.json()); } catch { return json({ error: "Invalid JSON" }, 400); }
+  let subscribed = true; // default: subscribe. Pass false to opt out.
+  try {
+    const body = await req.json();
+    email = body.email; source = body.source;
+    if (body.subscribed === false) subscribed = false;
+  } catch { return json({ error: "Invalid JSON" }, 400); }
 
   email = (email || "").trim().toLowerCase();
-  if (!EMAIL_RE.test(email)) return json({ error: "A valid email is required." }, 400);
+  if (!validEmail(email)) return json({ error: "A valid email is required." }, 400);
 
   const apiKey = Deno.env.get("RESEND_API_KEY");
   const audienceId = Deno.env.get("RESEND_AUDIENCE_ID");
   if (!apiKey || !audienceId) return json({ skipped: "Resend not configured" });
+
+  // Opt-out: mark the Resend contact unsubscribed (no welcome email).
+  if (!subscribed) {
+    const off = await fetch(`https://api.resend.com/audiences/${audienceId}/contacts/${encodeURIComponent(email)}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ unsubscribed: true }),
+    });
+    // A missing contact (404) is fine — they were never subscribed.
+    if (!off.ok && off.status !== 404) {
+      return json({ error: `Resend ${off.status}: ${(await off.text()).slice(0, 300)}` }, 502);
+    }
+    return json({ unsubscribed: true });
+  }
 
   // Add (or re-add) the contact to the audience. Resend treats this as upsert;
   // a 409/duplicate is success from the user's perspective.

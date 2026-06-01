@@ -17,3 +17,16 @@ export async function subscribeNewsletter(email, source = 'site') {
   if (data?.error) throw new Error(data.error);
   return data;
 }
+
+// Set the newsletter subscription state for an email (true = subscribe,
+// false = unsubscribe). Syncs the Resend Audience contact.
+export async function setNewsletter(email, subscribed, source = 'profile') {
+  const value = String(email || '').trim().toLowerCase();
+  if (!isValidEmail(value)) throw new Error('A valid email is required.');
+  const { data, error } = await supabase.functions.invoke('newsletter-subscribe', {
+    body: { email: value, subscribed, source },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}

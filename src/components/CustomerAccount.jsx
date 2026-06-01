@@ -2,9 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Icon } from './Icons.jsx';
 import CarCard from './CarCard.jsx';
+import LicenceCapture from './LicenceCapture.jsx';
 import { useAuth } from '../lib/auth.jsx';
 import { supabase } from '../lib/supabase.js';
 import { fetchSavedCars, removeFavourite } from '../lib/favourites.js';
+import { uploadListingPhoto } from '../lib/listings.js';
+import { setNewsletter } from '../lib/newsletter.js';
+import { openConsentSettings } from '../lib/consent.js';
+import { searchSwissAddress } from '../lib/geocode.js';
 import { chf } from '../lib/format.js';
 
 const TABS = [
@@ -38,7 +43,6 @@ export default function CustomerAccount({ initialTab = 'trips', onExit, onOpenCa
           {customer?.full_name ? `Hi, ${customer.full_name.split(' ')[0]}.` : 'Your account.'}
         </h1>
 
-        {/* tabs */}
         <div className="mt-6 flex gap-1 overflow-x-auto border-b border-mist">
           {TABS.map((t) => (
             <button
@@ -55,7 +59,7 @@ export default function CustomerAccount({ initialTab = 'trips', onExit, onOpenCa
         <div className="mt-8">
           {tab === 'trips' && <Trips />}
           {tab === 'saved' && <Saved onOpenCar={onOpenCar} />}
-          {tab === 'licence' && <Licence customer={customer} />}
+          {tab === 'licence' && <Licence />}
           {tab === 'account' && <Account onExit={onExit} />}
         </div>
       </main>
@@ -63,6 +67,7 @@ export default function CustomerAccount({ initialTab = 'trips', onExit, onOpenCa
   );
 }
 
+/* ── Trips ─────────────────────────────────────────────────────────────── */
 function Trips() {
   const [rows, setRows] = useState(null);
   useEffect(() => {
@@ -117,6 +122,7 @@ function StatusPill({ status }) {
   return <span className={`mt-1 inline-block rounded-full px-2.5 py-1 text-[0.7rem] font-bold ${map[status] || 'bg-mist text-stone'}`}>{status}</span>;
 }
 
+/* ── Saved ─────────────────────────────────────────────────────────────── */
 function Saved({ onOpenCar }) {
   const [cars, setCars] = useState(null);
   const load = useCallback(() => { fetchSavedCars().then(setCars); }, []);
@@ -139,66 +145,273 @@ function Saved({ onOpenCar }) {
   );
 }
 
-function Licence({ customer }) {
+/* ── Licence ───────────────────────────────────────────────────────────── */
+function Licence() {
+  const { customer, user, refreshCustomer } = useAuth();
+  const [editing, setEditing] = useState(false);
   const l = customer?.licence;
-  if (!customer?.licence_verified || !l) {
-    return <Empty icon={<Icon.Shield width={26} height={26} />} title="No licence on file." sub="Verify your driver’s licence during your next booking and we’ll save it here to speed up future trips." />;
+  const verified = customer?.licence_verified && l;
+
+  async function save(lic) {
+    const { error } = await supabase.from('customers').update({ licence: lic, licence_verified: true }).eq('id', user.id);
+    if (error) throw error;
+    await refreshCustomer();
+    setEditing(false);
   }
+
+  if (verified && !editing) {
+    return (
+      <div className="max-w-md rounded-2xl border border-mist bg-cloud p-6">
+        <div className="flex items-center gap-2 text-go"><Icon.Check width={18} height={18} /> <span className="font-semibold">Verified licence on file</span></div>
+        <dl className="mt-4 space-y-2 text-sm">
+          <Row k="Name" v={[l.first_name, l.last_name].filter(Boolean).join(' ')} />
+          <Row k="Categories" v={Array.isArray(l.categories) ? l.categories.join(', ') : ''} />
+          <Row k="Valid from" v={l.valid_from} />
+          <Row k="Number" v={l.number} />
+        </dl>
+        <p className="mt-4 text-xs text-stone">We use this to prefill your bookings.</p>
+        <button onClick={() => setEditing(true)} className="ring-lux mt-4 rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-mist/40">
+          Replace licence
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-md rounded-2xl border border-mist bg-cloud p-6">
-      <div className="flex items-center gap-2 text-go"><Icon.Check width={18} height={18} /> <span className="font-semibold">Verified licence on file</span></div>
-      <dl className="mt-4 space-y-2 text-sm">
-        <Row k="Name" v={[l.first_name, l.last_name].filter(Boolean).join(' ')} />
-        <Row k="Categories" v={Array.isArray(l.categories) ? l.categories.join(', ') : ''} />
-        <Row k="Valid from" v={l.valid_from} />
-        <Row k="Number" v={l.number} />
-      </dl>
-      <p className="mt-4 text-xs text-stone">We use this to prefill your bookings. Re-verify any time from the booking flow.</p>
+    <div>
+      {!verified && <Empty.Note>Add your driver’s licence once and we’ll prefill it on every booking — verify now, book fast.</Empty.Note>}
+      <div className="mt-4"><LicenceCapture initial={l} onSaved={save} saveLabel={verified ? 'Update licence' : 'Save licence'} /></div>
+      {verified && <button onClick={() => setEditing(false)} className="ring-lux mt-3 text-sm font-semibold text-stone hover:text-ink">Cancel</button>}
     </div>
   );
 }
 
-function Row({ k, v }) {
-  if (!v) return null;
-  return <div className="flex justify-between gap-4"><dt className="text-stone">{k}</dt><dd className="font-medium text-ink">{v}</dd></div>;
-}
-
+/* ── Account ───────────────────────────────────────────────────────────── */
 function Account({ onExit }) {
   const { customer, user, signOut, refreshCustomer } = useAuth();
+  return (
+    <div className="max-w-md space-y-10">
+      <PersonalInfo customer={customer} user={user} refreshCustomer={refreshCustomer} />
+      <EmailPrefs customer={customer} user={user} refreshCustomer={refreshCustomer} />
+      <PrivacySection user={user} signOut={signOut} onExit={onExit} />
+    </div>
+  );
+}
+
+function PersonalInfo({ customer, user, refreshCustomer }) {
   const [form, setForm] = useState({ full_name: '', phone: '' });
+  const [address, setAddress] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [saved, setSaved] = useState(false);
-  useEffect(() => { setForm({ full_name: customer?.full_name || '', phone: customer?.phone || '' }); }, [customer]);
+  useEffect(() => {
+    setForm({ full_name: customer?.full_name || '', phone: customer?.phone || '' });
+    setAddress(customer?.address || null);
+  }, [customer]);
+
+  async function uploadAvatar(file) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadListingPhoto(file);
+      await supabase.from('customers').update({ avatar_url: url }).eq('id', user.id);
+      await refreshCustomer();
+    } catch { /* ignore */ } finally { setUploading(false); }
+  }
 
   async function save(e) {
     e.preventDefault();
     setBusy(true); setSaved(false);
     const { error } = await supabase.from('customers')
-      .update({ full_name: form.full_name.trim() || null, phone: form.phone.trim() || null })
+      .update({ full_name: form.full_name.trim() || null, phone: form.phone.trim() || null, address })
       .eq('id', user.id);
     setBusy(false);
     if (!error) { setSaved(true); refreshCustomer(); }
   }
 
   return (
-    <form onSubmit={save} className="max-w-md space-y-4">
-      <Field label="Full name" value={form.full_name} onChange={(v) => setForm((f) => ({ ...f, full_name: v }))} placeholder="Franco Steiner" />
-      <Field label="Phone" value={form.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} placeholder="+41 79 123 45 67" />
-      <div>
-        <span className="mb-1.5 block text-sm font-semibold text-ink">Email</span>
-        <div className="rounded-2xl border border-mist bg-mist/30 px-4 py-3.5 text-sm text-stone">{customer?.email || user?.email}</div>
+    <section>
+      <SectionTitle>Personal info</SectionTitle>
+      <div className="mt-4 flex items-center gap-4">
+        <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-ink text-xl font-bold text-cloud">
+          {customer?.avatar_url
+            ? <img src={customer.avatar_url} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+            : (customer?.full_name || customer?.email || 'A').trim().slice(0, 1).toUpperCase()}
+        </div>
+        <label className="ring-lux cursor-pointer rounded-full border border-mist px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-mist/40">
+          {uploading ? 'Uploading…' : 'Change photo'}
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadAvatar(e.target.files?.[0])} />
+        </label>
       </div>
-      <div className="flex items-center gap-3 pt-2">
-        <button type="submit" disabled={busy} className="ring-lux rounded-2xl bg-ink px-6 py-3 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
-          {busy ? 'Saving…' : 'Save changes'}
+
+      <form onSubmit={save} className="mt-5 space-y-4">
+        <Field label="Full name" value={form.full_name} onChange={(v) => setForm((f) => ({ ...f, full_name: v }))} placeholder="Franco Steiner" />
+        <Field label="Phone" value={form.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} placeholder="+41 79 123 45 67" />
+        <div>
+          <span className="mb-1.5 block text-sm font-semibold text-ink">Email</span>
+          <div className="rounded-2xl border border-mist bg-mist/30 px-4 py-3.5 text-sm text-stone">{customer?.email || user?.email}</div>
+        </div>
+        <AddressField value={address} onPick={setAddress} />
+        <div className="flex items-center gap-3 pt-1">
+          <button type="submit" disabled={busy} className="ring-lux rounded-2xl bg-ink px-6 py-3 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
+            {busy ? 'Saving…' : 'Save changes'}
+          </button>
+          {saved && <span className="text-sm font-semibold text-go">Saved ✓</span>}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+function EmailPrefs({ customer, user, refreshCustomer }) {
+  const [on, setOn] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  useEffect(() => { setOn(!!customer?.marketing_opt_in); }, [customer]);
+
+  async function toggle() {
+    const next = !on;
+    setOn(next); setBusy(true); setErr('');
+    try {
+      await setNewsletter(customer?.email || user?.email, next);
+      await supabase.from('customers').update({ marketing_opt_in: next }).eq('id', user.id);
+      refreshCustomer();
+    } catch (e) {
+      setOn(!next); // revert
+      setErr(e.message || 'Could not update your preference.');
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <section>
+      <SectionTitle>Email preferences</SectionTitle>
+      <div className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-mist bg-cloud px-5 py-4">
+        <div>
+          <div className="text-sm font-semibold text-ink">Newsletter</div>
+          <div className="mt-0.5 text-xs text-stone">New arrivals, rare drives and members-only releases.</div>
+        </div>
+        <Toggle on={on} busy={busy} onClick={toggle} />
+      </div>
+      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
+      <p className="mt-3 text-xs text-stone">Booking confirmations and trip updates are transactional and always sent.</p>
+    </section>
+  );
+}
+
+function PrivacySection({ user, signOut, onExit }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function del() {
+    setBusy(true); setErr('');
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+      if (error || data?.error) throw new Error(error?.message || data?.error);
+      await signOut();
+      onExit?.();
+    } catch (e) {
+      setErr(e.message || 'Could not delete your account.');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section>
+      <SectionTitle>Privacy &amp; cookies</SectionTitle>
+      <div className="mt-4 space-y-2.5">
+        <button onClick={openConsentSettings} className="ring-lux flex w-full items-center justify-between rounded-2xl border border-mist bg-cloud px-5 py-4 text-sm font-semibold text-ink transition-colors hover:bg-mist/40">
+          Manage cookies <Icon.Arrow width={16} height={16} className="text-stone" />
         </button>
-        {saved && <span className="text-sm font-semibold text-go">Saved ✓</span>}
+        <a href="?privacy" className="ring-lux flex w-full items-center justify-between rounded-2xl border border-mist bg-cloud px-5 py-4 text-sm font-semibold text-ink transition-colors hover:bg-mist/40">
+          Privacy &amp; Cookie Policy <Icon.ArrowUpRight width={16} height={16} className="text-stone" />
+        </a>
       </div>
-      <button type="button" onClick={async () => { await signOut(); onExit?.(); }} className="ring-lux mt-4 text-sm font-semibold text-stone underline-offset-4 hover:text-ink hover:underline">
+
+      <div className="mt-8 rounded-2xl border border-red-200 bg-red-50/50 p-5">
+        <div className="text-sm font-bold text-red-700">Delete account</div>
+        <p className="mt-1 text-xs text-red-700/80">Permanently removes your profile, saved cars and licence. Past bookings are kept for the rental partner but no longer linked to you. This can’t be undone.</p>
+        {confirming ? (
+          <div className="mt-3 flex items-center gap-2">
+            <button onClick={del} disabled={busy} className="ring-lux rounded-full bg-red-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-red-700 disabled:opacity-60">
+              {busy ? 'Deleting…' : 'Yes, delete everything'}
+            </button>
+            <button onClick={() => setConfirming(false)} disabled={busy} className="ring-lux rounded-full px-4 py-2 text-sm font-semibold text-stone hover:text-ink">Cancel</button>
+          </div>
+        ) : (
+          <button onClick={() => setConfirming(true)} className="ring-lux mt-3 rounded-full border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100">
+            Delete my account
+          </button>
+        )}
+        {err && <p className="mt-2 text-sm text-red-700">{err}</p>}
+      </div>
+
+      <button type="button" onClick={async () => { await signOut(); onExit?.(); }} className="ring-lux mt-8 text-sm font-semibold text-stone underline-offset-4 hover:text-ink hover:underline">
         Log out
       </button>
-    </form>
+    </section>
   );
+}
+
+/* ── Saved address autocomplete (Swiss geo) ────────────────────────────── */
+function AddressField({ value, onPick }) {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { setQ(value?.label || ''); }, [value]);
+
+  useEffect(() => {
+    if (q.length < 3 || q === value?.label) { setResults([]); return; }
+    let active = true;
+    const t = setTimeout(async () => {
+      const r = await searchSwissAddress(q);
+      if (active) { setResults(r); setOpen(true); }
+    }, 250);
+    return () => { active = false; clearTimeout(t); };
+  }, [q, value]);
+
+  return (
+    <div className="relative">
+      <span className="mb-1.5 block text-sm font-semibold text-ink">Saved address <span className="font-normal text-stone">(optional)</span></span>
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onFocus={() => results.length && setOpen(true)}
+        placeholder="Start typing a Swiss address…"
+        className="ring-lux w-full rounded-2xl border border-mist bg-cloud px-4 py-3.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone"
+      />
+      {open && results.length > 0 && (
+        <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-mist bg-paper py-1 shadow-xl">
+          {results.map((r, i) => (
+            <button key={i} type="button" onClick={() => { onPick(r); setQ(r.label); setOpen(false); }}
+              className="ring-lux block w-full px-4 py-2 text-left text-sm transition-colors hover:bg-mist/50">
+              {r.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {value?.label && <p className="mt-1 text-xs text-stone">Used to prefill delivery on bookings.</p>}
+    </div>
+  );
+}
+
+/* ── shared bits ───────────────────────────────────────────────────────── */
+function SectionTitle({ children }) {
+  return <h2 className="font-display text-xl">{children}</h2>;
+}
+
+function Toggle({ on, busy, onClick }) {
+  return (
+    <button onClick={onClick} disabled={busy} role="switch" aria-checked={on}
+      className={`ring-lux relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-60 ${on ? 'bg-go' : 'bg-mist'}`}>
+      <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+    </button>
+  );
+}
+
+function Row({ k, v }) {
+  if (!v) return null;
+  return <div className="flex justify-between gap-4"><dt className="text-stone">{k}</dt><dd className="font-medium text-ink">{v}</dd></div>;
 }
 
 function Field({ label, value, onChange, placeholder }) {
@@ -226,3 +439,6 @@ function Empty({ icon, title, sub }) {
     </div>
   );
 }
+Empty.Note = function Note({ children }) {
+  return <p className="max-w-md rounded-2xl border border-mist bg-cloud px-5 py-4 text-sm text-stone">{children}</p>;
+};
