@@ -28,7 +28,9 @@ export default function middleware(request) {
   return new Response('Authentication required.', {
     status: 401,
     headers: {
-      'WWW-Authenticate': 'Basic realm="AIRLUXO — private preview", charset="UTF-8"',
+      // Realm must be ASCII-only — a non-ASCII char here makes the header
+      // invalid, so the browser never shows its login dialog.
+      'WWW-Authenticate': 'Basic realm="AIRLUXO private preview", charset="UTF-8"',
     },
   })
 }
