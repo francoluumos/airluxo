@@ -67,7 +67,7 @@ export default function CarCard({ car, onOpen, isFav, onToggleFav }) {
                 onClick={(e) => { e.stopPropagation(); onToggleFav(); }}
                 aria-label={isFav ? 'Remove from saved' : 'Save car'}
                 aria-pressed={!!isFav}
-                className="ring-lux grid h-8 w-8 place-items-center rounded-full bg-cloud/95 text-ink shadow-[0_2px_10px_rgba(11,11,12,0.18)] backdrop-blur transition-transform hover:scale-110"
+                className="ring-lux grid h-8 w-8 place-items-center rounded-full bg-cloud/95 text-ink backdrop-blur transition-transform hover:scale-110"
               >
                 <Heart filled={isFav} />
               </button>
@@ -114,8 +114,9 @@ export default function CarCard({ car, onOpen, isFav, onToggleFav }) {
 function Heart({ filled }) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"
-      fill={filled ? '#e0245e' : 'none'} stroke={filled ? '#e0245e' : 'currentColor'} strokeWidth="2">
-      <path d="M12 21s-7.5-4.6-10-9.2C.5 8.3 2.2 5 5.5 5c2 0 3.4 1.1 4.5 2.6C11.1 6.1 12.5 5 14.5 5 17.8 5 19.5 8.3 22 11.8 19.5 16.4 12 21 12 21z" strokeLinejoin="round" />
+      fill={filled ? '#e0245e' : 'none'} stroke={filled ? '#e0245e' : 'currentColor'}
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
     </svg>
   );
 }
