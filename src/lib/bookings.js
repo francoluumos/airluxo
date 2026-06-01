@@ -11,6 +11,8 @@ export async function createBooking(payload) {
   if (error) throw error;
   // fire-and-forget: email the partner (no-op if RESEND_API_KEY isn't set)
   supabase.functions.invoke('booking-notify', { body: { booking_id: id } }).catch(() => {});
+  // fire-and-forget: email the guest a confirmation (no-op if RESEND_API_KEY isn't set)
+  supabase.functions.invoke('booking-confirm', { body: { booking_id: id } }).catch(() => {});
   // fire-and-forget: deliver to the partner's webhook (no-op if none configured)
   supabase.functions.invoke('booking-webhook', { body: { booking_id: id, event: 'booking.created' } }).catch(() => {});
   return { id, ...payload };

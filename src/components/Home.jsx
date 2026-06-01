@@ -12,6 +12,7 @@ import { track } from '../lib/analytics.js';
 import { openConsentSettings } from '../lib/consent.js';
 import { searchSwissPlaces } from '../lib/geocode.js';
 import FleetMap, { CITY_COORDS } from './FleetMap.jsx';
+import NewsletterSignup from './NewsletterSignup.jsx';
 
 // Great-circle distance in km between two {lat,lng} points.
 function distanceKm(a, b) {
@@ -546,11 +547,14 @@ function Footer({ onPartner }) {
     <footer className="border-t border-mist bg-paper">
       <div className="mx-auto max-w-[1240px] px-5 py-14 sm:px-8">
         <div className="flex flex-col justify-between gap-10 md:flex-row">
-          <div className="max-w-xs">
+          <div className="max-w-sm">
             <div className="wordmark text-2xl">AIR<span className="text-gold">LUXO</span></div>
             <p className="mt-3 text-sm text-stone">
               Switzerland's marketplace for extraordinary cars. Made in Geneva.
             </p>
+            <p className="eyebrow mt-7 text-ink">New arrivals, rare drives</p>
+            <p className="mb-3 mt-1 text-sm text-stone">Join the list. No spam — unsubscribe anytime.</p>
+            <NewsletterSignup source="footer" />
           </div>
           <div className="grid grid-cols-2 gap-10 sm:grid-cols-3">
             <FooterCol title="Drive" links={['Explore fleet', 'Cities', 'Gift drives', 'Insurance']} />
