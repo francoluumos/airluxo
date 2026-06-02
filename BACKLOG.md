@@ -87,10 +87,36 @@ _Captured from [MARKETING.md](MARKETING.md) and [OPERATIONS.md](OPERATIONS.md) �
   - **Long term:** a **master marketplace insurance** (AXA / Die Mobiliar / Allianz) for true platform-wide zero-deposit + a per-booking protection fee. Watch: claims/excess flow, fraud (lean on licence KYC), VAT on the fee. See OPERATIONS.md / INSURANCE.md.
 - **"With driver" / chauffeur add-on.** Per-listing option with hourly + daily driver rate (reuses the add-on pattern + price-breakdown line), a "With driver" filter, and a **licensing attestation** at partner onboarding (passenger transport is regulated in CH). See OPERATIONS.md.
 
+## Loyalty & referral program (recurring customers) 💎
+**Why:** Airbnb's referral program drove ~900% growth; loyalty/tiers (Booking.com Genius) compound retention. For a high-ticket luxury rental, repeat + referred guests are the cheapest, highest-LTV demand. Strategy + creative incentives live in [MARKETING.md #7](MARKETING.md); this is the build spec. **Brand rule:** frame as membership / credits / access / upgrades, NOT loud discounts (a luxury brand shouldn't read "coupon").
+
+**What already exists (the partial base):** `promo_codes` + `validate_promo` RPC + `funded_by` (platform/partner) + affiliate `commission_*` + `bookings.promo_code/discount_amount/affiliate_commission`, and the authoritative discount path in `stripe-create-payment` + the `PromoField` in checkout. Referral can largely **reuse** this (a per-customer referral code). **New** = points + tiers + redemption.
+
+**Data model (new):**
+- `customers.loyalty_points` (int balance) + `loyalty_tier` (stored, recomputed on change).
+- `loyalty_ledger` (append-only: `customer_id, delta, reason, booking_id?, created_at`) — source of truth; balance = sum. Never edit past rows.
+- `referrals` (`referrer_id, referee_email/id, code, status, reward_amount, created_at`) — or extend `promo_codes` with an `owner_customer_id` for per-customer referral codes + double-sided attribution.
+- `src/lib/loyalty.js` — single source of truth for tier thresholds + earn/burn rates (mirror the `plans.js` pattern; mirror the constant server-side like `GUEST_SERVICE`).
+
+**Earn/burn rules (draft):**
+- **Earn** points on **completed** trips only (award at capture / trip end, not at booking — avoids gaming via cancellations): X pts per CHF on the base+addons; bonus for referrals converting, reviews, group bookings, midweek/idle-fleet trips (ties to utilization).
+- **Burn** at checkout: comp a **damage-protection** or **delivery** add-on, member credit off the next trip, category **upgrade**, or waived service fee — implemented as an authoritative adjustment in `stripe-create-payment` (same place discounts are clamped), never client-trusted.
+
+**Tiers (draft, name on-brand — e.g. "Keys": Silver → Gold → Platinum → Noir):** thresholds by trips or trailing-12-month CHF; each tier unlocks perks (see MARKETING #7). Consider a **status-match** to acquire HNW travellers fast.
+
+**Phased build:**
+1. **Referral codes** — per-customer code, double-sided credit on referee's first completed trip (mostly reuse promo system). Quick, high-leverage.
+2. **Points ledger** — `loyalty_ledger` + award on trip completion + balance/tier shown in the customer profile.
+3. **Redemption at checkout** — authoritative in `stripe-create-payment` (comp add-on / apply credit).
+4. **Tier perks** — priority access, upgrades, waived service fee, experiential perks; status match.
+
 ## Listing media
 - **Per-listing video — v1 DONE (manual upload).** Partners upload a short clip in Add/Edit car (`listings.video_url`, reuses the public `listing-photos` bucket; ≤25 MB client check). It plays **muted/loop on hover** on the car card (desktop only; lazy `preload="none"`, src set on mouseenter and unloaded on leave, so the grid downloads no video until hovered) and **muted autoplay loop in the booking detail**. Honours `prefers-reduced-motion`; mobile keeps the image in the grid (no hover) and only plays in the booking view. Works in the embed too (shared components).
   - _v1 follow-ups:_ strip the audio track + transcode/compress on upload (ffmpeg.wasm) to enforce ≤3 MB / 720p; use the studio thumbnail as the `<video poster>`; a small "has video" indicator on the card; per-listing video in the white-label embed config.
 - **Per-listing video — v2: AI generation from a prompt (Google API).** Generate the studio clip server-side instead of manual upload: an Edge Function calling Google's video model (**Veo via the Gemini API**, e.g. `veo-3.x`/`gemini` video generation) with a fixed prompt — same locked composition as the still (car facing left, slow orbit/parallax, pure-white seamless background, no audio) seeded from the car's studio image. Considerations: video generation is **slow (async/long-running op — poll the operation) and costly**, so do it on-demand (a "Generate video" button) not automatically; cap length; store result to the bucket → `video_url`; strip audio; budget/quota guard. Mirrors the `studio-shot` pattern but for video.
+
+- **Studio-shot thumbnail generator — on `gemini-3-pro-image` (Nano Banana Pro) as of 2 Jun 2026.** The `studio-shot` edge function (v11) re-renders an uploaded car photo as a clean 3/4 white-studio shot; output geometry locked via `imageConfig.aspectRatio: "16:9"` + low temperature; model overridable via `GEMINI_IMAGE_MODEL`. Switched from 2.5-flash-image because flash left grey "dunes" sweeps on busy urban source photos and didn't fully replace backgrounds. Pro is slower (reasoning model) + pricier (~$0.10–0.20/image), fine for one-off thumbnails. `CarImage` backs the slot with white (`bg-cloud`) so any near-white edge blends.
+  - **↪ Fallback if quality/consistency regresses again: Imagen on Vertex AI.** Migrate `studio-shot` to **Imagen (Vertex AI)**, where Gemini's own advice actually applies — **subject masking / bounding-box** (force the car to occupy an exact % of the canvas, centre-anchored) and **ControlNet / depth maps** (pass a template depth map so every car matches the same silhouette + floor angle). True pixel-consistent framing, at the cost of a heavier integration (Vertex auth/project, different API). Only worth it if Nano Banana Pro proves inconsistent across many cars.
 
 ## Listing onboarding (add a car)
 - **Photo-first listing with AI prefill.** Reorder the "List a car" flow so the **photo upload is step 1**. Then run a vision pass (Gemini, like studio-shot/verify-licence) on the uploaded image to **prefill make, brand, model, exterior colour, interior colour** (and optionally category) — the partner just reviews/edits. Big friction reducer.

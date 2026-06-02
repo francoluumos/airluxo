@@ -55,12 +55,47 @@ Tag loosely: 💎 high fit · ⚠️ watch-outs · 🧭 strategic decision.
 - **Watch-outs ⚠️:** **get permission** — don't just drop flyers (looks cheap/unauthorized and can get pulled); the **material must look luxury** (heavy stock, restrained design) or it hurts the brand; **Rotary & private clubs are relationship networks**, so a **member introduction or a short talk/sponsored evening lands far better than flyers**; some venues will expect a kickback/partnership (tie to the concierge commission in #1).
 - **How to start:** pilot a handful of venues in one city (Geneva / Zürich / St. Moritz), a **distinct QR + code per venue**, premium cards, measure scans→bookings over a few weeks before scaling. Lead with a partner venue that already fits (a hotel from #1).
 
+## 6. Airbnb's growth playbook — reference + what we steal 💎
+**Source:** [How Airbnb grew 0→1B bookings (buildd.co)](https://buildd.co/marketing/airbnb-marketing-strategy). Distilled, mapped to AIRLUXO:
+- **Referral program = their single biggest lever (~900% annual growth).** Double-sided travel credits (referrer *and* referee). → This is #7 below.
+- **Professional photography fixed conversion.** Founders shot listings themselves. → We already automate this with **`studio-shot`** (clean white studio thumbnails); keep it sharp (it's our equivalent of their photo program).
+- **Solve the chicken-and-egg by going where demand already is.** They poached Craigslist listings + targeted conference attendees (600 DNC stays). → Our analogue: the **hotel-concierge (#1)** and **luxury-host (#2)** channels put us in front of guests at the high-intent moment; recruit supply from pro fleets first.
+- **Trust mechanisms unlock high-ticket bookings.** Reviews, Superhosts, **AirCover insurance (up to $1M)**, transparent pricing. → We mirror with **verified-host badges, licence KYC, itemized pricing, and the damage-protection add-on** (our "AirCover").
+- **Brand over performance spend; UGC + SEO.** "Live like a local," #airbnbhost (103k posts), Pineapple magazine. → Our analogue is the **AI content engine (#4)** + UGC of cars in iconic Swiss settings; lead with brand, not discount.
+- **"Superhost" status drives quality.** → A **partner quality tier** (response rate, ratings) could feed featured placement (ties to the subscription tiers).
+
+## 7. Referral + loyalty / tiers for recurring customers 💎🧭 — the biggest lever
+**Idea:** Build AIRLUXO's compounding-retention engine: a **double-sided referral** program + a **loyalty tier** system (à la Booking.com **Genius**), where recurring customers and referrers earn points redeemable for perks — free add-ons (e.g. damage protection), upgrades, group-booking discounts, and access.
+
+**Feedback — agreed, this is the highest-leverage growth+retention play; design it luxury, not discounty.**
+- **Why it's the lever:** luxury rentals are high-ticket and infrequent, so **repeat + referred guests are the cheapest, highest-LTV demand** there is. Airbnb's referral program alone drove ~900% growth; Booking.com's Genius tiers are a retention moat. A great first trip + a reason to come back (and bring friends) beats paid acquisition.
+- **🧭 Brand rule:** a luxury brand must **not feel like a coupon site.** Frame everything as **membership, credits, access, and upgrades** — not "% off." Booking.com can shout discounts; we lean on status, priority, and complimentary upgrades.
+- **Two pillars:**
+  1. **Double-sided referral (Airbnb-style):** every member gets a personal code; the **referee** gets a credit/perk on their first trip, the **referrer** gets a credit once that trip completes. We can **largely reuse the existing promo/affiliate system** (codes, attribution, funded_by, commission) — the referral layer is close to free to ship.
+  2. **Loyalty tiers (Booking.com Genius-style):** levels earned by trips or trailing-12-month spend, each unlocking better perks. Working name **"Keys": Silver → Gold → Platinum → Noir.**
+
+**Creative loyalty incentives (the brainstorm):**
+- **Comp the damage-protection add-on** at higher tiers — strong, on-brand ("you're covered, on us"), and ties straight into Stage A.
+- **Free / discounted home delivery & collection.**
+- **Complimentary category upgrade** when the next class up is idle (cheap to give, feels premium).
+- **Group / friend-booking rewards** — book several cars together (ties to the *group-ride* backlog feature): the organiser earns bonus points, everyone in the group gets a perk. Turns one booking into many + referrals.
+- **Member credit** toward the next trip (frame as credit, not discount) + **birthday / anniversary credit.**
+- **Waived AIRLUXO service fee** at the top tier.
+- **Priority & early access** to new and rare/exotic inventory; first dibs on event-weekend availability.
+- **Extended mileage / late-return grace / free additional driver** as tier perks (concierge feel, low cash cost).
+- **Experiential (top tier "Noir"):** a curated drive / track day, or partner perks (a night at a #1 hotel partner, a fine-dining table) via the concierge network — points as access to *experiences*, not money off.
+- **Status match:** instantly match a guest's Booking.com Genius / airline / hotel status to an AIRLUXO tier — a fast HNW-acquisition hook.
+- **Earn beyond spend:** points for **reviews**, completing **licence KYC**, and **midweek/idle-fleet** trips (doubles as a fleet-utilisation lever — reward filling the quiet days).
+- **Soft anti-churn:** points keep their value while you stay active; a gentle "your Gold status renews if you take one trip this year" nudge.
+
+**Build:** the data model (`loyalty_ledger`, points, tiers, referrals) + phased rollout (referral first, then points, then checkout redemption, then tier perks) is speced in **[BACKLOG → Loyalty & referral program](BACKLOG.md)**. Earn on *completed* trips only (avoid cancellation-gaming); redemption must be **authoritative server-side** in `stripe-create-payment`.
+
 ---
 
 ## Cross-cutting enablers (turn ideas into machines)
-- **Referral / promo-code / affiliate system** — unique codes, attribution, partner commissions. Unlocks hotels (#1) and Airbnb hosts (#2). → candidate for BACKLOG.
+- **Referral / promo-code / affiliate system** — unique codes, attribution, partner commissions. **Partly built already** (`promo_codes` + `validate_promo` + affiliate commission + checkout `PromoField` + authoritative discount in `stripe-create-payment`). Unlocks hotels (#1) and Airbnb hosts (#2), and is the **base for the customer loyalty + referral program (#7)** — the points/tiers layer is the new build (see BACKLOG).
 - **Trackable landing pages / UTM** — already have PostHog; tag campaign sources so we can measure each channel's bookings.
 - **The embed widget + home delivery** — already built; lead with them in every pitch.
 - **AI content pipeline (Apify scrape → Higgsfield generate → human review → post)** — see #4. → candidate for BACKLOG once it moves past manual weekly batches.
 
-_Last updated: 2026-06-01._
+_Last updated: 2026-06-02._
