@@ -43,14 +43,13 @@ export function AuthProvider({ children }) {
       supabase.from('customers').select('*').eq('id', uid).maybeSingle(),
     ]);
     setPartner(p ?? null);
-    if (c) { setCustomer(c); return; }
-    // No customer row yet. Auto-provision one for non-partner (public) sessions.
-    if (!p) {
-      const created = await upsertCustomer(user);
-      setCustomer(created);
-    } else {
-      setCustomer(null);
-    }
+    let cust = c;
+    // No customer row yet → auto-provision one for non-partner (public) sessions.
+    if (!cust && !p) cust = await upsertCustomer(user);
+    // Book-then-account: when a guest books logged-out, the scanned licence is saved
+    // on the booking, not the profile. On sign-in, adopt it so the profile reflects it.
+    if (cust && !cust.licence_verified) cust = await adoptLicenceFromBooking(user, cust);
+    setCustomer(cust ?? null);
   }, []);
 
   useEffect(() => {
@@ -121,6 +120,35 @@ export function AuthProvider({ children }) {
   };
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
+}
+
+// Back-fill a verified driver's licence from a prior booking into the customer
+// profile. Needed for the book-then-account flow: a guest scans their licence and
+// it's stored on the booking (bookings.licence), but finalize() only writes it to
+// the profile when already logged in — so a guest-then-login leaves the profile
+// blank. On sign-in we adopt the most recent verified-licence booking under the
+// same email. Idempotent: skipped once licence_verified is true. RLS-safe: the
+// customer can read their own bookings (email match) and update their own row.
+async function adoptLicenceFromBooking(user, customer) {
+  if (!user?.email || customer?.licence_verified) return customer;
+  const { data: bk } = await supabase
+    .from('bookings')
+    .select('licence')
+    .eq('guest_email', user.email)
+    .eq('licence_verified', true)
+    .not('licence', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!bk?.licence) return customer;
+  const { data, error } = await supabase
+    .from('customers')
+    .update({ licence: bk.licence, licence_verified: true })
+    .eq('id', user.id)
+    .select()
+    .maybeSingle();
+  if (error) { console.error('[airluxo] licence back-fill failed', error.message); return customer; }
+  return data ?? customer;
 }
 
 // Upsert a customers row from the auth user + optional overrides. Returns the row.
