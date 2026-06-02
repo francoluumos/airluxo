@@ -37,6 +37,14 @@ Tag loosely: 💎 high impact · ⚠️ watch-outs · 🧭 regulatory/strategic 
 - **🧭 Who lists, and how:** these platforms onboard **rental suppliers**, not marketplaces. Either AIRLUXO joins as an aggregating **supplier** (one feed for all partners — cleaner, but we own SLA/fulfilment) or individual partners list themselves (no AIRLUXO benefit). Integration is a **rates/availability/inventory feed** (XML/API channel-manager pattern) — we already have the **availability API + per-partner webhooks** to build sync on. Watch **rate-parity clauses** (they may forbid cheaper direct prices) and the fact that **they own the customer** (no repeat/direct relationship, no licence-KYC-on-file benefit).
 - **How to start:** pick **one** channel and a **narrow segment** (e.g. premium-but-not-exotic cars near airports), pilot with a handful of partners, set channel rates with commission baked in, measure incremental (not cannibalised) bookings + true margin before scaling. Treat it as a **fill channel**, not the core funnel.
 
+## 4. Potential investors / strategic partners 💎🧭
+**Idea:** Raise from / partner with a major Swiss automotive group — **Emil Frey Group** (Switzerland's largest car retailer & importer) or other large dealership groups — as strategic investors.
+
+**Feedback — strong strategic fit (capital + supply + credibility), but guard marketplace neutrality.**
+- **Why it fits:** dealership groups bring **capital**, **vehicle supply** (idle premium inventory + fleets), an existing **dealer network** to onboard as partners, and **brand credibility** in the Swiss market — they'd both fund *and* feed the marketplace.
+- **⚠️ Watch-outs:** a single dealer-group investor can **deter competing dealerships** from listing (neutrality concern); they may push for **exclusivity or board control** — align on AIRLUXO staying an open marketplace first. Clarify whether they enter as **investor**, **anchor supply partner**, or both.
+- **How to start:** seek a warm intro to Emil Frey corporate/ventures; pitch as a **supply + distribution partnership** first, investment second; keep a shortlist of other large groups (e.g. **AMAG**, regional luxury dealers) for optionality and leverage.
+
 ---
 
 ## Cross-cutting enablers
@@ -45,4 +53,4 @@ Tag loosely: 💎 high impact · ⚠️ watch-outs · 🧭 regulatory/strategic 
 - **New add-on fields + partner compliance/KYC** — driver add-on (#1) and protection add-on (#2) reuse the add-on pattern; both need partner attestations (licensing, insurance certificates) collected at onboarding.
 - **Channel inventory sync** — an availability/rates feed for OTAs (#3) can build on the existing availability API + per-partner webhooks; channel commission must be baked into on-channel rates. → candidate for BACKLOG if we pursue distribution.
 
-_Last updated: 2026-06-01._
+_Last updated: 2026-06-02._
