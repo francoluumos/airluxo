@@ -12,10 +12,10 @@ Repo + Vercel + airluxo.ch are DONE; remaining = staging environment. Setup agre
 - ✅ **Domain airluxo.ch — LIVE with SSL.** Hostpoint DNS (nameservers NOT moved → email preserved): apex `A @ → 216.198.79.1`, `www CNAME → cname.vercel-dns.com`; deleted old Hostpoint apex `A 217.26.48.101` + `AAAA 2a00:d70:0:a::166` (were splitting traffic). MX intact. Verified `https://airluxo.ch` serves 200.
   - _Optional polish:_ www CNAME → Vercel's newer `50e82785b89bf626.vercel-dns-017.com` (clears "DNS Change Recommended"); set www to **redirect** to apex for a clean canonical (currently serves 200).
 - **Branching:** feature branch (`feat/...`) off `main` → PR (auto preview URL) → merge to `staging` (soak-test) → `staging → main` (ship). Full GitFlow judged overkill for a solo founder.
-- ⬜ **REMAINING — staging environment:**
-  - Add **`staging.airluxo.ch`** as a Vercel domain mapped to the `staging` branch + Hostpoint `CNAME staging → cname.vercel-dns.com` (explicit record needed — the `*.airluxo.ch` wildcard A→Hostpoint would otherwise catch it).
-  - **Separate Supabase project for staging** so test bookings/emails/payments never touch prod (`shoeopxxjawmusgnjxfh`). Give the Vercel **Preview** scope its own `VITE_SUPABASE_*` values.
-  - Add **`staging.airluxo.ch`** to the PostHog internal-traffic `$host` filter (project 190604) so staging never pollutes real numbers (localhost already excluded).
+- **REMAINING — staging environment:**
+  - ✅ **`staging.airluxo.ch` Vercel domain — DONE.** Mapped to the `staging` branch (Hostpoint `CNAME staging → cname.vercel-dns.com`); auto-deploys on push and serves live (verified 1–2 Jun 2026).
+  - ⏸️ **Separate Supabase project for staging — DEFERRED 2 Jun 2026 (no real data on prod yet).** Today staging + prod share one project (`shoeopxxjawmusgnjxfh`); fine while prod is empty — test with throwaway emails (TESTING.md already assumes this). **Prerequisite before splitting (do this first, valuable on its own): capture the prod schema as code** — `supabase db dump --schema-only` → `supabase/migrations/` (none exist today; schema lives only in the live DB, so any hand-clone would drift). Then choose the isolation mechanism: a **separate staging project** (apply the migrations + re-create secrets/auth/storage/Stripe once) or **Supabase branching** (git-integrated preview DBs; needs migrations-as-code; paid add-on). When done, give the Vercel **Preview** scope its own `VITE_SUPABASE_*` values. **Trigger to revisit: before onboarding real partners or starting marketing** (i.e. before real data lands on prod).
+  - ⬜ Add **`staging.airluxo.ch`** to the PostHog internal-traffic `$host` filter (project 190604) so staging never pollutes real numbers (localhost already excluded).
 - ⬜ **Before real launch:** swap Stripe `pk_test_` → live key (Production scope only) when ready to take real money.
 
 ## Authentication & accounts
