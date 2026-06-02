@@ -11,9 +11,11 @@ import { setNewsletter } from '../lib/newsletter.js';
 import { openConsentSettings } from '../lib/consent.js';
 import { searchSwissAddress } from '../lib/geocode.js';
 import { chf } from '../lib/format.js';
+import { tierForTrips, nextTier, pointsToChf } from '../lib/loyalty.js';
 
 const TABS = [
   { key: 'trips', label: 'My trips' },
+  { key: 'rewards', label: 'Membership' },
   { key: 'saved', label: 'Saved' },
   { key: 'licence', label: 'Licence' },
   { key: 'account', label: 'Account' },
@@ -58,6 +60,7 @@ export default function CustomerAccount({ initialTab = 'trips', onExit, onOpenCa
 
         <div className="mt-8">
           {tab === 'trips' && <Trips />}
+          {tab === 'rewards' && <Rewards />}
           {tab === 'saved' && <Saved onOpenCar={onOpenCar} />}
           {tab === 'licence' && <Licence />}
           {tab === 'account' && <Account onExit={onExit} />}
@@ -120,6 +123,99 @@ function StatusPill({ status }) {
     Cancelled: 'bg-red-100 text-red-700', Completed: 'bg-mist text-stone',
   };
   return <span className={`mt-1 inline-block rounded-full px-2.5 py-1 text-[0.7rem] font-bold ${map[status] || 'bg-mist text-stone'}`}>{status}</span>;
+}
+
+/* ── Membership (loyalty) ──────────────────────────────────────────────── */
+function Rewards() {
+  const { customer } = useAuth();
+  const [trips, setTrips] = useState(null);
+  useEffect(() => {
+    let active = true;
+    supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'Completed')
+      .then(({ count }) => { if (active) setTrips(count ?? 0); })
+      .catch(() => { if (active) setTrips(0); });
+    return () => { active = false; };
+  }, []);
+
+  if (trips === null) return <Loading />;
+
+  const points = customer?.loyalty_points ?? 0;
+  const tier = tierForTrips(trips);
+  const nxt = nextTier(trips);
+  const worth = pointsToChf(points);
+  const span = nxt ? nxt.tier.minTrips - tier.minTrips : 1;
+  const pct = nxt ? Math.min(100, Math.max(0, Math.round(((trips - tier.minTrips) / span) * 100))) : 100;
+
+  return (
+    <div className="max-w-2xl space-y-8">
+      {/* membership card */}
+      <div className="spotlight relative overflow-hidden rounded-[var(--radius-card)] border border-graphite bg-void p-7 text-cloud">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="eyebrow text-gold-soft">AIRLUXO Member</div>
+            <div className="font-display mt-2 text-3xl">{tier.label}</div>
+          </div>
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-cloud/10">
+            <Icon.Star width={18} height={18} className="text-gold-soft" />
+          </span>
+        </div>
+        <div className="mt-8 flex items-end justify-between">
+          <div>
+            <div className="font-display text-4xl tnum text-gold-soft">{points.toLocaleString('de-CH')}</div>
+            <div className="mt-1 text-[0.7rem] uppercase tracking-wider text-ash">
+              points{worth ? ` · ~${chf(worth)} value` : ''}
+            </div>
+          </div>
+          <div className="text-right text-xs text-ash">{trips} {trips === 1 ? 'trip' : 'trips'} completed</div>
+        </div>
+      </div>
+
+      {/* progress to next tier */}
+      {nxt ? (
+        <div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-semibold">{tier.label}</span>
+            <span className="text-stone">{nxt.tripsAway} more {nxt.tripsAway === 1 ? 'trip' : 'trips'} → {nxt.tier.label}</span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-mist">
+            <div className="h-full rounded-full bg-gold transition-[width] duration-700" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm font-semibold text-gold">You’ve reached {tier.label} — our highest tier. Thank you for driving with us.</p>
+      )}
+
+      {/* current benefits */}
+      <section>
+        <SectionTitle>Your {tier.label} benefits</SectionTitle>
+        <ul className="mt-3 space-y-2">
+          {tier.perks.map((p) => (
+            <li key={p} className="flex items-center gap-2.5 rounded-xl border border-mist bg-cloud px-4 py-3 text-sm font-medium text-ink">
+              <Icon.Check width={16} height={16} className="shrink-0 text-go" /> {p}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* next-tier teaser */}
+      {nxt && (
+        <section>
+          <SectionTitle>Unlock at {nxt.tier.label}</SectionTitle>
+          <ul className="mt-3 space-y-2">
+            {nxt.tier.perks.map((p) => (
+              <li key={p} className="flex items-center gap-2.5 rounded-xl border border-dashed border-mist px-4 py-3 text-sm text-stone">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone/50" /> {p}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <p className="text-xs text-stone">
+        You earn points on every completed trip. Referrals and redeeming points for upgrades &amp; credits are coming soon.
+      </p>
+    </div>
+  );
 }
 
 /* ── Saved ─────────────────────────────────────────────────────────────── */
