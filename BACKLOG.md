@@ -105,10 +105,11 @@ _Captured from [MARKETING.md](MARKETING.md) and [OPERATIONS.md](OPERATIONS.md) �
 **Tiers (draft, name on-brand — e.g. "Keys": Silver → Gold → Platinum → Noir):** thresholds by trips or trailing-12-month CHF; each tier unlocks perks (see MARKETING #7). Consider a **status-match** to acquire HNW travellers fast.
 
 **Phased build:**
-1. **Referral codes** — per-customer code, double-sided credit on referee's first completed trip (mostly reuse promo system). Quick, high-leverage.
-2. **Points ledger** — `loyalty_ledger` + award on trip completion + balance/tier shown in the customer profile.
-3. **Redemption at checkout** — authoritative in `stripe-create-payment` (comp add-on / apply credit).
-4. **Tier perks** — priority access, upgrades, waived service fee, experiential perks; status match.
+1. ✅ **Foundation — DONE 2 Jun 2026.** `loyalty.js` SSOT + `customers.loyalty_points` + `loyalty_ledger` + `award_loyalty_on_completion` trigger (earns rental value × 5 on a booking's first transition to `Completed`, idempotent).
+2. ✅ **Surfaced — DONE.** "Membership" tab in `CustomerAccount`: Key tier, points + ~CHF value, progress to next tier, perks.
+3. ✅ **Referral — DONE.** `customers.referral_code` (auto) + `referred_by`; `apply_referral(code)` RPC (claimed from `?ref=` once the customer row exists); double-sided bonus (referrer 1000 / referee 500) on the referee's first completed trip; "Invite friends" card in the Membership tab.
+4. ✅ **Points redemption — DONE.** Authoritative in `stripe-create-payment` (v14): points → CHF member credit, AIRLUXO-funded, clamped to its own margin (never reduces partner payout); burned on booking insert via trigger; "Use my N points" control + member-credit line at checkout.
+5. ⬜ **Phase 4b — tier comps + experiential perks.** Free protection/delivery/upgrade, waived service fee at Noir, status match, priority access. **Blocked on the perk-economics decision** for the partner-cost comps (who absorbs a comped protection/delivery fee — AIRLUXO margin vs partner agreement). Service-fee waiver + experiential perks are cleanly AIRLUXO-funded and can go first.
 
 ## Listing media
 - **Per-listing video — v1 DONE (manual upload).** Partners upload a short clip in Add/Edit car (`listings.video_url`, reuses the public `listing-photos` bucket; ≤25 MB client check). It plays **muted/loop on hover** on the car card (desktop only; lazy `preload="none"`, src set on mouseenter and unloaded on leave, so the grid downloads no video until hovered) and **muted autoplay loop in the booking detail**. Honours `prefers-reduced-motion`; mobile keeps the image in the grid (no hover) and only plays in the booking view. Works in the embed too (shared components).
