@@ -15,6 +15,8 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const GUEST_SERVICE = 0.12;
 // Per-plan host commission — must mirror src/lib/plans.js
 const COMMISSION: Record<string, number> = { free: 0.15, pro: 0.09, max: 0.03 };
+// Loyalty points → CHF redemption rate — must mirror src/lib/loyalty.js POINTS_PER_CHF_REDEEMED
+const POINTS_REDEEM_RATE = 10;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -37,10 +39,27 @@ async function stripe(path: string, params: Record<string, string>) {
   return data;
 }
 
+// Resolve the signed-in customer from the request's Authorization header.
+// verify_jwt is OFF (guests call this), so we read it ourselves; guests send the
+// anon key as bearer → getUser returns no user → null.
+async function getUserId(req: Request): Promise<string | null> {
+  const authz = req.headers.get("Authorization") || "";
+  if (!authz.toLowerCase().startsWith("bearer ")) return null;
+  try {
+    const c = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authz } },
+    });
+    const { data } = await c.auth.getUser();
+    return data?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { listing_id, rate_id, quantity, cross_border, delivery, protection, start_date, end_date, pickup_time, return_time, promo_code } = await req.json();
+    const { listing_id, rate_id, quantity, cross_border, delivery, protection, start_date, end_date, pickup_time, return_time, promo_code, redeem_points } = await req.json();
     if (!listing_id) return json({ error: "listing_id required" }, 400);
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -145,7 +164,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    const finalTotal = total - discount;
+    // ---- loyalty points redemption (AIRLUXO-funded member credit) ----
+    // A signed-in customer can burn points for a CHF credit. It comes out of
+    // AIRLUXO's own margin (clamped to the app fee), never the partner payout.
+    let loyaltyCredit = 0, pointsRedeemed = 0;
+    const reqPoints = Math.max(0, Math.floor(Number(redeem_points) || 0));
+    if (reqPoints > 0) {
+      const uid = await getUserId(req);
+      if (uid) {
+        const { data: cust } = await admin.from("customers").select("loyalty_points").eq("id", uid).maybeSingle();
+        const bal = Math.max(0, Math.floor(Number(cust?.loyalty_points) || 0));
+        const usable = Math.min(reqPoints, bal);
+        const aluxoMargin = Math.max(0, (total - discount) - partnerNet); // app fee before loyalty
+        const credit = Math.min(Math.floor(usable / POINTS_REDEEM_RATE), aluxoMargin);
+        if (credit > 0) { loyaltyCredit = credit; pointsRedeemed = credit * POINTS_REDEEM_RATE; }
+      }
+    }
+
+    const finalTotal = total - discount - loyaltyCredit;
     const appFee = finalTotal - partnerNet;
 
     const pi = await stripe("payment_intents", {
@@ -166,6 +202,7 @@ Deno.serve(async (req) => {
         base_amount: base, addons_amount: addons, service_fee: service, total_amount: finalTotal,
         discount_amount: discount, promo_code: appliedCode, affiliate_commission: commission,
         protection_fee: protFee, deposit_amount: protFee > 0 ? Number(listing.deposit_amount || 0) : 0,
+        loyalty_credit: loyaltyCredit, points_redeemed: pointsRedeemed,
       },
     });
   } catch (e) {

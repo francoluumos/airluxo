@@ -31,6 +31,15 @@ export function AuthProvider({ children }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Capture a referral code from the URL (?ref=CODE) so it can be claimed once
+  // the customer row exists (see applyPendingReferral in loadProfiles).
+  useEffect(() => {
+    try {
+      const ref = new URLSearchParams(window.location.search).get('ref');
+      if (ref) localStorage.setItem('airluxo:ref', ref.trim());
+    } catch { /* ignore */ }
+  }, []);
+
   // Load both profile rows for the signed-in user. A user is a partner if a
   // `partners` row exists and a customer if a `customers` row exists (can be
   // both). Public logins (Google / email magic-link) that have neither profile
@@ -49,6 +58,8 @@ export function AuthProvider({ children }) {
     // Book-then-account: when a guest books logged-out, the scanned licence is saved
     // on the booking, not the profile. On sign-in, adopt it so the profile reflects it.
     if (cust && !cust.licence_verified) cust = await adoptLicenceFromBooking(user, cust);
+    // Claim a pending referral code (book-then-account or arrived via ?ref=).
+    if (cust && !cust.referred_by) cust = await applyPendingReferral(cust);
     setCustomer(cust ?? null);
   }, []);
 
@@ -149,6 +160,23 @@ async function adoptLicenceFromBooking(user, customer) {
     .maybeSingle();
   if (error) { console.error('[airluxo] licence back-fill failed', error.message); return customer; }
   return data ?? customer;
+}
+
+// Claim a pending referral code (stored from ?ref=). The apply_referral RPC sets
+// the caller's referred_by once, never to self; we then reload the fresh row.
+async function applyPendingReferral(customer) {
+  let code;
+  try { code = localStorage.getItem('airluxo:ref'); } catch { code = null; }
+  if (!code) return customer;
+  try {
+    const { data } = await supabase.rpc('apply_referral', { p_code: code });
+    try { localStorage.removeItem('airluxo:ref'); } catch { /* ignore */ }
+    if (data) {
+      const { data: fresh } = await supabase.from('customers').select('*').eq('id', customer.id).maybeSingle();
+      return fresh ?? customer;
+    }
+  } catch { /* ignore */ }
+  return customer;
 }
 
 // Upsert a customers row from the auth user + optional overrides. Returns the row.

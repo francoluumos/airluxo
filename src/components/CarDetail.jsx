@@ -14,6 +14,7 @@ import { track } from '../lib/analytics.js';
 import { useAuth } from '../lib/auth.jsx';
 import { supabase } from '../lib/supabase.js';
 import { validatePromo, promoReasonText } from '../lib/promo.js';
+import { POINTS_PER_CHF_REDEEMED } from '../lib/loyalty.js';
 
 export default function CarDetail({ car, onClose }) {
   // Null-safe: the white-label embed renders CarDetail outside AuthProvider, and
@@ -38,6 +39,7 @@ export default function CarDetail({ car, onClose }) {
   const [delivery, setDelivery] = useState(false);
   const [deliveryAddr, setDeliveryAddr] = useState('');
   const [protection, setProtection] = useState(false);
+  const [usePoints, setUsePoints] = useState(false);
   const [booked, setBooked] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | details | licence | payment
   const [guest, setGuest] = useState({ email: '', phone: '' });
@@ -127,7 +129,14 @@ export default function CarDetail({ car, onClose }) {
   const serviceFee = Math.round(subtotal * FEES.guestService);
   const total = subtotal + serviceFee + protectionFee;
   const discount = promo?.discount || 0;
-  const discountedTotal = Math.max(0, total - discount);
+  // Loyalty: a signed-in customer can burn points for an AIRLUXO-funded credit.
+  // This is a client estimate (clamped to the total); the authoritative amount is
+  // recomputed server-side in stripe-create-payment and read back from `bd`.
+  const loyaltyPoints = customer?.loyalty_points || 0;
+  const loyaltyCredit = usePoints
+    ? Math.min(Math.floor(loyaltyPoints / POINTS_PER_CHF_REDEEMED), Math.max(0, total - discount))
+    : 0;
+  const discountedTotal = Math.max(0, total - discount - loyaltyCredit);
   const deliveryMissingAddr = delivery && !deliveryAddr.trim();
 
   // Keep an applied promo's discount honest if the subtotal changes.
@@ -183,6 +192,9 @@ export default function CarDetail({ car, onClose }) {
       promo_code: bd ? (bd.promo_code ?? null) : (promo?.code || null),
       discount_amount: bd ? (bd.discount_amount ?? 0) : discount,
       affiliate_commission: bd ? (bd.affiliate_commission ?? 0) : 0,
+      // only redeem points when the authoritative payment path ran (server validated)
+      points_redeemed: bd ? (bd.points_redeemed ?? 0) : 0,
+      loyalty_credit: bd ? (bd.loyalty_credit ?? 0) : 0,
       licence_verified: true,
       licence: {
         first_name: licence.first_name.trim() || null,
@@ -328,6 +340,7 @@ export default function CarDetail({ car, onClose }) {
         pickupTime,
         returnTime: isDay ? returnTime : pickupTime,
         promoCode: promo?.code,
+        redeemPoints: usePoints ? loyaltyPoints : 0,
       });
       if (res.unavailable) { setErr('Those dates are no longer available — please pick another range.'); return; }
       // Partner not connected to Stripe yet → book without payment.
@@ -601,6 +614,12 @@ export default function CarDetail({ car, onClose }) {
                       <span className="font-semibold tnum">−{chf(discount)}</span>
                     </div>
                   )}
+                  {loyaltyCredit > 0 && (
+                    <div className="flex items-center justify-between text-go">
+                      <span className="font-semibold">Member credit · points</span>
+                      <span className="font-semibold tnum">−{chf(loyaltyCredit)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between border-t border-mist pt-3">
                     <span className="font-display text-base">Total</span>
                     <span className="font-display text-xl tnum">{chf(discountedTotal)}</span>
@@ -608,6 +627,16 @@ export default function CarDetail({ car, onClose }) {
                 </div>
 
                 {/* promo / referral code */}
+                {!booked && phase !== 'payment' && loyaltyPoints > 0 && (
+                  <label className="mt-3 flex cursor-pointer items-center justify-between rounded-xl border border-gold/30 bg-gold/5 px-4 py-2.5">
+                    <span className="flex items-center gap-2.5 text-sm font-semibold">
+                      <input type="checkbox" checked={usePoints} onChange={(e) => setUsePoints(e.target.checked)} className="ring-lux h-4 w-4 accent-ink" />
+                      Use my {loyaltyPoints.toLocaleString('de-CH')} points
+                    </span>
+                    <span className="text-sm font-semibold tnum text-gold">up to −{chf(Math.floor(loyaltyPoints / POINTS_PER_CHF_REDEEMED))}</span>
+                  </label>
+                )}
+
                 {!booked && phase !== 'payment' && (
                   <PromoField promo={promo} input={promoInput} setInput={setPromoInput} onApply={applyPromo} onClear={clearPromo} busy={promoBusy} err={promoErr} />
                 )}
@@ -619,7 +648,7 @@ export default function CarDetail({ car, onClose }) {
                   </div>
                 ) : phase === 'payment' && clientSecret ? (
                   <div className="mt-4 border-t border-mist pt-4">
-                    <div className="mb-3 text-[0.65rem] uppercase tracking-wider text-stone">Payment · authorise {chf(discountedTotal)}</div>
+                    <div className="mb-3 text-[0.65rem] uppercase tracking-wider text-stone">Payment · authorise {chf(serverBreakdown?.total_amount ?? discountedTotal)}</div>
                     <PaymentStep clientSecret={clientSecret} onPaid={() => finalize(paymentIntentId, 'authorized', serverBreakdown)} onError={setErr} />
                   </div>
                 ) : phase === 'licence' ? (

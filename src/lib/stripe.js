@@ -14,9 +14,9 @@ export function getStripe() {
 // Create a manual-capture PaymentIntent for a booking.
 // Returns { skip: true } if the car's partner isn't connected to Stripe yet,
 // otherwise { clientSecret, paymentIntentId }.
-export async function createPaymentIntent({ listingId, rateId, quantity, crossBorder, delivery, protection, startDate, endDate, pickupTime, returnTime, promoCode }) {
+export async function createPaymentIntent({ listingId, rateId, quantity, crossBorder, delivery, protection, startDate, endDate, pickupTime, returnTime, promoCode, redeemPoints }) {
   const { data, error } = await supabase.functions.invoke('stripe-create-payment', {
-    body: { listing_id: listingId, rate_id: rateId, quantity, cross_border: crossBorder, delivery, protection, start_date: startDate, end_date: endDate, pickup_time: pickupTime, return_time: returnTime, promo_code: promoCode },
+    body: { listing_id: listingId, rate_id: rateId, quantity, cross_border: crossBorder, delivery, protection, start_date: startDate, end_date: endDate, pickup_time: pickupTime, return_time: returnTime, promo_code: promoCode, redeem_points: redeemPoints },
   });
   if (error) throw error;
   return data;

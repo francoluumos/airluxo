@@ -11,7 +11,7 @@ import { setNewsletter } from '../lib/newsletter.js';
 import { openConsentSettings } from '../lib/consent.js';
 import { searchSwissAddress } from '../lib/geocode.js';
 import { chf } from '../lib/format.js';
-import { tierForTrips, nextTier, pointsToChf } from '../lib/loyalty.js';
+import { tierForTrips, nextTier, pointsToChf, REFERRAL } from '../lib/loyalty.js';
 
 const TABS = [
   { key: 'trips', label: 'My trips' },
@@ -129,6 +129,7 @@ function StatusPill({ status }) {
 function Rewards() {
   const { customer } = useAuth();
   const [trips, setTrips] = useState(null);
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     let active = true;
     supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'Completed')
@@ -211,8 +212,37 @@ function Rewards() {
         </section>
       )}
 
+      {/* referral */}
+      {customer?.referral_code && (
+        <section>
+          <SectionTitle>Invite friends</SectionTitle>
+          <div className="rounded-2xl border border-mist bg-cloud p-5">
+            <p className="text-sm text-stone">
+              When a friend completes their first trip, you earn{' '}
+              <span className="font-semibold text-ink">{REFERRAL.referrerReward.toLocaleString('de-CH')} points</span>{' '}
+              and they get <span className="font-semibold text-ink">{REFERRAL.refereeCredit.toLocaleString('de-CH')}</span>.
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <code className="flex-1 truncate rounded-xl border border-mist bg-paper px-3 py-2.5 text-sm font-semibold tracking-wider text-ink">{customer.referral_code}</code>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    navigator.clipboard.writeText(`${window.location.origin}/?ref=${customer.referral_code}`);
+                    setCopied(true); setTimeout(() => setCopied(false), 1500);
+                  } catch { /* ignore */ }
+                }}
+                className="ring-lux shrink-0 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void"
+              >
+                {copied ? 'Copied ✓' : 'Copy link'}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       <p className="text-xs text-stone">
-        You earn points on every completed trip. Referrals and redeeming points for upgrades &amp; credits are coming soon.
+        You earn points on every completed trip and can redeem them as credit at checkout.
       </p>
     </div>
   );
