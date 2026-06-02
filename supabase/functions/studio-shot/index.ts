@@ -1,11 +1,13 @@
 // AIRLUXO — studio-shot
 // Regenerates an uploaded car photo as a clean 3/4 studio shot using
-// Google Gemini 2.5 Flash Image ("Nano Banana"). Returns the generated image
+// Google Gemini 3 Pro Image ("Nano Banana Pro"). Returns the generated image
 // as base64; the client uploads it to storage.
 //
 // Secrets required (set in Supabase → Edge Functions → Manage secrets):
 //   GEMINI_API_KEY        — your Google AI Studio key (required)
-//   GEMINI_IMAGE_MODEL    — optional override, defaults to gemini-2.5-flash-image
+//   GEMINI_IMAGE_MODEL    — optional override, defaults to gemini-3-pro-image
+//     (Nano Banana Pro — far stronger instruction-following + background
+//     replacement than 2.5-flash-image, at higher cost/latency per image)
 //
 // verify_jwt is ON: only authenticated partners can call this.
 
@@ -16,10 +18,9 @@ const PROMPT =
   "Apply these composition rules identically every time so all outputs match: " +
   "1) Orientation: a front three-quarter view with the car facing LEFT — the front of the car points toward the left edge. If the input faces the other way, mirror it so the car always faces left. " +
   "2) Camera: low eye-level, about 15 degrees above the ground, roughly a 50mm lens, the car perfectly level and not tilted. " +
-  "3) Framing: the whole car centred horizontally and vertically, fully in frame, occupying about 85% of the image width, with even margins; nothing cropped and nothing touching the edges. " +
-  "4) Background: replace the ENTIRE scene with a flat, seamless, fully opaque pure white #FFFFFF that fills the whole canvas edge to edge — no transparency, no ragged or torn edges, no leftover scenery, no floor line, no horizon, no gradient, no vignette, no reflections and no props. Add only one soft, subtle contact shadow directly beneath the tyres. " +
+  "3) Framing: the whole car centred and fully in frame, occupying about 85% of the image width, with even margins and nothing cropped. " +
+  "4) Background: completely replace the original scene with a single uniform, perfectly even pure white #FFFFFF that fills the entire canvas with no tonal variation — a clean seamless studio sweep, no floor line, no horizon, no gradient, no reflections, no scenery and no props. Add only a soft, subtle contact shadow directly beneath the tyres. " +
   "5) Style: photorealistic automotive-catalogue look, sharp focus, even neutral studio lighting. " +
-  "Avoid: harsh shadows, uneven lighting, building or window reflections, street or floor textures, a floating car, cropped edges, distorted proportions, grey or off-white background, transparent areas. " +
   "Do not add any text, watermark, licence-plate text, people or other vehicles.";
 
 const cors = {
@@ -42,7 +43,7 @@ Deno.serve(async (req) => {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) return json({ error: "GEMINI_API_KEY is not configured" }, 500);
 
-  const model = Deno.env.get("GEMINI_IMAGE_MODEL") || "gemini-2.5-flash-image";
+  const model = Deno.env.get("GEMINI_IMAGE_MODEL") || "gemini-3-pro-image";
 
   let payload: { image?: string; mimeType?: string };
   try {
