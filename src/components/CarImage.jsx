@@ -6,7 +6,7 @@ export default function CarImage({ car, className = '', rounded = '' }) {
   const [state, setState] = useState('loading'); // loading | ok | err
 
   return (
-    <div className={`relative overflow-hidden bg-mist ${rounded} ${className}`}>
+    <div className={`relative overflow-hidden bg-cloud ${rounded} ${className}`}>
       {state !== 'err' && (
         <img
           src={car.image}

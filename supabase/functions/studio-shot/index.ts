@@ -16,10 +16,11 @@ const PROMPT =
   "Apply these composition rules identically every time so all outputs match: " +
   "1) Orientation: a front three-quarter view with the car facing LEFT — the front of the car points toward the left edge. If the input faces the other way, mirror it so the car always faces left. " +
   "2) Camera: low eye-level, about 15 degrees above the ground, roughly a 50mm lens, the car perfectly level and not tilted. " +
-  "3) Framing: the whole car centred and fully in frame, occupying about 85% of the image width, with even margins and nothing cropped. " +
-  "4) Background: a flat, seamless, pure white #FFFFFF background — absolutely no floor, no horizon line, no gradient, no reflections, no scenery and no props. Add only a soft, subtle contact shadow directly beneath the tyres. " +
+  "3) Framing: the whole car centred horizontally and vertically, fully in frame, occupying about 85% of the image width, with even margins; nothing cropped and nothing touching the edges. " +
+  "4) Background: replace the ENTIRE scene with a flat, seamless, fully opaque pure white #FFFFFF that fills the whole canvas edge to edge — no transparency, no ragged or torn edges, no leftover scenery, no floor line, no horizon, no gradient, no vignette, no reflections and no props. Add only one soft, subtle contact shadow directly beneath the tyres. " +
   "5) Style: photorealistic automotive-catalogue look, sharp focus, even neutral studio lighting. " +
-  "Do not add any text, watermark, licence-plate text, people or other vehicles. Output a wide 16:9 landscape image.";
+  "Avoid: harsh shadows, uneven lighting, building or window reflections, street or floor textures, a floating car, cropped edges, distorted proportions, grey or off-white background, transparent areas. " +
+  "Do not add any text, watermark, licence-plate text, people or other vehicles.";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -68,7 +69,15 @@ Deno.serve(async (req) => {
               ],
             },
           ],
-          generationConfig: { responseModalities: ["IMAGE"] },
+          // Lock the output geometry so every car comes out identically framed:
+          // imageConfig.aspectRatio forces 16:9 (otherwise Nano Banana inherits the
+          // input photo's ratio — the main source of inconsistent sizing/edges); a
+          // low temperature reduces run-to-run variance.
+          generationConfig: {
+            responseModalities: ["IMAGE"],
+            temperature: 0.2,
+            imageConfig: { aspectRatio: "16:9" },
+          },
         }),
       },
     );
