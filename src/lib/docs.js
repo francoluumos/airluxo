@@ -83,7 +83,7 @@ export const DOCS = {
   // ── Customer & frontend ──────────────────────────────────────────────────
   customer: {
     key: 'customer',
-    label: 'Customer & frontend',
+    label: 'Customer',
     eyebrow: 'Documentation',
     h1: 'The AIRLUXO booking experience',
     intro: 'How the public marketplace and guest booking flow work — browsing, booking, accounts and rewards. Kept up to date as features ship.',

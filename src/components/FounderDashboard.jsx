@@ -657,7 +657,7 @@ function DocsHub() {
   const docs = [
     { key: 'admin', title: 'Admin dashboard', desc: 'Founder dashboard guide, live system status & changelog.' },
     { key: 'partner', title: 'Partner dashboard', desc: 'The rental-partner guide & changelog.' },
-    { key: 'customer', title: 'Customer & frontend', desc: 'The guest booking experience & changelog.' },
+    { key: 'customer', title: 'Customer', desc: 'The guest booking experience & changelog.' },
   ];
   return (
     <div>

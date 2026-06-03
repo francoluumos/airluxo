@@ -5,7 +5,7 @@ import { DOCS } from '../lib/docs.js';
 
 const SWITCHER = [
   { key: 'partner', label: 'Partner' },
-  { key: 'customer', label: 'Customer & frontend' },
+  { key: 'customer', label: 'Customer' },
   { key: 'admin', label: 'Admin' },
 ];
 
