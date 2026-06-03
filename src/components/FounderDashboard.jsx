@@ -403,7 +403,6 @@ function Partners() {
               <th className="px-4 py-3 font-bold">Phone</th>
               <th className="px-4 py-3 font-bold">Contact</th>
               <th className="px-4 py-3 font-bold">Cars</th>
-              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
@@ -419,20 +418,17 @@ function Partners() {
                   <td className="px-4 py-3 text-stone tnum">{p.phone || '—'}</td>
                   <td className="px-4 py-3 text-stone">{p.contact_name || '—'}</td>
                   <td className="px-4 py-3 tnum text-stone">{p.car_count}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={(e) => { e.stopPropagation(); setEditing(p); }} className="ring-lux text-xs font-semibold text-ink hover:underline">Edit</button>
-                  </td>
                 </tr>
                 {expandedId === p.id && (
                   <tr className="border-b border-mist/60 bg-paper">
-                    <td colSpan={7} className="px-4 pb-6 pt-1">
+                    <td colSpan={6} className="px-4 pb-6 pt-1">
                       <PartnerDetail p={p} onEdit={() => setEditing(p)} onChanged={load} onDelete={() => setDeleting(p)} />
                     </td>
                   </tr>
                 )}
               </Fragment>
             ))}
-            {filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-stone">No partners in this view.</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-stone">No partners in this view.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -553,14 +549,14 @@ function PartnerDetail({ p, onEdit, onChanged, onDelete }) {
         </div>
       </div>
 
-      {locations.length > 0 && (
-        <div>
-          <SubLabel>Pick-up locations</SubLabel>
-          <div className="mt-2 space-y-1 text-sm text-stone">
-            {locations.map((l, i) => <div key={i}>{[l.label, l.city, l.address].filter(Boolean).join(' · ')}</div>)}
-          </div>
+      <div>
+        <SubLabel>Pick-up locations</SubLabel>
+        <div className="mt-2 space-y-1 text-sm text-stone">
+          {locations.length
+            ? locations.map((l, i) => <div key={i}>{[l.label, l.city, l.address].filter(Boolean).join(' · ')}</div>)
+            : <span className="text-xs">None added yet.</span>}
         </div>
-      )}
+      </div>
 
       <div>
         <SubLabel>Timeline</SubLabel>
