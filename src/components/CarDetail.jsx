@@ -14,6 +14,7 @@ import { track } from '../lib/analytics.js';
 import { useAuth } from '../lib/auth.jsx';
 import { supabase } from '../lib/supabase.js';
 import { validatePromo, promoReasonText } from '../lib/promo.js';
+import { subscribeNewsletter } from '../lib/newsletter.js';
 import { POINTS_PER_CHF_REDEEMED } from '../lib/loyalty.js';
 
 export default function CarDetail({ car, onClose }) {
@@ -43,6 +44,8 @@ export default function CarDetail({ car, onClose }) {
   const [booked, setBooked] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | details | licence | payment
   const [guest, setGuest] = useState({ email: '', phone: '' });
+  // Newsletter opt-in. Unchecked by default — affirmative consent (revDSG/GDPR-safe).
+  const [newsletterOptIn, setNewsletterOptIn] = useState(false);
   const [licence, setLicence] = useState({ first_name: '', last_name: '', birth_date: '', valid_from: '', categories: '', number: '' });
   const [verifying, setVerifying] = useState(false);
   const [licenceScanned, setLicenceScanned] = useState(false);
@@ -68,6 +71,7 @@ export default function CarDetail({ car, onClose }) {
   useEffect(() => {
     if (!customer) return;
     setGuest((g) => ({ email: g.email || customer.email || '', phone: g.phone || customer.phone || '' }));
+    if (customer.marketing_opt_in) setNewsletterOptIn(true);
     const l = customer.licence;
     if (customer.licence_verified && l) {
       setLicence({
@@ -195,6 +199,7 @@ export default function CarDetail({ car, onClose }) {
       // only redeem points when the authoritative payment path ran (server validated)
       points_redeemed: bd ? (bd.points_redeemed ?? 0) : 0,
       loyalty_credit: bd ? (bd.loyalty_credit ?? 0) : 0,
+      marketing_opt_in: newsletterOptIn,
       licence_verified: true,
       licence: {
         first_name: licence.first_name.trim() || null,
@@ -214,6 +219,17 @@ export default function CarDetail({ car, onClose }) {
     try {
       await createBooking(buildPayload(piId, payStatus, bd));
       track('booking_confirmed', { listing_id: car.id, make: car.make, model: car.model });
+      // Newsletter consent (affirmative). Add to the audience by email (covers guests),
+      // and record the consent on the profile for signed-in customers — the booking row
+      // carries it for guests so it's adopted if they create an account afterwards.
+      if (newsletterOptIn) {
+        subscribeNewsletter(guest.email.trim(), 'checkout').catch(() => {});
+        if (user) {
+          supabase.from('customers')
+            .update({ marketing_opt_in: true, marketing_opt_in_source: 'checkout' })
+            .eq('id', user.id).then(() => {});
+        }
+      }
       // Save the verified licence on file so future bookings are prefilled (best-effort).
       if (user && licenceScanned && licence.number.trim()) {
         supabase.from('customers').update({
@@ -702,6 +718,10 @@ export default function CarDetail({ car, onClose }) {
                       <input value={guest.phone} onChange={(e) => setGuest((g) => ({ ...g, phone: e.target.value }))} type="tel" placeholder="Phone" className="ring-lux w-full rounded-lg border border-mist bg-paper px-3 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
                     </div>
                     <p className="mt-2 text-xs text-stone">Your name is taken from your driver's licence in the next step.</p>
+                    <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-xs text-stone">
+                      <input type="checkbox" checked={newsletterOptIn} onChange={(e) => setNewsletterOptIn(e.target.checked)} className="ring-lux mt-0.5 h-4 w-4 shrink-0 accent-ink" />
+                      <span>Send me the AIRLUXO newsletter — new arrivals, member offers and events. Unsubscribe anytime.</span>
+                    </label>
                     <button onClick={detailsContinue} disabled={deliveryMissingAddr} className="ring-lux mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-4 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
                       Continue <Icon.Arrow width={16} height={16} />
                     </button>

@@ -744,7 +744,11 @@ function CustomerDetail({ id }) {
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-sm">
         <span className="text-stone">Tier <b className="text-ink">{tier.label}</b></span>
         <span className="text-stone">Joined <b className="text-ink">{fmtDate(c.created_at)}</b></span>
-        <span className="text-stone">Newsletter {c.marketing_opt_in ? <b className="text-go">opted in</b> : <b className="text-stone">off</b>}</span>
+        <span className="text-stone">Newsletter {c.marketing_opt_in
+          ? <b className="text-go">opted in{c.marketing_opt_in_at ? ` · ${fmtDate(c.marketing_opt_in_at)}` : ''}{c.marketing_opt_in_source ? ` · via ${c.marketing_opt_in_source}` : ''}</b>
+          : c.marketing_opt_out_at
+            ? <b className="text-stone">unsubscribed · {fmtDate(c.marketing_opt_out_at)}</b>
+            : <b className="text-stone">off</b>}</span>
         <span className="text-stone">Licence {c.licence_verified ? <b className="text-go">verified</b> : <b className="text-stone">none</b>}</span>
         {c.birth_date && <span className="text-stone">Birthday <b className="text-ink">{c.birth_date}</b></span>}
       </div>

@@ -61,6 +61,9 @@ export function AuthProvider({ children }) {
     // Book-then-account: when a guest books logged-out, the scanned licence is saved
     // on the booking, not the profile. On sign-in, adopt it so the profile reflects it.
     if (cust && !cust.licence_verified) cust = await adoptLicenceFromBooking(user, cust);
+    // Book-then-account: adopt a newsletter opt-in chosen at guest checkout. Never
+    // re-subscribe someone who has explicitly opted out.
+    if (cust && !cust.marketing_opt_in && !cust.marketing_opt_out_at) cust = await adoptOptInFromBooking(user, cust);
     // Claim a pending referral code (book-then-account or arrived via ?ref=).
     if (cust && !cust.referred_by) cust = await applyPendingReferral(cust);
     setCustomer(cust ?? null);
@@ -163,6 +166,31 @@ async function adoptLicenceFromBooking(user, customer) {
     .select()
     .maybeSingle();
   if (error) { console.error('[airluxo] licence back-fill failed', error.message); return customer; }
+  return data ?? customer;
+}
+
+// Adopt a newsletter opt-in made at guest checkout onto the customer profile. The
+// choice rides on the booking row (bookings.marketing_opt_in); on sign-in we look
+// for a recent opted-in booking under the same email and record consent on the
+// profile (source 'checkout'). The DB trigger stamps marketing_opt_in_at.
+async function adoptOptInFromBooking(user, customer) {
+  if (!user?.email) return customer;
+  const { data: bk } = await supabase
+    .from('bookings')
+    .select('id')
+    .eq('guest_email', user.email)
+    .eq('marketing_opt_in', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!bk) return customer;
+  const { data, error } = await supabase
+    .from('customers')
+    .update({ marketing_opt_in: true, marketing_opt_in_source: 'checkout' })
+    .eq('id', user.id)
+    .select()
+    .maybeSingle();
+  if (error) { console.error('[airluxo] opt-in adopt failed', error.message); return customer; }
   return data ?? customer;
 }
 

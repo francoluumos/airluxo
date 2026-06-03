@@ -401,7 +401,7 @@ function EmailPrefs({ customer, user, refreshCustomer }) {
     setOn(next); setBusy(true); setErr('');
     try {
       await setNewsletter(customer?.email || user?.email, next);
-      await supabase.from('customers').upsert({ id: user.id, email: user.email, marketing_opt_in: next }, { onConflict: 'id' });
+      await supabase.from('customers').upsert({ id: user.id, email: user.email, marketing_opt_in: next, marketing_opt_in_source: next ? 'profile' : undefined }, { onConflict: 'id' });
       refreshCustomer();
     } catch (e) {
       setOn(!next); // revert

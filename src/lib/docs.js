@@ -123,7 +123,7 @@ export const DOCS = {
           { h: 'My trips & Saved', p: 'Upcoming and past bookings, plus a wishlist of cars you hearted.' },
           { h: 'Licence on file', p: 'Add/replace your licence once; it prefills future bookings (and back-fills from a booking you made as a guest).' },
           { h: 'Membership (loyalty)', p: 'Earn points on completed trips, see your Key tier (Silver → Gold → Platinum → Noir) and progress, redeem points as credit at checkout, and invite friends with your referral code (you both earn points).' },
-          { h: 'Settings & privacy', p: 'Personal info + saved address, newsletter toggle, cookie controls, and GDPR account deletion.' },
+          { h: 'Settings & privacy', p: 'Personal info + saved address, newsletter toggle (opt-in, unsubscribe anytime), cookie controls, and GDPR account deletion.' },
         ],
       },
       {
@@ -133,6 +133,7 @@ export const DOCS = {
       },
     ],
     changelog: [
+      { date: '2026-06-03', version: 'Newsletter opt-in', items: ['Optional newsletter opt-in at checkout (unchecked by default). Unsubscribe anytime from your account or any email.'] },
       { date: '2026-06-03', version: 'Tier benefits', items: ['Membership tiers now comp perks at checkout — free damage protection & delivery (Platinum), service-fee waiver (Noir) — applied automatically, funded by AIRLUXO.'] },
       { date: '2026-06-02', version: 'Loyalty & referral', items: ['Membership tab: points on completed trips, Key tiers, redeem points as member credit at checkout, and a double-sided referral code.'] },
       { date: '2026-06-01', version: 'Zero-deposit protection', items: ['Damage-protection add-on at checkout — pay a per-trip fee to drop your excess to CHF 0 instead of a security deposit.'] },
@@ -201,6 +202,7 @@ export const DOCS = {
       },
     ],
     changelog: [
+      { date: '2026-06-03', version: 'Newsletter consent trail', items: ['Affirmative opt-in checkbox at checkout (unchecked by default, revDSG/GDPR-safe). Consent now records when + how (source) it was given and when withdrawn — surfaced in the customer sheet. Guest opt-ins carry onto the account on sign-up.'] },
       { date: '2026-06-03', version: 'Customers cockpit', items: ['Customers section: searchable list with bookings, revenue, loyalty tier and newsletter opt-in; expandable sheet (tier, points, referrals, birthday from licence, bookings by status, top cars rented, contact + address). Read-only for now.'] },
       { date: '2026-06-03', version: 'Loyalty tier comps (4b)', items: ['Tier perks applied authoritatively at checkout (stripe-create-payment): free protection/delivery + Noir service-fee waiver, AIRLUXO-funded and clamped to its margin so the partner payout is never reduced.'] },
       { date: '2026-06-03', version: 'Partners cockpit', items: ['Partners section: searchable, status-filtered list (incl. Archived); expandable info sheet (Stripe, go-live, plan, est. financials, bookings by status, top cars, locations, timeline); edit; archive (reversible, hides cars); delete (guarded — archive instead when bookings exist).'] },
