@@ -117,8 +117,9 @@ function FounderShell() {
         </div>
       </aside>
 
-      {/* main */}
-      <main className="flex-1 px-5 py-8 sm:px-10 sm:py-12">
+      {/* main — min-w-0 lets this flex child shrink below the pipeline's content
+          width, so the header stays fixed and only the columns row scrolls. */}
+      <main className="min-w-0 flex-1 px-5 py-8 sm:px-10 sm:py-12">
         {/* mobile section switch */}
         <div className="mb-6 flex gap-1 overflow-x-auto sm:hidden">
           {NAV.map((n) => (
