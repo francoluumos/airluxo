@@ -38,15 +38,24 @@ Deno.serve(async (req) => {
     const patch: Record<string, unknown> = {};
     if (typeof body.company_name === "string" && body.company_name.trim()) patch.company_name = body.company_name.trim();
     if (body.contact_name !== undefined) patch.contact_name = String(body.contact_name || "").trim() || null;
-    if (body.phone !== undefined) patch.phone = String(body.phone || "").trim() || null;
+    // Phone mirrors email: prospect → contact phone, live partner → partners.phone.
+    if (body.phone !== undefined) {
+      const phone = String(body.phone || "").trim() || null;
+      if (p.is_prospect) patch.prospect_contact_phone = phone;
+      else patch.phone = phone;
+    }
 
     const email = body.email !== undefined ? String(body.email || "").trim().toLowerCase() : null;
     if (email) {
       patch.prospect_contact_email = email;
       if (!p.is_prospect) {
-        // live partner → this IS their login email; change it in auth too.
-        const { error: upErr } = await admin.auth.admin.updateUserById(partnerId, { email, email_confirm: true });
-        if (upErr) return json({ error: `Could not update login email: ${upErr.message}` }, 409);
+        // Live partner → this IS their login email. Only touch auth if it changed
+        // (re-setting the same email can error and would abort the whole save).
+        const { data: cur } = await admin.auth.admin.getUserById(partnerId);
+        if ((cur?.user?.email || "").toLowerCase() !== email) {
+          const { error: upErr } = await admin.auth.admin.updateUserById(partnerId, { email, email_confirm: true });
+          if (upErr) return json({ error: `Could not update login email: ${upErr.message}` }, 409);
+        }
       }
     }
 
