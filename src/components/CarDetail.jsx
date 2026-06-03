@@ -14,7 +14,7 @@ import { track } from '../lib/analytics.js';
 import { useAuth } from '../lib/auth.jsx';
 import { supabase } from '../lib/supabase.js';
 import { validatePromo, promoReasonText } from '../lib/promo.js';
-import { subscribeNewsletter } from '../lib/newsletter.js';
+import { subscribeNewsletter, mySubscription } from '../lib/newsletter.js';
 import { POINTS_PER_CHF_REDEEMED } from '../lib/loyalty.js';
 
 export default function CarDetail({ car, onClose }) {
@@ -71,7 +71,8 @@ export default function CarDetail({ car, onClose }) {
   useEffect(() => {
     if (!customer) return;
     setGuest((g) => ({ email: g.email || customer.email || '', phone: g.phone || customer.phone || '' }));
-    if (customer.marketing_opt_in) setNewsletterOptIn(true);
+    // Prefill the opt-in if this customer is already subscribed (SSOT lookup).
+    if (customer.email) mySubscription(customer.email).then((s) => { if (s?.subscribed) setNewsletterOptIn(true); });
     const l = customer.licence;
     if (customer.licence_verified && l) {
       setLicence({
@@ -199,7 +200,6 @@ export default function CarDetail({ car, onClose }) {
       // only redeem points when the authoritative payment path ran (server validated)
       points_redeemed: bd ? (bd.points_redeemed ?? 0) : 0,
       loyalty_credit: bd ? (bd.loyalty_credit ?? 0) : 0,
-      marketing_opt_in: newsletterOptIn,
       licence_verified: true,
       licence: {
         first_name: licence.first_name.trim() || null,
@@ -219,16 +219,11 @@ export default function CarDetail({ car, onClose }) {
     try {
       await createBooking(buildPayload(piId, payStatus, bd));
       track('booking_confirmed', { listing_id: car.id, make: car.make, model: car.model });
-      // Newsletter consent (affirmative). Add to the audience by email (covers guests),
-      // and record the consent on the profile for signed-in customers — the booking row
-      // carries it for guests so it's adopted if they create an account afterwards.
+      // Newsletter consent (affirmative). Records the subscriber by email in the SSOT
+      // (newsletter_subscribers) and mirrors Resend — works for guests too, and links
+      // the customer account when signed in.
       if (newsletterOptIn) {
-        subscribeNewsletter(guest.email.trim(), 'checkout').catch(() => {});
-        if (user) {
-          supabase.from('customers')
-            .update({ marketing_opt_in: true, marketing_opt_in_source: 'checkout' })
-            .eq('id', user.id).then(() => {});
-        }
+        subscribeNewsletter(guest.email.trim(), 'checkout', user?.id || null).catch(() => {});
       }
       // Save the verified licence on file so future bookings are prefilled (best-effort).
       if (user && licenceScanned && licence.number.trim()) {

@@ -7,7 +7,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { supabase } from '../lib/supabase.js';
 import { fetchSavedCars, removeFavourite } from '../lib/favourites.js';
 import { uploadListingPhoto } from '../lib/listings.js';
-import { setNewsletter } from '../lib/newsletter.js';
+import { setNewsletter, mySubscription } from '../lib/newsletter.js';
 import { openConsentSettings } from '../lib/consent.js';
 import { searchSwissAddress } from '../lib/geocode.js';
 import { chf } from '../lib/format.js';
@@ -321,7 +321,7 @@ function Account({ onExit }) {
   return (
     <div className="max-w-md space-y-10">
       <PersonalInfo customer={customer} user={user} refreshCustomer={refreshCustomer} />
-      <EmailPrefs customer={customer} user={user} refreshCustomer={refreshCustomer} />
+      <EmailPrefs customer={customer} user={user} />
       <PrivacySection user={user} signOut={signOut} onExit={onExit} />
     </div>
   );
@@ -390,19 +390,23 @@ function PersonalInfo({ customer, user, refreshCustomer }) {
   );
 }
 
-function EmailPrefs({ customer, user, refreshCustomer }) {
+function EmailPrefs({ customer, user }) {
   const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  useEffect(() => { setOn(!!customer?.marketing_opt_in); }, [customer]);
+  const email = customer?.email || user?.email;
+  // Subscription state lives in newsletter_subscribers (the SSOT), read by email.
+  useEffect(() => {
+    let live = true;
+    if (email) mySubscription(email).then((s) => { if (live) setOn(!!s?.subscribed); });
+    return () => { live = false; };
+  }, [email]);
 
   async function toggle() {
     const next = !on;
     setOn(next); setBusy(true); setErr('');
     try {
-      await setNewsletter(customer?.email || user?.email, next);
-      await supabase.from('customers').upsert({ id: user.id, email: user.email, marketing_opt_in: next, marketing_opt_in_source: next ? 'profile' : undefined }, { onConflict: 'id' });
-      refreshCustomer();
+      await setNewsletter(email, next, 'profile', user?.id || null);
     } catch (e) {
       setOn(!next); // revert
       setErr(e.message || 'Could not update your preference.');

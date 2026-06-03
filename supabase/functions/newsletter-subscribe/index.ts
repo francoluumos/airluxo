@@ -1,13 +1,17 @@
 // AIRLUXO — newsletter-subscribe
-// Adds an email to a Resend Audience (the newsletter list) and sends a short
-// welcome. Called from the public newsletter signup form. verify_jwt OFF.
+// Single write path for newsletter consent. Supabase (newsletter_subscribers) is
+// the source of truth; Resend is a downstream mirror (best-effort). Called from
+// the footer signup, checkout opt-in, and the account toggle. verify_jwt OFF —
+// anyone can subscribe/unsubscribe their own email (unsubscribe links need no auth);
+// writes go through here (service role) so the browser never touches the table.
 //
+// Body: { email, subscribed?=true, source?, customer_id? }
 // Secrets:
-//   RESEND_API_KEY      (required) — Resend API key.
-//   RESEND_AUDIENCE_ID  (required) — the Audience to add contacts to.
-//   RESEND_FROM         (optional) — sender; defaults to "AirLuxo News <noreply@send.airluxo.ch>".
-//   RESEND_REPLY_TO     (optional) — reply-to address.
-// No-ops gracefully (200 { skipped }) if the required secrets are unset.
+//   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY  (auto) — SSOT write.
+//   RESEND_API_KEY / RESEND_AUDIENCE_ID       (optional) — mirror + welcome.
+//   RESEND_FROM / RESEND_REPLY_TO             (optional).
+
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -17,8 +21,7 @@ const cors = {
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-// Conservative check — good enough to reject obvious junk (no regex so the
-// source stays easy to deploy verbatim).
+// Conservative check — good enough to reject obvious junk.
 const validEmail = (e: string) => {
   const at = e.indexOf("@");
   const dot = e.lastIndexOf(".");
@@ -31,50 +34,56 @@ Deno.serve(async (req) => {
 
   let email: string | undefined;
   let source: string | undefined;
+  let customerId: string | undefined;
   let subscribed = true; // default: subscribe. Pass false to opt out.
   try {
     const body = await req.json();
-    email = body.email; source = body.source;
+    email = body.email; source = body.source; customerId = body.customer_id;
     if (body.subscribed === false) subscribed = false;
   } catch { return json({ error: "Invalid JSON" }, 400); }
 
   email = (email || "").trim().toLowerCase();
   if (!validEmail(email)) return json({ error: "A valid email is required." }, 400);
 
+  // 1) Source of truth: upsert into newsletter_subscribers. Only set source/
+  //    customer_id when provided so an unsubscribe never wipes them. The trigger
+  //    stamps opt_in_at / opt_out_at.
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const row: Record<string, unknown> = { email, subscribed };
+  if (subscribed && source) row.source = source;
+  if (customerId) row.customer_id = customerId;
+  const { error: dbErr } = await admin
+    .from("newsletter_subscribers")
+    .upsert(row, { onConflict: "email" });
+  if (dbErr) return json({ error: `db: ${dbErr.message}` }, 500);
+
+  // 2) Mirror to Resend (best-effort — never blocks the SSOT result).
   const apiKey = Deno.env.get("RESEND_API_KEY");
   const audienceId = Deno.env.get("RESEND_AUDIENCE_ID");
-  if (!apiKey || !audienceId) return json({ skipped: "Resend not configured" });
-
-  // Opt-out: mark the Resend contact unsubscribed (no welcome email).
-  if (!subscribed) {
-    const off = await fetch(`https://api.resend.com/audiences/${audienceId}/contacts/${encodeURIComponent(email)}`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ unsubscribed: true }),
-    });
-    // A missing contact (404) is fine — they were never subscribed.
-    if (!off.ok && off.status !== 404) {
-      return json({ error: `Resend ${off.status}: ${(await off.text()).slice(0, 300)}` }, 502);
-    }
-    return json({ unsubscribed: true });
+  if (!apiKey || !audienceId) {
+    return json({ ok: true, subscribed, mirrored: false });
   }
 
-  // Add (or re-add) the contact to the audience. Resend treats this as upsert;
-  // a 409/duplicate is success from the user's perspective.
-  const add = await fetch(`https://api.resend.com/audiences/${audienceId}/contacts`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ email, unsubscribed: false }),
-  });
-  if (!add.ok && add.status !== 409) {
-    const detail = (await add.text()).slice(0, 300);
-    // Treat "already exists" style errors as success; surface anything else.
-    if (!/exist|already/i.test(detail)) return json({ error: `Resend ${add.status}: ${detail}` }, 502);
-  }
-
-  // Best-effort welcome email — never blocks the subscription result.
-  const from = Deno.env.get("RESEND_FROM") || "AirLuxo News <noreply@send.airluxo.ch>";
   try {
+    if (!subscribed) {
+      const off = await fetch(`https://api.resend.com/audiences/${audienceId}/contacts/${encodeURIComponent(email)}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ unsubscribed: true }),
+      });
+      if (!off.ok && off.status !== 404) return json({ ok: true, subscribed, mirrored: false });
+      return json({ ok: true, subscribed: false, mirrored: true });
+    }
+
+    // Add (or re-add) the contact. Resend upserts; a 409/duplicate is success.
+    await fetch(`https://api.resend.com/audiences/${audienceId}/contacts`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ email, unsubscribed: false }),
+    });
+
+    // Best-effort welcome email.
+    const from = Deno.env.get("RESEND_FROM") || "AirLuxo News <noreply@send.airluxo.ch>";
     await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -97,7 +106,7 @@ Deno.serve(async (req) => {
           </div>`,
       }),
     });
-  } catch { /* welcome email is non-critical */ }
+  } catch { /* mirror is non-critical — Supabase already has the truth */ }
 
-  return json({ subscribed: true, source: source || "site" });
+  return json({ ok: true, subscribed, mirrored: true });
 });
