@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Icon } from './Icons.jsx';
 import { useAuth } from '../lib/auth.jsx';
-import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin } from '../lib/prospects.js';
+import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, PARTNER_STATUS, partnerStatus } from '../lib/prospects.js';
 
 // AIRLUXO founder / admin back office. Rendered on admin.airluxo.ch (or ?admin
 // while the subdomain DNS isn't wired). The security boundary is server-side:
@@ -130,7 +130,9 @@ function FounderShell() {
           ))}
         </div>
 
-        {section === 'pipeline' ? <Pipeline /> : <SectionPlaceholder label={NAV.find((n) => n.key === section)?.label} />}
+        {section === 'pipeline' ? <Pipeline />
+          : section === 'partners' ? <Partners />
+          : <SectionPlaceholder label={NAV.find((n) => n.key === section)?.label} />}
       </main>
     </div>
   );
@@ -333,6 +335,119 @@ function CreateProspectModal({ onClose, onCreated }) {
           <button type="submit" disabled={busy} className="ring-lux flex-1 rounded-full bg-ink py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">
             {busy ? 'Creating…' : 'Create prospect'}
           </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* ── Partners ──────────────────────────────────────────────────────────── */
+function Partners() {
+  const [rows, setRows] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [filter, setFilter] = useState('all');
+  const [err, setErr] = useState('');
+
+  const load = () => listPartners().then(setRows).catch((e) => { setErr(e.message); setRows([]); });
+  useEffect(() => { load(); }, []);
+
+  if (rows === null) return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
+
+  const withStatus = rows.map((p) => ({ ...p, status: partnerStatus(p) }));
+  const counts = { all: withStatus.length, prospecting: 0, won: 0, lost: 0 };
+  withStatus.forEach((p) => { counts[p.status] += 1; });
+  const filtered = filter === 'all' ? withStatus : withStatus.filter((p) => p.status === filter);
+
+  return (
+    <div>
+      <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Partners</h1>
+      <p className="mt-1 text-sm text-stone">Every partner and prospect, with their partnership status. Click Edit to update details.</p>
+      {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        {[['all', 'All'], ['prospecting', 'Prospecting'], ['won', 'Won'], ['lost', 'Lost']].map(([k, l]) => (
+          <button key={k} onClick={() => setFilter(k)}
+            className={`ring-lux rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${filter === k ? 'bg-ink text-cloud' : 'border border-mist text-stone hover:border-ink'}`}>
+            {l} <span className="opacity-60">{counts[k] ?? 0}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-mist bg-cloud">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead>
+            <tr className="border-b border-mist text-left text-[0.65rem] uppercase tracking-wider text-stone">
+              <th className="px-4 py-3 font-bold">Company</th>
+              <th className="px-4 py-3 font-bold">Status</th>
+              <th className="px-4 py-3 font-bold">Email</th>
+              <th className="px-4 py-3 font-bold">Contact</th>
+              <th className="px-4 py-3 font-bold">Cars</th>
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((p) => (
+              <tr key={p.id} className="border-b border-mist/60 last:border-0">
+                <td className="px-4 py-3 font-semibold">{p.company_name}</td>
+                <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
+                <td className="px-4 py-3 text-stone">{(p.is_prospect ? p.prospect_contact_email : p.login_email) || '—'}</td>
+                <td className="px-4 py-3 text-stone">{p.contact_name || '—'}</td>
+                <td className="px-4 py-3 tnum text-stone">{p.car_count}</td>
+                <td className="px-4 py-3 text-right">
+                  <button onClick={() => setEditing(p)} className="ring-lux text-xs font-semibold text-ink hover:underline">Edit</button>
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-stone">No partners in this view.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {editing && <PartnerEditModal p={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const map = { prospecting: 'bg-gold/15 text-gold', won: 'bg-go/12 text-go', lost: 'bg-mist text-stone' };
+  return <span className={`rounded-full px-2.5 py-1 text-[0.7rem] font-bold ${map[status] || 'bg-mist text-stone'}`}>{PARTNER_STATUS[status] || status}</span>;
+}
+
+function PartnerEditModal({ p, onClose, onSaved }) {
+  const [f, setF] = useState({
+    company_name: p.company_name || '',
+    contact_name: p.contact_name || '',
+    phone: p.phone || '',
+    email: (p.is_prospect ? p.prospect_contact_email : p.login_email) || '',
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
+
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true); setErr('');
+    try { await updatePartner(p.id, f); onSaved(); }
+    catch (e2) { setErr(e2.message || 'Could not save.'); setBusy(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/50 p-5 backdrop-blur-sm" onClick={onClose}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} className="w-full max-w-md rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+        <h2 className="font-display text-xl">Edit — {p.company_name}</h2>
+        <div className="mt-4 space-y-3">
+          <AdminField label="Company name" value={f.company_name} onChange={set('company_name')} />
+          <div className="grid grid-cols-2 gap-3">
+            <AdminField label="Contact name" value={f.contact_name} onChange={set('contact_name')} />
+            <AdminField label="Phone" value={f.phone} onChange={set('phone')} />
+          </div>
+          <AdminField label={p.is_prospect ? 'Contact email' : 'Login email'} value={f.email} onChange={set('email')} type="email" />
+        </div>
+        {!p.is_prospect && <p className="mt-2 text-xs text-stone">This is the partner's login email — changing it updates how they sign in.</p>}
+        {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+        <div className="mt-5 flex gap-3">
+          <button type="button" onClick={onClose} className="ring-lux rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink">Cancel</button>
+          <button type="submit" disabled={busy} className="ring-lux flex-1 rounded-full bg-ink py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">{busy ? 'Saving…' : 'Save'}</button>
         </div>
       </form>
     </div>

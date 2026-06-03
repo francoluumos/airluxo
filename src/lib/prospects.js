@@ -12,6 +12,35 @@ export const STAGES = [
   { key: 'lost', label: 'Lost' },
 ];
 
+// Partnership status for the Partners section, derived from is_prospect + stage.
+export const PARTNER_STATUS = {
+  prospecting: 'Prospecting',
+  won: 'Won',
+  lost: 'Lost',
+};
+export function partnerStatus(p) {
+  if (p.is_prospect) return p.pipeline_stage === 'lost' ? 'lost' : 'prospecting';
+  return 'won'; // claimed or organic — a live partner
+}
+
+// All partners (prospects + live) for the founder Partners section.
+export async function listPartners() {
+  const { data, error } = await supabase.rpc('admin_list_partners');
+  if (error) throw error;
+  return data ?? [];
+}
+
+// Edit a partner. `email` maps to the contact email (prospect) or the login email
+// (live partner) server-side.
+export async function updatePartner(id, fields) {
+  const { data, error } = await supabase.functions.invoke('admin-update-partner', {
+    body: { partner_id: id, ...fields },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 export async function listProspects() {
   const { data, error } = await supabase.rpc('admin_list_prospects');
   if (error) throw error;
