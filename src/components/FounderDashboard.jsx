@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Icon } from './Icons.jsx';
 import { useAuth } from '../lib/auth.jsx';
+import { STAGES, listProspects, createProspect, setProspectStage } from '../lib/prospects.js';
 
 // AIRLUXO founder / admin back office. Rendered on admin.airluxo.ch (or ?admin
 // while the subdomain DNS isn't wired). The security boundary is server-side:
@@ -128,34 +129,132 @@ function FounderShell() {
           ))}
         </div>
 
-        {section === 'pipeline' ? <PipelinePlaceholder /> : <SectionPlaceholder label={NAV.find((n) => n.key === section)?.label} />}
+        {section === 'pipeline' ? <Pipeline /> : <SectionPlaceholder label={NAV.find((n) => n.key === section)?.label} />}
       </main>
     </div>
   );
 }
 
-// Phase 1 will replace this with the CRM board (Lead → Preview built → Shared →
-// Negotiating → Won → Lost) + "New prospect".
-function PipelinePlaceholder() {
+// CRM pipeline board: prospects as cards in stage columns. Create = a private
+// preview workspace (placeholder partner). Phase 2 adds build-the-fleet + hide
+// from marketplace; Phase 4 the claim-to-live.
+function Pipeline() {
+  const [rows, setRows] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState('');
+
+  const load = () => listProspects().then(setRows).catch((e) => { setErr(e.message); setRows([]); });
+  useEffect(() => { load(); }, []);
+
+  async function move(id, stage) {
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, pipeline_stage: stage } : r)));
+    try { await setProspectStage(id, stage); } catch (e) { setErr(e.message); load(); }
+  }
+
+  if (rows === null) {
+    return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
+  }
+
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Prospect pipeline</h1>
           <p className="mt-1 text-sm text-stone">Create a preview for a potential partner, build their fleet, share it, then claim it live.</p>
         </div>
-        <button disabled className="rounded-full bg-ink/40 px-5 py-2.5 text-sm font-semibold text-cloud opacity-60" title="Coming in Phase 1">+ New prospect</button>
+        <button onClick={() => setCreating(true)} className="ring-lux shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void">+ New prospect</button>
       </div>
-      <div className="mt-8 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {['Lead', 'Preview built', 'Shared', 'Negotiating', 'Won', 'Lost'].map((stage) => (
-          <div key={stage} className="rounded-2xl border border-dashed border-mist bg-cloud/60 p-3">
-            <div className="text-[0.7rem] font-bold uppercase tracking-wider text-stone">{stage}</div>
-            <div className="mt-3 grid h-24 place-items-center text-xs text-stone/60">—</div>
-          </div>
-        ))}
+      {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+
+      <div className="mt-8 flex gap-3 overflow-x-auto pb-4">
+        {STAGES.map((s) => {
+          const cards = rows.filter((r) => (r.pipeline_stage || 'lead') === s.key);
+          return (
+            <div key={s.key} className="w-64 shrink-0">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[0.7rem] font-bold uppercase tracking-wider text-stone">{s.label}</span>
+                <span className="text-xs text-stone/60">{cards.length}</span>
+              </div>
+              <div className="mt-2 space-y-2">
+                {cards.map((p) => <ProspectCard key={p.id} p={p} onMove={move} />)}
+                {cards.length === 0 && <div className="rounded-2xl border border-dashed border-mist py-8 text-center text-xs text-stone/40">—</div>}
+              </div>
+            </div>
+          );
+        })}
       </div>
-      <p className="mt-6 text-xs text-stone">Phase 0 shipped the secure admin shell. The pipeline board + create-prospect land in Phase 1.</p>
+
+      {creating && <CreateProspectModal onClose={() => setCreating(false)} onCreated={() => { setCreating(false); load(); }} />}
     </div>
+  );
+}
+
+function ProspectCard({ p, onMove }) {
+  const previewLink = `${window.location.origin}/?embed=${p.id}`;
+  const contact = [p.prospect_contact_name, p.prospect_contact_email].filter(Boolean).join(' · ');
+  return (
+    <div className="rounded-2xl border border-mist bg-cloud p-3 shadow-[0_10px_30px_-24px_rgba(11,11,12,0.5)]">
+      <div className="font-display text-sm leading-tight">{p.company_name}</div>
+      {contact && <div className="mt-0.5 truncate text-xs text-stone">{contact}</div>}
+      <div className="mt-2 flex items-center justify-between text-xs text-stone">
+        <span>{p.car_count} {Number(p.car_count) === 1 ? 'car' : 'cars'}</span>
+        <a href={previewLink} target="_blank" rel="noreferrer" className="ring-lux font-semibold text-gold hover:underline">Preview ↗</a>
+      </div>
+      <select value={p.pipeline_stage || 'lead'} onChange={(e) => onMove(p.id, e.target.value)}
+        className="ring-lux mt-2 w-full rounded-lg border border-mist bg-paper px-2 py-1.5 text-xs outline-none focus:border-ink">
+        {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function CreateProspectModal({ onClose, onCreated }) {
+  const [f, setF] = useState({ company_name: '', contact_name: '', contact_email: '', contact_phone: '', source: '' });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!f.company_name.trim()) { setErr('Company name is required.'); return; }
+    setBusy(true); setErr('');
+    try { await createProspect(f); onCreated(); }
+    catch (e2) { setErr(e2.message || 'Could not create prospect.'); setBusy(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/50 p-5 backdrop-blur-sm" onClick={onClose}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} className="w-full max-w-md rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+        <h2 className="font-display text-xl">New prospect</h2>
+        <p className="mt-1 text-sm text-stone">Creates a private preview workspace — no partner email needed.</p>
+        <div className="mt-4 space-y-3">
+          <AdminField label="Company name *" value={f.company_name} onChange={set('company_name')} placeholder="Geneva Prestige Cars" />
+          <div className="grid grid-cols-2 gap-3">
+            <AdminField label="Contact name" value={f.contact_name} onChange={set('contact_name')} />
+            <AdminField label="Contact phone" value={f.contact_phone} onChange={set('contact_phone')} />
+          </div>
+          <AdminField label="Contact email" value={f.contact_email} onChange={set('contact_email')} type="email" />
+          <AdminField label="Source" value={f.source} onChange={set('source')} placeholder="Referral, cold outreach, event…" />
+        </div>
+        {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+        <div className="mt-5 flex gap-3">
+          <button type="button" onClick={onClose} className="ring-lux rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink">Cancel</button>
+          <button type="submit" disabled={busy} className="ring-lux flex-1 rounded-full bg-ink py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">
+            {busy ? 'Creating…' : 'Create prospect'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function AdminField({ label, value, onChange, placeholder, type }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-semibold text-stone">{label}</span>
+      <input type={type} value={value} onChange={onChange} placeholder={placeholder}
+        className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+    </label>
   );
 }
 
