@@ -143,6 +143,7 @@ function Pipeline() {
   const [rows, setRows] = useState(null);
   const [creating, setCreating] = useState(false);
   const [claiming, setClaiming] = useState(null);
+  const [dragOver, setDragOver] = useState(null); // stage key being dragged over
   const [err, setErr] = useState('');
 
   const load = () => listProspects().then(setRows).catch((e) => { setErr(e.message); setRows([]); });
@@ -171,14 +172,27 @@ function Pipeline() {
       <div className="mt-8 flex gap-3 overflow-x-auto pb-4">
         {STAGES.map((s) => {
           const cards = rows.filter((r) => (r.pipeline_stage || 'lead') === s.key);
+          const over = dragOver === s.key;
           return (
-            <div key={s.key} className="w-64 shrink-0">
+            <div
+              key={s.key}
+              className="w-64 shrink-0"
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOver !== s.key) setDragOver(s.key); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const id = e.dataTransfer.getData('text/plain');
+                setDragOver(null);
+                if (id) move(id, s.key);
+              }}
+            >
               <div className="flex items-center justify-between px-1">
                 <span className="text-[0.7rem] font-bold uppercase tracking-wider text-stone">{s.label}</span>
                 <span className="text-xs text-stone/60">{cards.length}</span>
               </div>
-              <div className="mt-2 space-y-2">
-                {cards.map((p) => <ProspectCard key={p.id} p={p} onMove={move} onClaim={setClaiming} />)}
+              <div className={`mt-2 min-h-[5rem] space-y-2 rounded-2xl p-1 transition-colors ${over ? 'bg-gold/10 outline-dashed outline-2 outline-gold/40' : ''}`}>
+                {cards.map((p) => (
+                  <ProspectCard key={p.id} p={p} onMove={move} onClaim={setClaiming} onDragEnd={() => setDragOver(null)} />
+                ))}
                 {cards.length === 0 && <div className="rounded-2xl border border-dashed border-mist py-8 text-center text-xs text-stone/40">—</div>}
               </div>
             </div>
@@ -192,9 +206,10 @@ function Pipeline() {
   );
 }
 
-function ProspectCard({ p, onMove, onClaim }) {
+function ProspectCard({ p, onMove, onClaim, onDragEnd }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [dragging, setDragging] = useState(false);
   const previewLink = `${siteOrigin()}/?embed=${p.id}&preview=${p.preview_token}`;
   const contact = [p.prospect_contact_name, p.prospect_contact_email].filter(Boolean).join(' · ');
 
@@ -210,7 +225,12 @@ function ProspectCard({ p, onMove, onClaim }) {
   }
 
   return (
-    <div className="rounded-2xl border border-mist bg-cloud p-3 shadow-[0_10px_30px_-24px_rgba(11,11,12,0.5)]">
+    <div
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData('text/plain', p.id); e.dataTransfer.effectAllowed = 'move'; setDragging(true); }}
+      onDragEnd={() => { setDragging(false); onDragEnd?.(); }}
+      className={`cursor-grab rounded-2xl border border-mist bg-cloud p-3 shadow-[0_10px_30px_-24px_rgba(11,11,12,0.5)] transition-opacity active:cursor-grabbing ${dragging ? 'opacity-40' : ''}`}
+    >
       <div className="font-display text-sm leading-tight">{p.company_name}</div>
       {contact && <div className="mt-0.5 truncate text-xs text-stone">{contact}</div>}
       <div className="mt-1.5 text-xs text-stone">{p.car_count} {Number(p.car_count) === 1 ? 'car' : 'cars'}</div>
