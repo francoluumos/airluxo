@@ -352,6 +352,7 @@ function Partners() {
   const [deleting, setDeleting] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [q, setQ] = useState('');
   const [err, setErr] = useState('');
 
   const load = () => listPartners().then(setRows).catch((e) => { setErr(e.message); setRows([]); });
@@ -364,12 +365,23 @@ function Partners() {
   const archived = withStatus.filter((p) => p.archived_at);
   const counts = { all: active.length, prospecting: 0, won: 0, lost: 0, archived: archived.length };
   active.forEach((p) => { counts[p.status] += 1; });
-  const filtered = filter === 'archived' ? archived : filter === 'all' ? active : active.filter((p) => p.status === filter);
+  const byStatus = filter === 'archived' ? archived : filter === 'all' ? active : active.filter((p) => p.status === filter);
+  const ql = q.trim().toLowerCase();
+  const filtered = ql
+    ? byStatus.filter((p) => [p.company_name, p.contact_name, (p.is_prospect ? p.prospect_contact_email : p.login_email), p.phone]
+      .some((v) => (v || '').toLowerCase().includes(ql)))
+    : byStatus;
 
   return (
     <div>
-      <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Partners</h1>
-      <p className="mt-1 text-sm text-stone">Every partner and prospect, with their partnership status. Click Edit to update details.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Partners</h1>
+          <p className="mt-1 text-sm text-stone">Every partner and prospect, with their partnership status. Click a row for the full sheet.</p>
+        </div>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search company, contact, email…"
+          className="ring-lux w-full max-w-xs rounded-full border border-mist bg-cloud px-4 py-2 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone sm:w-64" />
+      </div>
       {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
 
       <div className="mt-5 flex flex-wrap gap-2">
