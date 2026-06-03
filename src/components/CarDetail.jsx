@@ -620,9 +620,15 @@ export default function CarDetail({ car, onClose }) {
                       <span className="font-semibold tnum">−{chf(loyaltyCredit)}</span>
                     </div>
                   )}
+                  {serverBreakdown?.tier_comp > 0 && (
+                    <div className="flex items-center justify-between text-go">
+                      <span className="font-semibold capitalize">{serverBreakdown.tier} benefit</span>
+                      <span className="font-semibold tnum">−{chf(serverBreakdown.tier_comp)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between border-t border-mist pt-3">
                     <span className="font-display text-base">Total</span>
-                    <span className="font-display text-xl tnum">{chf(discountedTotal)}</span>
+                    <span className="font-display text-xl tnum">{chf(serverBreakdown?.total_amount ?? discountedTotal)}</span>
                   </div>
                 </div>
 

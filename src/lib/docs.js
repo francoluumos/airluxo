@@ -133,6 +133,7 @@ export const DOCS = {
       },
     ],
     changelog: [
+      { date: '2026-06-03', version: 'Tier benefits', items: ['Membership tiers now comp perks at checkout — free damage protection & delivery (Platinum), service-fee waiver (Noir) — applied automatically, funded by AIRLUXO.'] },
       { date: '2026-06-02', version: 'Loyalty & referral', items: ['Membership tab: points on completed trips, Key tiers, redeem points as member credit at checkout, and a double-sided referral code.'] },
       { date: '2026-06-01', version: 'Zero-deposit protection', items: ['Damage-protection add-on at checkout — pay a per-trip fee to drop your excess to CHF 0 instead of a security deposit.'] },
       { date: '2026-06-01', version: 'Book-then-account', items: ['Book without signing in; create an account on the confirmation (Google or email link). Mobile input zoom fixed.'] },
@@ -199,6 +200,7 @@ export const DOCS = {
       },
     ],
     changelog: [
+      { date: '2026-06-03', version: 'Loyalty tier comps (4b)', items: ['Tier perks applied authoritatively at checkout (stripe-create-payment): free protection/delivery + Noir service-fee waiver, AIRLUXO-funded and clamped to its margin so the partner payout is never reduced.'] },
       { date: '2026-06-03', version: 'Partners cockpit', items: ['Partners section: searchable, status-filtered list (incl. Archived); expandable info sheet (Stripe, go-live, plan, est. financials, bookings by status, top cars, locations, timeline); edit; archive (reversible, hides cars); delete (guarded — archive instead when bookings exist).'] },
       { date: '2026-06-03', version: 'Prospect pipeline', items: ['Founder dashboard Phases 1–4: prospect create (no email), build-fleet via impersonation, prospects hidden from the marketplace, token-gated storefront preview, drag-and-drop stages, and claim-to-live. Three docs/changelogs (this hub).'] },
       { date: '2026-06-03', version: 'Admin foundation', items: ['admin.airluxo.ch founder dashboard with app_admins + is_admin() server-side gating and the admin shell.'] },

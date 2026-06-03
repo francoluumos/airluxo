@@ -42,7 +42,7 @@ async function stripe(path: string, params: Record<string, string>) {
 // Resolve the signed-in customer from the request's Authorization header.
 // verify_jwt is OFF (guests call this), so we read it ourselves; guests send the
 // anon key as bearer → getUser returns no user → null.
-async function getUserId(req: Request): Promise<string | null> {
+async function getAuthUser(req: Request): Promise<{ id: string; email: string } | null> {
   const authz = req.headers.get("Authorization") || "";
   if (!authz.toLowerCase().startsWith("bearer ")) return null;
   try {
@@ -50,10 +50,18 @@ async function getUserId(req: Request): Promise<string | null> {
       global: { headers: { Authorization: authz } },
     });
     const { data } = await c.auth.getUser();
-    return data?.user?.id ?? null;
+    return data?.user ? { id: data.user.id, email: data.user.email || "" } : null;
   } catch {
     return null;
   }
+}
+
+// Loyalty "Keys" tier perks by completed-trip count. MUST mirror src/lib/loyalty.js TIERS.
+function tierPerks(trips: number) {
+  if (trips >= 10) return { key: "noir", serviceWaived: true, freeProtection: true, freeDelivery: true };
+  if (trips >= 5) return { key: "platinum", serviceWaived: false, freeProtection: true, freeDelivery: true };
+  if (trips >= 2) return { key: "gold", serviceWaived: false, freeProtection: false, freeDelivery: true };
+  return { key: "silver", serviceWaived: false, freeProtection: false, freeDelivery: false };
 }
 
 Deno.serve(async (req) => {
@@ -164,24 +172,36 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ---- loyalty points redemption (AIRLUXO-funded member credit) ----
-    // A signed-in customer can burn points for a CHF credit. It comes out of
-    // AIRLUXO's own margin (clamped to the app fee), never the partner payout.
-    let loyaltyCredit = 0, pointsRedeemed = 0;
-    const reqPoints = Math.max(0, Math.floor(Number(redeem_points) || 0));
-    if (reqPoints > 0) {
-      const uid = await getUserId(req);
-      if (uid) {
-        const { data: cust } = await admin.from("customers").select("loyalty_points").eq("id", uid).maybeSingle();
+    // ---- member benefits (tier comps + points), all AIRLUXO-funded ----
+    // Tier perks (free protection/delivery, Noir service-fee waiver) and a points
+    // credit come out of AIRLUXO's own margin only — clamped so the partner payout
+    // is paid in full and the app fee never goes below 0.
+    const authUser = await getAuthUser(req);
+    let tierComp = 0, tierKey: string | null = null, loyaltyCredit = 0, pointsRedeemed = 0;
+    const aluxoMargin = Math.max(0, (total - discount) - partnerNet); // app fee before benefits
+    if (authUser) {
+      const { count } = await admin.from("bookings").select("id", { count: "exact", head: true })
+        .eq("status", "Completed").or(`user_id.eq.${authUser.id},guest_email.ilike.${authUser.email}`);
+      const perks = tierPerks(count ?? 0);
+      tierKey = perks.key;
+      let comp = 0;
+      if (perks.serviceWaived) comp += service;
+      if (perks.freeProtection) comp += protFee;
+      if (perks.freeDelivery) comp += delFee;
+      tierComp = Math.min(comp, aluxoMargin);
+
+      const reqPoints = Math.max(0, Math.floor(Number(redeem_points) || 0));
+      if (reqPoints > 0) {
+        const { data: cust } = await admin.from("customers").select("loyalty_points").eq("id", authUser.id).maybeSingle();
         const bal = Math.max(0, Math.floor(Number(cust?.loyalty_points) || 0));
         const usable = Math.min(reqPoints, bal);
-        const aluxoMargin = Math.max(0, (total - discount) - partnerNet); // app fee before loyalty
-        const credit = Math.min(Math.floor(usable / POINTS_REDEEM_RATE), aluxoMargin);
+        const remaining = Math.max(0, aluxoMargin - tierComp); // points draw from what's left of the margin
+        const credit = Math.min(Math.floor(usable / POINTS_REDEEM_RATE), remaining);
         if (credit > 0) { loyaltyCredit = credit; pointsRedeemed = credit * POINTS_REDEEM_RATE; }
       }
     }
 
-    const finalTotal = total - discount - loyaltyCredit;
+    const finalTotal = total - discount - tierComp - loyaltyCredit;
     const appFee = finalTotal - partnerNet;
 
     const pi = await stripe("payment_intents", {
@@ -203,6 +223,7 @@ Deno.serve(async (req) => {
         discount_amount: discount, promo_code: appliedCode, affiliate_commission: commission,
         protection_fee: protFee, deposit_amount: protFee > 0 ? Number(listing.deposit_amount || 0) : 0,
         loyalty_credit: loyaltyCredit, points_redeemed: pointsRedeemed,
+        tier: tierKey, tier_comp: tierComp,
       },
     });
   } catch (e) {
