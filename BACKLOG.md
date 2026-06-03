@@ -77,6 +77,38 @@ A **company-internal** dashboard for the founder — distinct from the partner d
 - **Marketing ops:** the AI content pipeline (MARKETING #4), campaign/UTM performance, channel attribution.
 - **Build notes:** likely its own route/area reusing the dashboard shell; most reads need a service-role edge function or admin-scoped RLS since founders must see across all partners/customers (normal RLS scopes to own rows). Start read-only (KPIs + promo redemptions) and add management actions incrementally.
 
+### 🚧 Implementation plan — founder dashboard + prospect pipeline (planned 3 Jun 2026; first build target)
+
+**Anchor feature: the prospect/onboarding pipeline (CRM).** Sales tool — Franco creates a *preview* for a potential partner (uploads their cars, configures everything) with **no prospect email required**, shows them a storefront + dashboard preview, and on agreement **claims it into a live partner account** with zero data rebuild. Modelled as a CRM pipeline board in the founder dashboard.
+
+**Access & routing (answer to "admin.airluxo.ch?"):** the **URL is not the security boundary** — gating must be server-side. So:
+- **Security:** an `app_admins(user_id)` allowlist + a SECURITY DEFINER `is_admin()` helper, enforced in **every admin read/write** (admin-scoped edge functions using the service role + RLS). Never client-trusted. Seed Franco's user id.
+- **Surface v1:** a gated in-app route (e.g. `?admin`) rendered only for `is_admin` — fastest, reuses the existing auth/session and dashboard shell.
+- **`admin.airluxo.ch` later (optional polish):** map it as a Vercel domain alias to the same app and render the admin area on that hostname; lets us add a separate access gate. Cosmetic/operational, not the security layer — so route-first, subdomain later.
+
+**Prospect model:** a prospect IS a real `partners` row owned by a **placeholder auth user** (internal email `prospect-<uuid>@prospect.airluxo.ch`, no real email needed), flagged `is_prospect=true`, hidden from the public marketplace, reachable via a secret `preview_token`. Keeps the `partners.id → auth.users.id` FK + RLS + the real partner dashboard working unchanged. **Go-live = claim** (swap the placeholder email for the partner's real one, flip the flag) — every car/photo/setting stays intact.
+
+**Data model:** CRM fields on `partners` (unified; a prospect is a pre-partner):
+- `is_prospect bool`, `preview_token uuid`, `pipeline_stage text` (Lead → Preview built → Shared → Negotiating → Won → Lost), `prospect_contact_name/email/phone` (all optional), `prospect_source`, `prospect_notes`.
+- Denormalize an exclusion flag so prospect cars never leak into public reads: add the `is_prospect` filter to `fetchPublicListings` + `fetchFleetPins` **and** an RLS guard on the public listings read. Prospect cars stay status `Available` (so the embed shows them) — hidden only by the prospect flag, not by `Draft`.
+- (Option to split CRM fields into a separate `prospects` table later if it grows; on `partners` is simplest for v1 + makes claim a trivial in-place update.)
+
+**Admin edge functions (service-role, `is_admin`-checked):**
+- `admin-create-prospect` — create placeholder user + partners row (is_prospect, preview_token, stage=Lead, company/contact). Returns partner_id + preview link.
+- `admin-impersonate-prospect` — mint a magic link (admin `generateLink`) for the placeholder user so Franco builds the fleet in the **existing partner dashboard** (full reuse, no new editor).
+- `admin-claim-prospect` — set the placeholder user's email to the partner's real one, send a set-password/magic link, flip `is_prospect=false` on partner + listings, stage=Won. Then prompt Stripe Connect onboarding.
+
+**Previews to show the prospect:**
+- **Storefront** → reuse the **embed** (`?embed=<prospectPartnerId>`, token-gated, "Preview" banner) — their fleet + the real booking flow.
+- **Dashboard** → Franco demos live via the impersonation link; a read-only shareable dashboard tour is a v2 nicety.
+
+**Phases (build order):**
+1. **Phase 0 — admin foundation** ⬅️ *first step.* `app_admins` + `is_admin()` + gated `?admin` route + admin shell; seed Franco. (Read-only KPIs can follow here later.)
+2. **Phase 1 — prospect create + pipeline board.** partners CRM fields + `admin-create-prospect` + the Kanban pipeline UI (stages, cards with company/contact/notes/car-count/preview link, move between stages).
+3. **Phase 2 — build-out.** `admin-impersonate-prospect` (manage the fleet via the real dashboard) + hide prospects from the public marketplace (flag + RLS).
+4. **Phase 3 — previews.** Token-gated storefront (embed) + preview links on the prospect card.
+5. **Phase 4 — claim → live.** `admin-claim-prospect` (email swap + magic link + flip flags + stage=Won) + Stripe Connect onboarding prompt.
+
 ## Growth & operations enablers
 _Captured from [MARKETING.md](MARKETING.md) and [OPERATIONS.md](OPERATIONS.md) — the product pieces those ideas depend on._
 - **Referral / promo-code / affiliate tracking.** Unique discount/referral codes with attribution + partner commissions. Unlocks the hotel-concierge and luxury-Airbnb-host channels (give each partner a trackable code, pay commission on attributed bookings). Needs: a `promo_codes` / `referrals` model, code redemption in the booking flow (discount applied + server-validated), attribution + a partner/affiliate payout view. Pair with UTM tagging (we already have PostHog) to measure channel performance.
