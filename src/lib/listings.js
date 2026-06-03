@@ -141,6 +141,14 @@ export async function fetchPartnerListings(partnerId) {
   return (data ?? []).map(mapListing);
 }
 
+// Sales-preview cars for a prospect partner — only returns rows when the preview
+// token matches (prospect listings are hidden from the public read policy).
+export async function fetchPreviewListings(partnerId, token) {
+  const { data, error } = await supabase.rpc('preview_listings', { p_partner_id: partnerId, p_token: token });
+  if (error) throw error;
+  return (data ?? []).map(mapListing);
+}
+
 // Adapt a DB listing row to the shape the marketplace components expect.
 export function mapListing(row) {
   const rating = row.rating != null ? Number(row.rating) : null;

@@ -86,7 +86,7 @@ export default function App() {
   if (licenceSession) return <MobileLicence sessionId={licenceSession} />;
   // White-label embed for partner sites: ?embed=<partnerId>.
   const embedPartner = params.get('embed');
-  if (embedPartner) return <Embed partnerId={embedPartner} />;
+  if (embedPartner) return <Embed partnerId={embedPartner} previewToken={params.get('preview')} />;
   // Partner guide + changelog (opened in a new tab from Settings): ?docs.
   if (params.has('docs')) return <Docs />;
   // Password-recovery landing from the reset email: ?reset=1 (token in the URL hash).

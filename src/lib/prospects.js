@@ -47,3 +47,14 @@ export async function impersonateProspect(id) {
   if (data?.error) throw new Error(data.error);
   return data.link;
 }
+
+// Claim a prospect into a live partner account (sets the real email, flips it live,
+// returns a password-setup link to send the partner). { ok, email, login_link }.
+export async function claimProspect(id, email) {
+  const { data, error } = await supabase.functions.invoke('admin-claim-prospect', {
+    body: { partner_id: id, email, origin: siteOrigin() },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}

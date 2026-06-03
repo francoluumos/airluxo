@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Icon } from './Icons.jsx';
 import { useAuth } from '../lib/auth.jsx';
-import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, siteOrigin } from '../lib/prospects.js';
+import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin } from '../lib/prospects.js';
 
 // AIRLUXO founder / admin back office. Rendered on admin.airluxo.ch (or ?admin
 // while the subdomain DNS isn't wired). The security boundary is server-side:
@@ -141,6 +141,7 @@ function FounderShell() {
 function Pipeline() {
   const [rows, setRows] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [claiming, setClaiming] = useState(null);
   const [err, setErr] = useState('');
 
   const load = () => listProspects().then(setRows).catch((e) => { setErr(e.message); setRows([]); });
@@ -176,7 +177,7 @@ function Pipeline() {
                 <span className="text-xs text-stone/60">{cards.length}</span>
               </div>
               <div className="mt-2 space-y-2">
-                {cards.map((p) => <ProspectCard key={p.id} p={p} onMove={move} />)}
+                {cards.map((p) => <ProspectCard key={p.id} p={p} onMove={move} onClaim={setClaiming} />)}
                 {cards.length === 0 && <div className="rounded-2xl border border-dashed border-mist py-8 text-center text-xs text-stone/40">—</div>}
               </div>
             </div>
@@ -185,14 +186,15 @@ function Pipeline() {
       </div>
 
       {creating && <CreateProspectModal onClose={() => setCreating(false)} onCreated={() => { setCreating(false); load(); }} />}
+      {claiming && <ClaimModal p={claiming} onClose={() => setClaiming(null)} onClaimed={() => { setClaiming(null); load(); }} />}
     </div>
   );
 }
 
-function ProspectCard({ p, onMove }) {
+function ProspectCard({ p, onMove, onClaim }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const previewLink = `${siteOrigin()}/?embed=${p.id}`;
+  const previewLink = `${siteOrigin()}/?embed=${p.id}&preview=${p.preview_token}`;
   const contact = [p.prospect_contact_name, p.prospect_contact_email].filter(Boolean).join(' · ');
 
   async function build() {
@@ -226,6 +228,56 @@ function ProspectCard({ p, onMove }) {
         className="ring-lux mt-2 w-full rounded-lg border border-mist bg-paper px-2 py-1.5 text-xs outline-none focus:border-ink">
         {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
       </select>
+      <button onClick={() => onClaim(p)} className="ring-lux mt-2 w-full text-center text-[0.7rem] font-semibold text-go transition-colors hover:underline">
+        Go live →
+      </button>
+    </div>
+  );
+}
+
+function ClaimModal({ p, onClose, onClaimed }) {
+  const [email, setEmail] = useState(p.prospect_contact_email || '');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [done, setDone] = useState(null); // { email, login_link }
+  const [copied, setCopied] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!email.trim()) { setErr('Partner email is required.'); return; }
+    setBusy(true); setErr('');
+    try { setDone(await claimProspect(p.id, email.trim())); }
+    catch (e2) { setErr(e2.message || 'Could not go live.'); setBusy(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/50 p-5 backdrop-blur-sm" onClick={done ? onClaimed : onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+        {done ? (
+          <>
+            <h2 className="font-display text-xl">{p.company_name} is live 🎉</h2>
+            <p className="mt-2 text-sm text-stone">Their cars are now in the marketplace. Send <span className="font-semibold text-ink">{done.email}</span> this link to set a password and take over the account:</p>
+            <div className="mt-3 flex items-center gap-2">
+              <input readOnly value={done.login_link || ''} className="ring-lux flex-1 truncate rounded-xl border border-mist bg-cloud px-3 py-2.5 text-xs" />
+              <button onClick={() => { try { navigator.clipboard.writeText(done.login_link || ''); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } }}
+                className="ring-lux shrink-0 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void">{copied ? 'Copied ✓' : 'Copy'}</button>
+            </div>
+            <p className="mt-3 text-xs text-stone">They’ll also connect Stripe in their dashboard to receive payouts.</p>
+            <button onClick={onClaimed} className="ring-lux mt-5 w-full rounded-full bg-ink py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void">Done</button>
+          </>
+        ) : (
+          <form onSubmit={submit}>
+            <h2 className="font-display text-xl">Go live — {p.company_name}</h2>
+            <p className="mt-1 text-sm text-stone">Claims this preview into a real partner account. The {p.car_count} car{Number(p.car_count) === 1 ? '' : 's'} will appear in the marketplace.</p>
+            <div className="mt-4"><AdminField label="Partner's real email *" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="owner@theircompany.ch" /></div>
+            {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+            <div className="mt-5 flex gap-3">
+              <button type="button" onClick={onClose} className="ring-lux rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink">Cancel</button>
+              <button type="submit" disabled={busy} className="ring-lux flex-1 rounded-full bg-go py-2.5 text-sm font-semibold text-cloud transition-opacity hover:opacity-90 disabled:opacity-60">{busy ? 'Going live…' : 'Confirm & go live'}</button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

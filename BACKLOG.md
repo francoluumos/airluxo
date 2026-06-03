@@ -105,9 +105,9 @@ A **company-internal** dashboard for the founder — distinct from the partner d
 **Phases (build order):**
 1. ✅ **Phase 0 — admin foundation — DONE 3 Jun 2026.** `app_admins` + `is_admin()` + `FounderApp` gating (login → not-authorized → shell) rendered on `admin.` host or `?admin`; seeded Franco.
 2. ✅ **Phase 1 — prospect create + pipeline board — DONE 3 Jun 2026.** partners CRM fields + `admin-create-prospect` (placeholder user via `handle_new_user`) + `admin_list_prospects`/`admin_set_prospect_stage`/`admin_update_prospect` RPCs + the pipeline board (stage columns, cards w/ company/contact/car-count/embed preview link, create modal, stage moves).
-3. ⬜ **Phase 2 — build-out.** `admin-impersonate-prospect` (manage the fleet via the real dashboard) + hide prospects from the public marketplace (`is_prospect` filter on `fetchPublicListings`/`fetchFleetPins` + RLS).
-4. **Phase 3 — previews.** Token-gated storefront (embed) + preview links on the prospect card.
-5. **Phase 4 — claim → live.** `admin-claim-prospect` (email swap + magic link + flip flags + stage=Won) + Stripe Connect onboarding prompt.
+3. ✅ **Phase 2 — build-out — DONE 3 Jun 2026.** `admin-impersonate-prospect` (magic link → build the fleet via the real dashboard, lands on `?partner`) + prospects hidden from the public marketplace + map (denormalized `listings.is_prospect` + sync triggers; `fetchPublicListings` filter + `fleet_pins` exclusion).
+4. ✅ **Phase 3 — previews — DONE 3 Jun 2026.** Tightened public listings RLS to exclude prospects; token-gated `preview_listings(partner_id, token)` RPC; embed shows prospect cars only with `?preview=<token>` + a "Sales preview" banner; prospect cards link `?embed=<id>&preview=<token>`.
+5. ✅ **Phase 4 — claim → live — DONE 3 Jun 2026.** `admin-claim-prospect` (swaps placeholder email for the partner's real one, flips `is_prospect=false` → cars go live via trigger, stage=Won, returns a password-setup link) + "Go live" claim modal on the card. _Follow-up: Stripe Connect onboarding is still done by the partner in their dashboard after claim — could prompt it._
 
 ## Growth & operations enablers
 _Captured from [MARKETING.md](MARKETING.md) and [OPERATIONS.md](OPERATIONS.md) — the product pieces those ideas depend on._
