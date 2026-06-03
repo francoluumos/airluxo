@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Icon } from './Icons.jsx';
 import { useAuth } from '../lib/auth.jsx';
-import { STAGES, listProspects, createProspect, setProspectStage } from '../lib/prospects.js';
+import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, siteOrigin } from '../lib/prospects.js';
 
 // AIRLUXO founder / admin back office. Rendered on admin.airluxo.ch (or ?admin
 // while the subdomain DNS isn't wired). The security boundary is server-side:
@@ -190,16 +190,38 @@ function Pipeline() {
 }
 
 function ProspectCard({ p, onMove }) {
-  const previewLink = `${window.location.origin}/?embed=${p.id}`;
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const previewLink = `${siteOrigin()}/?embed=${p.id}`;
   const contact = [p.prospect_contact_name, p.prospect_contact_email].filter(Boolean).join(' · ');
+
+  async function build() {
+    setBusy(true); setErr('');
+    try {
+      const link = await impersonateProspect(p.id);
+      if (link) window.open(link, '_blank', 'noopener');
+      else setErr('No builder link returned.');
+    } catch (e) {
+      setErr(e.message || 'Could not open the builder.');
+    } finally { setBusy(false); }
+  }
+
   return (
     <div className="rounded-2xl border border-mist bg-cloud p-3 shadow-[0_10px_30px_-24px_rgba(11,11,12,0.5)]">
       <div className="font-display text-sm leading-tight">{p.company_name}</div>
       {contact && <div className="mt-0.5 truncate text-xs text-stone">{contact}</div>}
-      <div className="mt-2 flex items-center justify-between text-xs text-stone">
-        <span>{p.car_count} {Number(p.car_count) === 1 ? 'car' : 'cars'}</span>
-        <a href={previewLink} target="_blank" rel="noreferrer" className="ring-lux font-semibold text-gold hover:underline">Preview ↗</a>
+      <div className="mt-1.5 text-xs text-stone">{p.car_count} {Number(p.car_count) === 1 ? 'car' : 'cars'}</div>
+      <div className="mt-2 flex items-center gap-2">
+        <button onClick={build} disabled={busy}
+          className="ring-lux flex-1 rounded-lg bg-ink px-2 py-1.5 text-xs font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">
+          {busy ? '…' : 'Build fleet ↗'}
+        </button>
+        <a href={previewLink} target="_blank" rel="noreferrer"
+          className="ring-lux rounded-lg border border-mist px-2.5 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-ink">
+          Preview ↗
+        </a>
       </div>
+      {err && <p className="mt-1 text-[0.7rem] text-red-600">{err}</p>}
       <select value={p.pipeline_stage || 'lead'} onChange={(e) => onMove(p.id, e.target.value)}
         className="ring-lux mt-2 w-full rounded-lg border border-mist bg-paper px-2 py-1.5 text-xs outline-none focus:border-ink">
         {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}

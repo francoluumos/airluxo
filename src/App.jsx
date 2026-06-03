@@ -17,7 +17,11 @@ import FounderApp from './components/FounderDashboard.jsx';
 
 function Shell() {
   const { session, loading, authModal, closeAuth } = useAuth();
-  const [route, setRoute] = useState('home'); // home | partner | account
+  // ?partner deep-link lands directly in the partner area (used by the founder
+  // dashboard's "Build fleet" impersonation magic link).
+  const [route, setRoute] = useState(() =>
+    new URLSearchParams(window.location.search).has('partner') ? 'partner' : 'home',
+  ); // home | partner | account
   const [accountTab, setAccountTab] = useState('trips');
   const [activeCar, setActiveCar] = useState(null);
 

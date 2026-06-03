@@ -107,6 +107,7 @@ export async function fetchPublicListings() {
     .from('listings')
     .select('*')
     .neq('status', 'Draft')
+    .eq('is_prospect', false)   // hide sales-preview (prospect) cars from the marketplace
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data ?? [];

@@ -29,3 +29,21 @@ export async function setProspectStage(id, stage) {
   const { error } = await supabase.rpc('admin_set_prospect_stage', { p_id: id, p_stage: stage });
   if (error) throw error;
 }
+
+// The main-site origin to build the fleet on (strip the admin. subdomain so the
+// partner dashboard isn't served from the admin app).
+export function siteOrigin() {
+  const o = window.location.origin;
+  return o.includes('://admin.') ? o.replace('://admin.', '://') : o;
+}
+
+// Returns a magic link that opens the prospect's partner dashboard (to build the
+// fleet). Open it in a new tab.
+export async function impersonateProspect(id) {
+  const { data, error } = await supabase.functions.invoke('admin-impersonate-prospect', {
+    body: { partner_id: id, origin: siteOrigin() },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.link;
+}
