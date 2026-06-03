@@ -406,7 +406,7 @@ function EmailPrefs({ customer, user }) {
     const next = !on;
     setOn(next); setBusy(true); setErr('');
     try {
-      await setNewsletter(email, next, 'profile', user?.id || null);
+      await setNewsletter(email, next, 'profile');
     } catch (e) {
       setOn(!next); // revert
       setErr(e.message || 'Could not update your preference.');

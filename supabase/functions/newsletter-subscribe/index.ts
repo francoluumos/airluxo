@@ -5,7 +5,8 @@
 // anyone can subscribe/unsubscribe their own email (unsubscribe links need no auth);
 // writes go through here (service role) so the browser never touches the table.
 //
-// Body: { email, subscribed?=true, source?, customer_id? }
+// Body: { email, subscribed?=true, source? }. The customer link is derived from
+// the bearer token server-side (never client-supplied).
 // Secrets:
 //   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY  (auto) — SSOT write.
 //   RESEND_API_KEY / RESEND_AUDIENCE_ID       (optional) — mirror + welcome.
@@ -34,24 +35,35 @@ Deno.serve(async (req) => {
 
   let email: string | undefined;
   let source: string | undefined;
-  let customerId: string | undefined;
   let subscribed = true; // default: subscribe. Pass false to opt out.
   try {
     const body = await req.json();
-    email = body.email; source = body.source; customerId = body.customer_id;
+    email = body.email; source = body.source;
     if (body.subscribed === false) subscribed = false;
   } catch { return json({ error: "Invalid JSON" }, 400); }
 
   email = (email || "").trim().toLowerCase();
   if (!validEmail(email)) return json({ error: "A valid email is required." }, 400);
 
-  // 1) Source of truth: upsert into newsletter_subscribers. Only set source/
-  //    customer_id when provided so an unsubscribe never wipes them. The trigger
-  //    stamps opt_in_at / opt_out_at.
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // Link the subscriber to a customer account ONLY when the caller proves
+  // ownership: a valid bearer token whose verified email matches the address being
+  // subscribed. Never trust a client-supplied customer_id (would let anyone link
+  // any email to any account). Anonymous callers (footer) just leave it unlinked.
+  let linkedCustomerId: string | null = null;
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  if (token) {
+    const { data: { user } } = await admin.auth.getUser(token);
+    if (user?.email && user.email.toLowerCase() === email) linkedCustomerId = user.id;
+  }
+
+  // Source of truth: upsert into newsletter_subscribers. Only set source/
+  // customer_id when known so an unsubscribe never wipes them. The trigger stamps
+  // opt_in_at / opt_out_at.
   const row: Record<string, unknown> = { email, subscribed };
   if (subscribed && source) row.source = source;
-  if (customerId) row.customer_id = customerId;
+  if (linkedCustomerId) row.customer_id = linkedCustomerId;
   const { error: dbErr } = await admin
     .from("newsletter_subscribers")
     .upsert(row, { onConflict: "email" });

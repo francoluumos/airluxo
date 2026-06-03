@@ -223,7 +223,7 @@ export default function CarDetail({ car, onClose }) {
       // (newsletter_subscribers) and mirrors Resend — works for guests too, and links
       // the customer account when signed in.
       if (newsletterOptIn) {
-        subscribeNewsletter(guest.email.trim(), 'checkout', user?.id || null).catch(() => {});
+        subscribeNewsletter(guest.email.trim(), 'checkout').catch(() => {});
       }
       // Save the verified licence on file so future bookings are prefilled (best-effort).
       if (user && licenceScanned && licence.number.trim()) {

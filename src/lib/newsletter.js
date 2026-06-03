@@ -5,13 +5,14 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const isValidEmail = (email) => EMAIL_RE.test(String(email || '').trim());
 
 // Subscribe an email to the AIRLUXO newsletter. Supabase (newsletter_subscribers)
-// is the source of truth; the edge function mirrors to Resend. Pass customerId to
-// link the subscriber to a customer account when known.
-export async function subscribeNewsletter(email, source = 'site', customerId = null) {
+// is the source of truth; the edge function mirrors to Resend. The function links
+// the subscriber to a customer account server-side when the caller's verified
+// email matches (never client-supplied).
+export async function subscribeNewsletter(email, source = 'site') {
   const value = String(email || '').trim().toLowerCase();
   if (!isValidEmail(value)) throw new Error('A valid email is required.');
   const { data, error } = await supabase.functions.invoke('newsletter-subscribe', {
-    body: { email: value, source, customer_id: customerId || undefined },
+    body: { email: value, source },
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
@@ -20,11 +21,11 @@ export async function subscribeNewsletter(email, source = 'site', customerId = n
 
 // Set the newsletter subscription state for an email (true = subscribe,
 // false = unsubscribe). Writes the SSOT and mirrors the Resend contact.
-export async function setNewsletter(email, subscribed, source = 'profile', customerId = null) {
+export async function setNewsletter(email, subscribed, source = 'profile') {
   const value = String(email || '').trim().toLowerCase();
   if (!isValidEmail(value)) throw new Error('A valid email is required.');
   const { data, error } = await supabase.functions.invoke('newsletter-subscribe', {
-    body: { email: value, subscribed, source, customer_id: customerId || undefined },
+    body: { email: value, subscribed, source },
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);

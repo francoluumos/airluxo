@@ -832,7 +832,13 @@ function Marketing() {
 
   function exportCsv() {
     const cols = ['id', 'email', 'subscribed', 'source', 'opt_in_at', 'opt_out_at', 'customer_id', 'customer_name', 'created_at'];
-    const esc = (v) => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const esc = (v) => {
+      let s = v == null ? '' : String(v);
+      // Neutralise spreadsheet formula injection: a leading =,+,-,@,tab or CR makes
+      // Excel/Sheets evaluate the cell. Prefix with ' so it's treated as text.
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
     const body = rows.map((r) => cols.map((c) => esc(r[c])).join(',')).join('\n');
     const blob = new Blob([cols.join(',') + '\n' + body], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
