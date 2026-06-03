@@ -374,12 +374,13 @@ function Partners() {
       </div>
 
       <div className="mt-5 overflow-x-auto rounded-2xl border border-mist bg-cloud">
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b border-mist text-left text-[0.65rem] uppercase tracking-wider text-stone">
               <th className="px-4 py-3 font-bold">Company</th>
               <th className="px-4 py-3 font-bold">Status</th>
               <th className="px-4 py-3 font-bold">Email</th>
+              <th className="px-4 py-3 font-bold">Phone</th>
               <th className="px-4 py-3 font-bold">Contact</th>
               <th className="px-4 py-3 font-bold">Cars</th>
               <th className="px-4 py-3" />
@@ -391,6 +392,7 @@ function Partners() {
                 <td className="px-4 py-3 font-semibold">{p.company_name}</td>
                 <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                 <td className="px-4 py-3 text-stone">{(p.is_prospect ? p.prospect_contact_email : p.login_email) || '—'}</td>
+                <td className="px-4 py-3 text-stone tnum">{p.phone || '—'}</td>
                 <td className="px-4 py-3 text-stone">{p.contact_name || '—'}</td>
                 <td className="px-4 py-3 tnum text-stone">{p.car_count}</td>
                 <td className="px-4 py-3 text-right">
@@ -398,7 +400,7 @@ function Partners() {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-stone">No partners in this view.</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-stone">No partners in this view.</td></tr>}
           </tbody>
         </table>
       </div>
