@@ -191,7 +191,7 @@ function Pipeline() {
               </div>
               <div className={`mt-2 min-h-[5rem] space-y-2 rounded-2xl p-1 transition-colors ${over ? 'bg-gold/10 outline-dashed outline-2 outline-gold/40' : ''}`}>
                 {cards.map((p) => (
-                  <ProspectCard key={p.id} p={p} onMove={move} onClaim={setClaiming} onDragEnd={() => setDragOver(null)} />
+                  <ProspectCard key={p.id} p={p} onClaim={setClaiming} onDragEnd={() => setDragOver(null)} />
                 ))}
                 {cards.length === 0 && <div className="rounded-2xl border border-dashed border-mist py-8 text-center text-xs text-stone/40">—</div>}
               </div>
@@ -206,7 +206,7 @@ function Pipeline() {
   );
 }
 
-function ProspectCard({ p, onMove, onClaim, onDragEnd }) {
+function ProspectCard({ p, onClaim, onDragEnd }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -245,10 +245,6 @@ function ProspectCard({ p, onMove, onClaim, onDragEnd }) {
         </a>
       </div>
       {err && <p className="mt-1 text-[0.7rem] text-red-600">{err}</p>}
-      <select value={p.pipeline_stage || 'lead'} onChange={(e) => onMove(p.id, e.target.value)}
-        className="ring-lux mt-2 w-full rounded-lg border border-mist bg-paper px-2 py-1.5 text-xs outline-none focus:border-ink">
-        {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-      </select>
       <button onClick={() => onClaim(p)} className="ring-lux mt-2 w-full text-center text-[0.7rem] font-semibold text-go transition-colors hover:underline">
         Go live →
       </button>
