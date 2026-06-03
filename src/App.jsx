@@ -13,6 +13,7 @@ import Docs from './components/Docs.jsx';
 import ResetPassword from './components/ResetPassword.jsx';
 import PrivacyPolicy from './components/PrivacyPolicy.jsx';
 import CookieBanner from './components/CookieBanner.jsx';
+import FounderApp from './components/FounderDashboard.jsx';
 
 function Shell() {
   const { session, loading, authModal, closeAuth } = useAuth();
@@ -88,6 +89,17 @@ export default function App() {
   if (params.has('reset') || window.location.hash.includes('type=recovery')) return <ResetPassword />;
   // Privacy & cookie policy (opened from the banner + footer): ?privacy.
   if (params.has('privacy')) return <PrivacyPolicy />;
+
+  // Founder / admin back office: admin.airluxo.ch (or ?admin before the subdomain
+  // DNS is wired). Auth + is_admin() gating lives inside FounderApp.
+  const adminMode = window.location.hostname.startsWith('admin.') || params.has('admin');
+  if (adminMode) {
+    return (
+      <AuthProvider>
+        <FounderApp />
+      </AuthProvider>
+    );
+  }
 
   return (
     <AuthProvider>

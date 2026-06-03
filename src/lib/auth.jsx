@@ -16,6 +16,7 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [partner, setPartner] = useState(null);
   const [customer, setCustomer] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [authModal, setAuthModal] = useState(null); // null | { intent }
 
@@ -46,11 +47,13 @@ export function AuthProvider({ children }) {
   // are treated as customers, so we auto-create the row on first sign-in.
   const loadProfiles = useCallback(async (user) => {
     const uid = user?.id;
-    if (!uid) { setPartner(null); setCustomer(null); return; }
-    const [{ data: p }, { data: c }] = await Promise.all([
+    if (!uid) { setPartner(null); setCustomer(null); setIsAdmin(false); return; }
+    const [{ data: p }, { data: c }, { data: adm }] = await Promise.all([
       supabase.from('partners').select('*').eq('id', uid).maybeSingle(),
       supabase.from('customers').select('*').eq('id', uid).maybeSingle(),
+      supabase.rpc('is_admin'),
     ]);
+    setIsAdmin(!!adm);
     setPartner(p ?? null);
     let cust = c;
     // No customer row yet → auto-provision one for non-partner (public) sessions.
@@ -72,6 +75,7 @@ export function AuthProvider({ children }) {
     user: session?.user ?? null,
     partner,
     customer,
+    isAdmin,
     isPartner: !!partner,
     isCustomer: !!customer,
     loading,
