@@ -38,6 +38,20 @@ export async function partnerDetail(id) {
   return data;
 }
 
+// Archive / unarchive (soft, reversible — also hides their cars from the marketplace).
+export async function archivePartner(id, archived) {
+  const { error } = await supabase.rpc('admin_archive_partner', { p_id: id, p_archived: archived });
+  if (error) throw error;
+}
+
+// Permanent delete (refused server-side if the partner has bookings → archive instead).
+export async function deletePartner(id) {
+  const { data, error } = await supabase.functions.invoke('admin-delete-partner', { body: { partner_id: id } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 // Edit a partner. `email` maps to the contact email (prospect) or the login email
 // (live partner) server-side.
 export async function updatePartner(id, fields) {

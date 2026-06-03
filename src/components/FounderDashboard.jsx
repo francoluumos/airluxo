@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { Icon } from './Icons.jsx';
 import { useAuth } from '../lib/auth.jsx';
 import { chf } from '../lib/format.js';
-import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, PARTNER_STATUS, partnerStatus } from '../lib/prospects.js';
+import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, PARTNER_STATUS, partnerStatus } from '../lib/prospects.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -349,6 +349,7 @@ function CreateProspectModal({ onClose, onCreated }) {
 function Partners() {
   const [rows, setRows] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [filter, setFilter] = useState('all');
   const [err, setErr] = useState('');
@@ -359,9 +360,11 @@ function Partners() {
   if (rows === null) return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
 
   const withStatus = rows.map((p) => ({ ...p, status: partnerStatus(p) }));
-  const counts = { all: withStatus.length, prospecting: 0, won: 0, lost: 0 };
-  withStatus.forEach((p) => { counts[p.status] += 1; });
-  const filtered = filter === 'all' ? withStatus : withStatus.filter((p) => p.status === filter);
+  const active = withStatus.filter((p) => !p.archived_at);
+  const archived = withStatus.filter((p) => p.archived_at);
+  const counts = { all: active.length, prospecting: 0, won: 0, lost: 0, archived: archived.length };
+  active.forEach((p) => { counts[p.status] += 1; });
+  const filtered = filter === 'archived' ? archived : filter === 'all' ? active : active.filter((p) => p.status === filter);
 
   return (
     <div>
@@ -370,7 +373,7 @@ function Partners() {
       {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
 
       <div className="mt-5 flex flex-wrap gap-2">
-        {[['all', 'All'], ['prospecting', 'Prospecting'], ['won', 'Won'], ['lost', 'Lost']].map(([k, l]) => (
+        {[['all', 'All'], ['prospecting', 'Prospecting'], ['won', 'Won'], ['lost', 'Lost'], ['archived', 'Archived']].map(([k, l]) => (
           <button key={k} onClick={() => setFilter(k)}
             className={`ring-lux rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${filter === k ? 'bg-ink text-cloud' : 'border border-mist text-stone hover:border-ink'}`}>
             {l} <span className="opacity-60">{counts[k] ?? 0}</span>
@@ -411,7 +414,7 @@ function Partners() {
                 {expandedId === p.id && (
                   <tr className="border-b border-mist/60 bg-paper">
                     <td colSpan={7} className="px-4 pb-6 pt-1">
-                      <PartnerDetail id={p.id} onEdit={() => setEditing(p)} />
+                      <PartnerDetail p={p} onEdit={() => setEditing(p)} onChanged={load} onDelete={() => setDeleting(p)} />
                     </td>
                   </tr>
                 )}
@@ -423,6 +426,7 @@ function Partners() {
       </div>
 
       {editing && <PartnerEditModal p={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+      {deleting && <DeletePartnerModal p={deleting} onClose={() => setDeleting(null)} onArchived={() => { setDeleting(null); load(); }} onDeleted={() => { setDeleting(null); load(); }} />}
     </div>
   );
 }
@@ -473,14 +477,21 @@ function PartnerEditModal({ p, onClose, onSaved }) {
   );
 }
 
-function PartnerDetail({ id, onEdit }) {
+function PartnerDetail({ p, onEdit, onChanged, onDelete }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState('');
+  const [busyArch, setBusyArch] = useState(false);
   useEffect(() => {
     let on = true;
-    partnerDetail(id).then((x) => { if (on) setD(x); }).catch((e) => { if (on) { setErr(e.message); setD(false); } });
+    partnerDetail(p.id).then((x) => { if (on) setD(x); }).catch((e) => { if (on) { setErr(e.message); setD(false); } });
     return () => { on = false; };
-  }, [id]);
+  }, [p.id]);
+
+  async function toggleArchive() {
+    setBusyArch(true);
+    try { await archivePartner(p.id, !p.archived_at); onChanged(); }
+    finally { setBusyArch(false); }
+  }
 
   if (d === null) return <div className="grid place-items-center py-6"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
   if (!d) return <p className="py-3 text-sm text-red-600">{err || 'Could not load.'}</p>;
@@ -550,6 +561,53 @@ function PartnerDetail({ id, onEdit }) {
             </li>
           )) : <li className="text-xs text-stone">No events yet.</li>}
         </ol>
+      </div>
+
+      <div className="flex items-center gap-4 border-t border-mist pt-4">
+        <button onClick={toggleArchive} disabled={busyArch} className="ring-lux text-xs font-semibold text-stone transition-colors hover:text-ink disabled:opacity-60">
+          {busyArch ? '…' : p.archived_at ? 'Unarchive' : 'Archive'}
+        </button>
+        <button onClick={onDelete} className="ring-lux text-xs font-semibold text-red-600 transition-colors hover:underline">Delete</button>
+      </div>
+    </div>
+  );
+}
+
+function DeletePartnerModal({ p, onClose, onArchived, onDeleted }) {
+  const [busy, setBusy] = useState('');
+  const [err, setErr] = useState('');
+
+  async function archive() {
+    setBusy('archive'); setErr('');
+    try { await archivePartner(p.id, true); onArchived(); }
+    catch (e) { setErr(e.message || 'Could not archive.'); setBusy(''); }
+  }
+  async function del() {
+    setBusy('delete'); setErr('');
+    try { await deletePartner(p.id); onDeleted(); }
+    catch (e) { setErr(e.message || 'Could not delete.'); setBusy(''); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-ink/55 p-5 backdrop-blur-sm" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+        <h2 className="font-display text-xl">Delete {p.company_name}?</h2>
+        <p className="mt-2 text-sm text-stone">This permanently removes the partner, their cars, locations and preview. It can't be undone.</p>
+        <div className="mt-4 rounded-2xl border border-mist bg-cloud p-3 text-sm">
+          <span className="font-semibold text-ink">Archive instead?</span> <span className="text-stone">Archiving hides them and their cars from the marketplace but keeps everything recoverable.</span>
+        </div>
+        {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+        <div className="mt-5 space-y-2">
+          <button onClick={archive} disabled={!!busy} className="ring-lux w-full rounded-full bg-ink py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">
+            {busy === 'archive' ? 'Archiving…' : 'Archive instead'}
+          </button>
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} disabled={!!busy} className="ring-lux rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink">Cancel</button>
+            <button onClick={del} disabled={!!busy} className="ring-lux flex-1 rounded-full border border-red-300 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60">
+              {busy === 'delete' ? 'Deleting…' : 'Delete permanently'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
