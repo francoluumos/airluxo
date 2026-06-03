@@ -103,9 +103,9 @@ A **company-internal** dashboard for the founder — distinct from the partner d
 - **Dashboard** → Franco demos live via the impersonation link; a read-only shareable dashboard tour is a v2 nicety.
 
 **Phases (build order):**
-1. **Phase 0 — admin foundation** ⬅️ *first step.* `app_admins` + `is_admin()` + gated `?admin` route + admin shell; seed Franco. (Read-only KPIs can follow here later.)
-2. **Phase 1 — prospect create + pipeline board.** partners CRM fields + `admin-create-prospect` + the Kanban pipeline UI (stages, cards with company/contact/notes/car-count/preview link, move between stages).
-3. **Phase 2 — build-out.** `admin-impersonate-prospect` (manage the fleet via the real dashboard) + hide prospects from the public marketplace (flag + RLS).
+1. ✅ **Phase 0 — admin foundation — DONE 3 Jun 2026.** `app_admins` + `is_admin()` + `FounderApp` gating (login → not-authorized → shell) rendered on `admin.` host or `?admin`; seeded Franco.
+2. ✅ **Phase 1 — prospect create + pipeline board — DONE 3 Jun 2026.** partners CRM fields + `admin-create-prospect` (placeholder user via `handle_new_user`) + `admin_list_prospects`/`admin_set_prospect_stage`/`admin_update_prospect` RPCs + the pipeline board (stage columns, cards w/ company/contact/car-count/embed preview link, create modal, stage moves).
+3. ⬜ **Phase 2 — build-out.** `admin-impersonate-prospect` (manage the fleet via the real dashboard) + hide prospects from the public marketplace (`is_prospect` filter on `fetchPublicListings`/`fetchFleetPins` + RLS).
 4. **Phase 3 — previews.** Token-gated storefront (embed) + preview links on the prospect card.
 5. **Phase 4 — claim → live.** `admin-claim-prospect` (email swap + magic link + flip flags + stage=Won) + Stripe Connect onboarding prompt.
 
