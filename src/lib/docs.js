@@ -157,6 +157,7 @@ export const DOCS = {
       { label: 'Loyalty & referral (points, tiers, redemption)', state: 'live', note: 'on staging; awaiting test pass' },
       { label: 'Founder dashboard — Pipeline (prospect CRM)', state: 'live' },
       { label: 'Founder dashboard — Partners cockpit', state: 'live' },
+      { label: 'Founder dashboard — Customers', state: 'live' },
       { label: 'Founder dashboard — Overview / Finance / Marketing', state: 'planned' },
       { label: 'admin.airluxo.ch subdomain', state: 'live' },
       { label: 'Exact per-booking commission/app-fee accounting', state: 'planned', note: 'financials are est. from the current plan rate for now' },
@@ -195,11 +196,12 @@ export const DOCS = {
       },
       {
         id: 'coming', title: 'Coming next',
-        intro: 'Overview (platform KPIs), Customers, Finance (payouts / app-fee revenue / exports) and Marketing ops are planned sections of the founder dashboard.',
+        intro: 'Overview (platform KPIs), Finance (payouts / app-fee revenue / exports) and Marketing ops are planned sections of the founder dashboard.',
         items: [],
       },
     ],
     changelog: [
+      { date: '2026-06-03', version: 'Customers cockpit', items: ['Customers section: searchable list with bookings, revenue, loyalty tier and newsletter opt-in; expandable sheet (tier, points, referrals, birthday from licence, bookings by status, top cars rented, contact + address). Read-only for now.'] },
       { date: '2026-06-03', version: 'Loyalty tier comps (4b)', items: ['Tier perks applied authoritatively at checkout (stripe-create-payment): free protection/delivery + Noir service-fee waiver, AIRLUXO-funded and clamped to its margin so the partner payout is never reduced.'] },
       { date: '2026-06-03', version: 'Partners cockpit', items: ['Partners section: searchable, status-filtered list (incl. Archived); expandable info sheet (Stripe, go-live, plan, est. financials, bookings by status, top cars, locations, timeline); edit; archive (reversible, hides cars); delete (guarded — archive instead when bookings exist).'] },
       { date: '2026-06-03', version: 'Prospect pipeline', items: ['Founder dashboard Phases 1–4: prospect create (no email), build-fleet via impersonation, prospects hidden from the marketplace, token-gated storefront preview, drag-and-drop stages, and claim-to-live. Three docs/changelogs (this hub).'] },

@@ -2,7 +2,8 @@ import { useState, useEffect, Fragment } from 'react';
 import { Icon } from './Icons.jsx';
 import { useAuth } from '../lib/auth.jsx';
 import { chf } from '../lib/format.js';
-import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, PARTNER_STATUS, partnerStatus } from '../lib/prospects.js';
+import { tierForTrips } from '../lib/loyalty.js';
+import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus } from '../lib/prospects.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -137,6 +138,7 @@ function FounderShell() {
 
         {section === 'pipeline' ? <Pipeline />
           : section === 'partners' ? <Partners />
+          : section === 'customers' ? <Customers />
           : section === 'docs' ? <DocsHub />
           : <SectionPlaceholder label={NAV.find((n) => n.key === section)?.label} />}
       </main>
@@ -650,6 +652,152 @@ function AdminField({ label, value, onChange, placeholder, type }) {
       <input type={type} value={value} onChange={onChange} placeholder={placeholder}
         className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
     </label>
+  );
+}
+
+/* ── Customers ─────────────────────────────────────────────────────────── */
+function Customers() {
+  const [rows, setRows] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+  const [q, setQ] = useState('');
+  const [err, setErr] = useState('');
+  useEffect(() => { listCustomers().then(setRows).catch((e) => { setErr(e.message); setRows([]); }); }, []);
+
+  if (rows === null) return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
+
+  const ql = q.trim().toLowerCase();
+  const filtered = ql ? rows.filter((c) => [c.full_name, c.email, c.phone].some((v) => (v || '').toLowerCase().includes(ql))) : rows;
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Customers</h1>
+          <p className="mt-1 text-sm text-stone">Everyone who’s signed up — bookings, revenue, loyalty and marketing. Click a row for the full sheet.</p>
+        </div>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, email, phone…"
+          className="ring-lux w-full max-w-xs rounded-full border border-mist bg-cloud px-4 py-2 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone sm:w-64" />
+      </div>
+      {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-mist bg-cloud">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead>
+            <tr className="border-b border-mist text-left text-[0.65rem] uppercase tracking-wider text-stone">
+              <th className="px-4 py-3 font-bold">Name</th>
+              <th className="px-4 py-3 font-bold">Email</th>
+              <th className="px-4 py-3 font-bold">Bookings</th>
+              <th className="px-4 py-3 font-bold">Revenue</th>
+              <th className="px-4 py-3 font-bold">Tier</th>
+              <th className="px-4 py-3 font-bold">News</th>
+              <th className="px-4 py-3 font-bold">Joined</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((c) => (
+              <Fragment key={c.id}>
+                <tr onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
+                  className={`cursor-pointer border-b border-mist/60 transition-colors hover:bg-mist/30 ${expandedId === c.id ? 'bg-mist/30' : ''}`}>
+                  <td className="px-4 py-3 font-semibold">
+                    <span className="mr-1.5 inline-block text-stone">{expandedId === c.id ? '▾' : '▸'}</span>{c.full_name || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-stone">{c.email || '—'}</td>
+                  <td className="px-4 py-3 tnum text-stone">{c.bookings_count}</td>
+                  <td className="px-4 py-3 tnum text-stone">{chf(c.gross)}</td>
+                  <td className="px-4 py-3"><span className="rounded-full bg-mist px-2.5 py-1 text-[0.7rem] font-bold text-stone">{tierForTrips(c.completed_count).label}</span></td>
+                  <td className="px-4 py-3">{c.marketing_opt_in ? <span className="text-go">✓</span> : <span className="text-stone/40">—</span>}</td>
+                  <td className="px-4 py-3 text-stone">{fmtDate(c.created_at)}</td>
+                </tr>
+                {expandedId === c.id && (
+                  <tr className="border-b border-mist/60 bg-paper">
+                    <td colSpan={7} className="px-4 pb-6 pt-1"><CustomerDetail id={c.id} /></td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+            {filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-stone">No customers match.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CustomerDetail({ id }) {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    let on = true;
+    customerDetail(id).then((x) => { if (on) setD(x); }).catch((e) => { if (on) { setErr(e.message); setD(false); } });
+    return () => { on = false; };
+  }, [id]);
+
+  if (d === null) return <div className="grid place-items-center py-6"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
+  if (!d) return <p className="py-3 text-sm text-red-600">{err || 'Could not load.'}</p>;
+
+  const { customer: c, completed_count, referrals_made, bookings, financials, top_cars } = d;
+  const tier = tierForTrips(completed_count);
+  const addr = c.address?.label || [c.address?.street, c.address?.zip, c.address?.city].filter(Boolean).join(', ');
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-sm">
+        <span className="text-stone">Tier <b className="text-ink">{tier.label}</b></span>
+        <span className="text-stone">Joined <b className="text-ink">{fmtDate(c.created_at)}</b></span>
+        <span className="text-stone">Newsletter {c.marketing_opt_in ? <b className="text-go">opted in</b> : <b className="text-stone">off</b>}</span>
+        <span className="text-stone">Licence {c.licence_verified ? <b className="text-go">verified</b> : <b className="text-stone">none</b>}</span>
+        {c.birth_date && <span className="text-stone">Birthday <b className="text-ink">{c.birth_date}</b></span>}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <Stat label="Bookings" value={bookings.total} />
+        <Stat label="Revenue (gross)" value={chf(financials.gross)} />
+        <Stat label="Points" value={(c.loyalty_points ?? 0).toLocaleString('de-CH')} />
+        <Stat label="Referrals made" value={referrals_made} />
+        <Stat label="Completed trips" value={completed_count} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div>
+          <SubLabel>Bookings by status</SubLabel>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {[['Pending', bookings.pending], ['Confirmed', bookings.confirmed], ['On trip', bookings.on_trip], ['Completed', bookings.completed], ['Declined', bookings.declined], ['Cancelled', bookings.cancelled]].map(([l, n]) => (
+              <span key={l} className="rounded-full border border-mist bg-cloud px-2.5 py-1"><b className="tnum">{n}</b> <span className="text-stone">{l}</span></span>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-stone">Last booking {bookings.last_booking_at ? fmtDate(bookings.last_booking_at) : '—'}.</p>
+        </div>
+        <div>
+          <SubLabel>Top cars rented</SubLabel>
+          <div className="mt-2 space-y-1.5">
+            {top_cars.length ? top_cars.map((car, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 text-sm">
+                <span className="truncate">{car.car}</span>
+                <span className="shrink-0 tnum text-stone">{car.bookings}× · {chf(car.revenue)}</span>
+              </div>
+            )) : <p className="text-xs text-stone">No bookings yet.</p>}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div>
+          <SubLabel>Contact</SubLabel>
+          <div className="mt-2 space-y-1 text-sm text-stone">
+            <div>{c.email}</div>
+            {c.phone && <div>{c.phone}</div>}
+            {addr && <div>{addr}</div>}
+          </div>
+        </div>
+        <div>
+          <SubLabel>Referral</SubLabel>
+          <div className="mt-2 space-y-1 text-sm text-stone">
+            {c.referral_code && <div>Code <b className="text-ink tracking-wider">{c.referral_code}</b></div>}
+            <div>Referred by {c.referred_by ? <b className="text-ink">{c.referred_by.name || c.referred_by.email}</b> : '—'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -44,6 +44,18 @@ export async function archivePartner(id, archived) {
   if (error) throw error;
 }
 
+// Founder Customers section.
+export async function listCustomers() {
+  const { data, error } = await supabase.rpc('admin_list_customers');
+  if (error) throw error;
+  return data ?? [];
+}
+export async function customerDetail(id) {
+  const { data, error } = await supabase.rpc('admin_customer_detail', { p_id: id });
+  if (error) throw error;
+  return data;
+}
+
 // Permanent delete (refused server-side if the partner has bookings → archive instead).
 export async function deletePartner(id) {
   const { data, error } = await supabase.functions.invoke('admin-delete-partner', { body: { partner_id: id } });
