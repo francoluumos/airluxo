@@ -45,6 +45,16 @@ Tag loosely: 💎 high impact · ⚠️ watch-outs · 🧭 regulatory/strategic 
 - **⚠️ Watch-outs:** a single dealer-group investor can **deter competing dealerships** from listing (neutrality concern); they may push for **exclusivity or board control** — align on AIRLUXO staying an open marketplace first. Clarify whether they enter as **investor**, **anchor supply partner**, or both.
 - **How to start:** seek a warm intro to Emil Frey corporate/ventures; pitch as a **supply + distribution partnership** first, investment second; keep a shortlist of other large groups (e.g. **AMAG**, regional luxury dealers) for optionality and leverage.
 
+## 5. Luxury stays — acquire Switzerland's top-5% Airbnbs to host (car + housing trips) 💎🧭⚠️
+**Idea:** Recruit the **top ~5% luxury short-stay properties** in Switzerland (chalets, villas, design apartments) to list/host on AIRLUXO, so we can sell **complete luxury trips — car + accommodation (+ more)** in one booking. Positions AIRLUXO as a luxury *travel* platform, not only car rental.
+
+**Feedback — big, on-brand expansion; it's effectively a second marketplace, so scope it as a deliberate platform move.**
+- **Why it's powerful:** same HNW traveller; bundling the car with a place to stay raises basket size, differentiates hard from pure car rental, and deepens the concierge positioning. Natural cross-sell with the hotel-concierge (MARKETING #1) and luxury-Airbnb-host (MARKETING #2) channels — some of those hosts become supply here.
+- **🧭 Strategic:** this is a **new supply side + inventory type** (properties, nights, occupancy) — a second marketplace bolted onto the car one. Decide it as such: shared accounts / checkout / loyalty / concierge, but its own listing model, availability calendar, pricing, and trust/insurance rules.
+- **PMS integrations are the key dependency.** Luxury hosts/managers already run a **property management system**; sync availability + reservations via their PMS API rather than double-entry. Target the big ones: **Guesty**, **Smoobu**, **Hostaway / Hostfully** (likely also Lodgify, Beds24). Build a channel-manager-style integration (rates / availability / reservations) — mirrors the OTA-feed pattern (#3) but **inbound**. Start with the one PMS that covers the most target properties.
+- **⚠️ Watch-outs:** hospitality is **more regulated + operationally heavier** than car rental (cleaning, check-in / keys, damage, local lodging tax / Kurtaxe, cancellation policies, stay liability + insurance); curation is everything for a "top 5%" promise (hand-pick, no self-serve); recruit via **property managers directly** (don't scrape Airbnb / breach ToS); two-sided cold-start on the new supply.
+- **How to start:** hand-curate a shortlist of marquee properties in **St. Moritz / Gstaad / Verbier / Zermatt / Geneva–Zürich**, pilot **one PMS integration** (or manual onboarding for the first few), and sell a single **"car + chalet" bundle** to validate demand before building the full stays marketplace.
+
 ---
 
 ## Cross-cutting enablers
@@ -53,4 +63,4 @@ Tag loosely: 💎 high impact · ⚠️ watch-outs · 🧭 regulatory/strategic 
 - **New add-on fields + partner compliance/KYC** — driver add-on (#1) and protection add-on (#2) reuse the add-on pattern; both need partner attestations (licensing, insurance certificates) collected at onboarding.
 - **Channel inventory sync** — an availability/rates feed for OTAs (#3) can build on the existing availability API + per-partner webhooks; channel commission must be baked into on-channel rates. → candidate for BACKLOG if we pursue distribution.
 
-_Last updated: 2026-06-02._
+_Last updated: 2026-06-03._
