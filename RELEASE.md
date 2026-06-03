@@ -6,6 +6,7 @@ Two environments, both on the Vercel project `airluxo` (team `luumos-projects`):
 |-----|--------|-----|------|
 | **Production** | `main` | https://airluxo.ch · https://www.airluxo.ch | Basic-auth (`SITE_PASSWORD`, Production scope) until launch |
 | **Staging** | `staging` | https://staging.airluxo.ch | Basic-auth (`SITE_PASSWORD`, Preview scope) |
+| **Founder** | `staging` (for now) | https://admin.airluxo.ch | `app_admins` allowlist + `is_admin()` (server-side) + staging Basic-auth |
 
 Every push to a branch auto-deploys via Vercel's GitHub integration — no manual deploy step.
 
@@ -37,6 +38,27 @@ Scopes in Vercel → Settings → Environment Variables:
 - **Production** scope → gates `airluxo.ch` pre-launch.
 
 > Note: Vercel **Deployment Protection → Vercel Authentication is OFF**, so the custom-domain Basic-auth gate (not Vercel's team SSO) is what protects preview/staging. Don't re-enable it or external testers will be locked out.
+
+## Founder / admin dashboard (admin.airluxo.ch)
+
+Company-internal back office (the prospect/onboarding pipeline lives here), separate from the partner dashboard.
+
+**How it loads:** the app renders the founder area when the hostname starts with `admin.` — or via `?admin` on any host (same code path, for testing). Access is gated **server-side** by the `app_admins` allowlist + the `is_admin()` helper, enforced in every admin RPC / edge function. The URL/subdomain is **not** the security boundary.
+
+**Admins:** the `app_admins` table (seeded: `franco@luumos.io`). Add another:
+```sql
+insert into public.app_admins (user_id) values ('<auth.users.id>');
+```
+
+**Wiring the subdomain (one-time):**
+1. **Vercel → Add Domain** `admin.airluxo.ch` → **Connect to an environment → the `staging` branch** — **NOT Production.** The founder code only lives on `staging`; production/`main` is behind and has no admin area, so pointing it at Production would serve the old site. Save.
+2. **Hostpoint DNS:** explicit `CNAME admin → cname.vercel-dns.com` (the `*.airluxo.ch` wildcard would otherwise shadow it — same gotcha as staging).
+3. Once it resolves, `admin.airluxo.ch` shows the founder login. The staging Basic-auth gate also covers it (it sits on the staging env) — an extra layer, fine.
+4. When the founder dashboard is promoted to production, re-point `admin.airluxo.ch` to **Production**.
+
+**Testing without the subdomain:** `https://staging.airluxo.ch/?admin` (identical code path). Quirk: in `?admin` mode the "Build fleet" impersonation shares the origin and will swap your session to the prospect — use an **incognito window**, or the real `admin.airluxo.ch` subdomain (separate origin) avoids it entirely.
+
+**Prospect pipeline (sales previews):** create a prospect (no partner email needed) → **Build fleet** opens the prospect's dashboard via a magic link to upload cars → **Preview** shows the token-gated storefront (`?embed=<id>&preview=<token>`, "Sales preview" banner) → **Go live** claims it into a real partner account (sets their email, flips the cars live, returns a password-setup link to send them; they connect Stripe afterwards). Prospect cars are hidden from the public marketplace + map (RLS + query filters) and reachable only via the preview token. Admin edge functions (all `verify_jwt` on + `is_admin`-checked): `admin-create-prospect`, `admin-impersonate-prospect`, `admin-claim-prospect`.
 
 ## Going live (launch day)
 
