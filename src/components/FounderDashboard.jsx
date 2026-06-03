@@ -19,6 +19,7 @@ const NAV = [
   { key: 'finance', label: 'Finance' },
   { key: 'marketing', label: 'Marketing' },
   { key: 'overview', label: 'Overview' },
+  { key: 'docs', label: 'Docs' },
 ];
 
 export default function FounderApp() {
@@ -136,6 +137,7 @@ function FounderShell() {
 
         {section === 'pipeline' ? <Pipeline />
           : section === 'partners' ? <Partners />
+          : section === 'docs' ? <DocsHub />
           : <SectionPlaceholder label={NAV.find((n) => n.key === section)?.label} />}
       </main>
     </div>
@@ -648,6 +650,30 @@ function AdminField({ label, value, onChange, placeholder, type }) {
       <input type={type} value={value} onChange={onChange} placeholder={placeholder}
         className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
     </label>
+  );
+}
+
+function DocsHub() {
+  const docs = [
+    { key: 'admin', title: 'Admin dashboard', desc: 'Founder dashboard guide, live system status & changelog.' },
+    { key: 'partner', title: 'Partner dashboard', desc: 'The rental-partner guide & changelog.' },
+    { key: 'customer', title: 'Customer & frontend', desc: 'The guest booking experience & changelog.' },
+  ];
+  return (
+    <div>
+      <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Documentation</h1>
+      <p className="mt-1 text-sm text-stone">Guides, system status and changelogs for each part of AIRLUXO — kept in sync with every change.</p>
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        {docs.map((d) => (
+          <a key={d.key} href={`/?docs=${d.key}`} target="_blank" rel="noreferrer"
+            className="ring-lux rounded-2xl border border-mist bg-cloud p-5 transition-colors hover:border-ink">
+            <div className="font-display text-lg">{d.title}</div>
+            <p className="mt-1 text-sm text-stone">{d.desc}</p>
+            <div className="mt-4 text-xs font-semibold text-gold">Open guide &amp; changelog ↗</div>
+          </a>
+        ))}
+      </div>
+    </div>
   );
 }
 

@@ -88,7 +88,7 @@ export default function App() {
   const embedPartner = params.get('embed');
   if (embedPartner) return <Embed partnerId={embedPartner} previewToken={params.get('preview')} />;
   // Partner guide + changelog (opened in a new tab from Settings): ?docs.
-  if (params.has('docs')) return <Docs />;
+  if (params.has('docs')) return <Docs which={params.get('docs') || 'partner'} />;
   // Password-recovery landing from the reset email: ?reset=1 (token in the URL hash).
   if (params.has('reset') || window.location.hash.includes('type=recovery')) return <ResetPassword />;
   // Privacy & cookie policy (opened from the banner + footer): ?privacy.
