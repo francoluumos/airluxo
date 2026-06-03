@@ -63,6 +63,8 @@ Deno.serve(async (req) => {
     }).eq("id", pid).select("id, company_name, pipeline_stage, preview_token, created_at").maybeSingle();
     if (uErr) return json({ error: uErr.message }, 500);
 
+    await admin.from("partner_events").insert({ partner_id: pid, kind: "created" });
+
     return json({ prospect: row });
   } catch (e) {
     return json({ error: String((e as Error)?.message || e) }, 500);

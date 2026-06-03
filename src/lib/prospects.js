@@ -30,6 +30,14 @@ export async function listPartners() {
   return data ?? [];
 }
 
+// Full info sheet for one partner (status, locations, bookings, financials,
+// top cars, timeline).
+export async function partnerDetail(id) {
+  const { data, error } = await supabase.rpc('admin_partner_detail', { p_id: id });
+  if (error) throw error;
+  return data;
+}
+
 // Edit a partner. `email` maps to the contact email (prospect) or the login email
 // (live partner) server-side.
 export async function updatePartner(id, fields) {

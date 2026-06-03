@@ -45,9 +45,10 @@ Deno.serve(async (req) => {
     // Go live: a trigger flips their listings' is_prospect too, so the cars surface
     // in the marketplace immediately.
     const { error: pErr } = await admin.from("partners")
-      .update({ is_prospect: false, pipeline_stage: "won", prospect_contact_email: email })
+      .update({ is_prospect: false, pipeline_stage: "won", prospect_contact_email: email, went_live_at: new Date().toISOString() })
       .eq("id", partnerId);
     if (pErr) return json({ error: pErr.message }, 500);
+    await admin.from("partner_events").insert({ partner_id: partnerId, kind: "went_live" });
 
     // Password-setup link for the partner to take ownership.
     const origin = String(body.origin || "").replace(/\/$/, "");

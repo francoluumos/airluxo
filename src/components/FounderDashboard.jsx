@@ -1,7 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { Icon } from './Icons.jsx';
 import { useAuth } from '../lib/auth.jsx';
-import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, PARTNER_STATUS, partnerStatus } from '../lib/prospects.js';
+import { chf } from '../lib/format.js';
+import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, PARTNER_STATUS, partnerStatus } from '../lib/prospects.js';
+
+const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
 
 // AIRLUXO founder / admin back office. Rendered on admin.airluxo.ch (or ?admin
 // while the subdomain DNS isn't wired). The security boundary is server-side:
@@ -345,6 +349,7 @@ function CreateProspectModal({ onClose, onCreated }) {
 function Partners() {
   const [rows, setRows] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
   const [filter, setFilter] = useState('all');
   const [err, setErr] = useState('');
 
@@ -388,17 +393,29 @@ function Partners() {
           </thead>
           <tbody>
             {filtered.map((p) => (
-              <tr key={p.id} className="border-b border-mist/60 last:border-0">
-                <td className="px-4 py-3 font-semibold">{p.company_name}</td>
-                <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
-                <td className="px-4 py-3 text-stone">{(p.is_prospect ? p.prospect_contact_email : p.login_email) || '—'}</td>
-                <td className="px-4 py-3 text-stone tnum">{p.phone || '—'}</td>
-                <td className="px-4 py-3 text-stone">{p.contact_name || '—'}</td>
-                <td className="px-4 py-3 tnum text-stone">{p.car_count}</td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => setEditing(p)} className="ring-lux text-xs font-semibold text-ink hover:underline">Edit</button>
-                </td>
-              </tr>
+              <Fragment key={p.id}>
+                <tr onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                  className={`cursor-pointer border-b border-mist/60 transition-colors hover:bg-mist/30 ${expandedId === p.id ? 'bg-mist/30' : ''}`}>
+                  <td className="px-4 py-3 font-semibold">
+                    <span className="mr-1.5 inline-block text-stone">{expandedId === p.id ? '▾' : '▸'}</span>{p.company_name}
+                  </td>
+                  <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
+                  <td className="px-4 py-3 text-stone">{(p.is_prospect ? p.prospect_contact_email : p.login_email) || '—'}</td>
+                  <td className="px-4 py-3 text-stone tnum">{p.phone || '—'}</td>
+                  <td className="px-4 py-3 text-stone">{p.contact_name || '—'}</td>
+                  <td className="px-4 py-3 tnum text-stone">{p.car_count}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={(e) => { e.stopPropagation(); setEditing(p); }} className="ring-lux text-xs font-semibold text-ink hover:underline">Edit</button>
+                  </td>
+                </tr>
+                {expandedId === p.id && (
+                  <tr className="border-b border-mist/60 bg-paper">
+                    <td colSpan={7} className="px-4 pb-6 pt-1">
+                      <PartnerDetail id={p.id} onEdit={() => setEditing(p)} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
             {filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-stone">No partners in this view.</td></tr>}
           </tbody>
@@ -454,6 +471,108 @@ function PartnerEditModal({ p, onClose, onSaved }) {
       </form>
     </div>
   );
+}
+
+function PartnerDetail({ id, onEdit }) {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    let on = true;
+    partnerDetail(id).then((x) => { if (on) setD(x); }).catch((e) => { if (on) { setErr(e.message); setD(false); } });
+    return () => { on = false; };
+  }, [id]);
+
+  if (d === null) return <div className="grid place-items-center py-6"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
+  if (!d) return <p className="py-3 text-sm text-red-600">{err || 'Could not load.'}</p>;
+
+  const { partner, locations, cars, bookings, financials, top_cars, timeline } = d;
+  const stripeOk = partner.stripe_connected && partner.stripe_charges_enabled;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-sm">
+        <span className="text-stone">Plan <b className="capitalize text-ink">{partner.plan}</b></span>
+        <span className="text-stone">Stripe {stripeOk ? <b className="text-go">connected</b> : <b className="text-gold">not connected</b>}</span>
+        <span className="text-stone">Joined <b className="text-ink">{fmtDate(partner.created_at)}</b></span>
+        {partner.went_live_at && <span className="text-stone">Live since <b className="text-ink">{fmtDate(partner.went_live_at)}</b></span>}
+        {partner.source && <span className="text-stone">Source <b className="text-ink">{partner.source}</b></span>}
+        <button onClick={onEdit} className="ring-lux ml-auto text-xs font-semibold text-ink hover:underline">Edit details</button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <Stat label="GMV (gross)" value={chf(financials.gross)} />
+        <Stat label="Our earnings · est." value={chf(financials.est_our_earnings)} />
+        <Stat label="Partner net · est." value={chf(financials.est_partner_net)} />
+        <Stat label="Bookings" value={bookings.total} />
+        <Stat label="Discounts given" value={chf(financials.discounts)} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div>
+          <SubLabel>Bookings by status</SubLabel>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {[['Pending', bookings.pending], ['Confirmed', bookings.confirmed], ['On trip', bookings.on_trip], ['Completed', bookings.completed], ['Declined', bookings.declined], ['Cancelled', bookings.cancelled]].map(([l, n]) => (
+              <span key={l} className="rounded-full border border-mist bg-cloud px-2.5 py-1"><b className="tnum">{n}</b> <span className="text-stone">{l}</span></span>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-stone">Fleet: {cars.total} cars · {cars.available} available · {cars.draft} draft. Last booking {bookings.last_booking_at ? fmtDate(bookings.last_booking_at) : '—'}.</p>
+        </div>
+        <div>
+          <SubLabel>Top cars</SubLabel>
+          <div className="mt-2 space-y-1.5">
+            {top_cars.length ? top_cars.map((c, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 text-sm">
+                <span className="truncate">{c.car}</span>
+                <span className="shrink-0 tnum text-stone">{c.bookings}× · {chf(c.revenue)}</span>
+              </div>
+            )) : <p className="text-xs text-stone">No bookings yet.</p>}
+          </div>
+        </div>
+      </div>
+
+      {locations.length > 0 && (
+        <div>
+          <SubLabel>Pick-up locations</SubLabel>
+          <div className="mt-2 space-y-1 text-sm text-stone">
+            {locations.map((l, i) => <div key={i}>{[l.label, l.city, l.address].filter(Boolean).join(' · ')}</div>)}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <SubLabel>Timeline</SubLabel>
+        <ol className="mt-3 space-y-3 border-l border-mist pl-4">
+          {timeline.length ? [...timeline].reverse().map((e, i) => (
+            <li key={i} className="relative">
+              <span className="absolute -left-[1.36rem] top-1.5 h-2 w-2 rounded-full bg-gold" />
+              <div className="text-sm font-semibold text-ink">{eventLabel(e)}</div>
+              <div className="text-xs text-stone">{fmtDateTime(e.at)}</div>
+            </li>
+          )) : <li className="text-xs text-stone">No events yet.</li>}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-mist bg-cloud p-3">
+      <div className="text-[0.65rem] uppercase tracking-wider text-stone">{label}</div>
+      <div className="font-display mt-1 text-lg tnum">{value}</div>
+    </div>
+  );
+}
+
+function SubLabel({ children }) {
+  return <div className="text-[0.7rem] font-bold uppercase tracking-wider text-stone">{children}</div>;
+}
+
+function eventLabel(e) {
+  if (e.kind === 'created') return 'Prospect created';
+  if (e.kind === 'went_live') return 'Went live 🎉';
+  if (e.kind === 'stage') { const s = STAGES.find((x) => x.key === e.detail); return `Moved to ${s?.label || e.detail}`; }
+  return e.kind;
 }
 
 function AdminField({ label, value, onChange, placeholder, type }) {
