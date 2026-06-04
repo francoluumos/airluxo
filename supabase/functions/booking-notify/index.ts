@@ -8,7 +8,7 @@
 // gracefully if unset.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { emailShell, rows, button, chf, esc, BRAND } from "../_shared/email.ts";
+import { emailShell, rows, button, chf, BRAND } from "../_shared/email.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -67,9 +67,9 @@ Deno.serve(async (req) => {
       subject: `New booking — ${b.car_label} (${dates})`,
       html: emailShell({
         preheader: `${b.guest_name} booked the ${b.car_label} — review and confirm.`,
-        heading: `New booking · ${esc(b.car_label)}`,
+        heading: `New booking · ${b.car_label}`,
         bodyHtml,
-        footnote: `Booking status: ${esc(b.status)}.`,
+        footnote: `Booking status: ${b.status}.`,
       }),
     }),
   });

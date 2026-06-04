@@ -52,8 +52,10 @@ export function rows(items: Row[]): string {
   return `<table role="presentation" width="100%" style="border-collapse:collapse;margin:6px 0">${cells}</table>`;
 }
 
-// Wrap body content in the branded shell. `heading` is the H1; `bodyHtml` is
-// pre-built inner HTML; `footnote` shows small print above the footer.
+// Wrap body content in the branded shell.
+// CONTRACT: `heading`, `preheader` and `footnote` are PLAIN TEXT — they are
+// HTML-escaped here, so callers must pass raw values (never pre-escape). Only
+// `bodyHtml` is treated as trusted HTML; build it with rows()/button()/esc().
 export function emailShell(opts: {
   preheader?: string;
   heading: string;
@@ -73,7 +75,7 @@ export function emailShell(opts: {
         <tr><td style="padding:18px 32px 32px;font-family:${FONT};color:${BRAND.ink}">
           <h1 style="font-size:22px;font-weight:700;line-height:1.25;margin:0 0 12px">${esc(heading)}</h1>
           ${bodyHtml}
-          ${footnote ? `<p style="font-size:12px;color:${BRAND.ash};line-height:1.6;margin:22px 0 0">${footnote}</p>` : ""}
+          ${footnote ? `<p style="font-size:12px;color:${BRAND.ash};line-height:1.6;margin:22px 0 0">${esc(footnote)}</p>` : ""}
         </td></tr>
         <tr><td style="padding:18px 32px 26px;border-top:1px solid ${BRAND.mist};font-family:${FONT}">
           <p style="font-size:12px;color:${BRAND.ash};margin:0;line-height:1.6">AIRLUXO · Switzerland's marketplace for extraordinary cars · Geneva</p>
