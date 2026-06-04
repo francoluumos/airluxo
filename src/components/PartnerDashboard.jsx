@@ -1917,7 +1917,7 @@ function AddCar({ onClose, onCreated }) {
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                         <div className="space-y-3 pt-3">
                           <FormInput label="Protection fee (CHF · per trip)" type="number" placeholder="250" value={f.protection_fee} onChange={set('protection_fee')} />
-                          <FormInput label="Security deposit it waives (CHF)" type="number" placeholder="5000" value={f.deposit_amount} onChange={set('deposit_amount')} />
+                          <FormInput label="Security deposit this waives (CHF)" type="number" placeholder="5000" value={f.deposit_amount} onChange={set('deposit_amount')} />
                           <p className="text-xs text-stone">Guests can pay this to drop their damage excess to CHF 0. You keep the full fee — AIRLUXO takes no commission on it.</p>
                         </div>
                       </motion.div>
@@ -2168,7 +2168,7 @@ function EditCar({ car, onClose, onSaved }) {
             {f.protection_available && (
               <div className="space-y-3 pt-3">
                 <FormInput label="Protection fee (CHF · per trip)" type="number" value={f.protection_fee} onChange={set('protection_fee')} />
-                <FormInput label="Security deposit it waives (CHF)" type="number" value={f.deposit_amount} onChange={set('deposit_amount')} />
+                <FormInput label="Security deposit this waives (CHF)" type="number" value={f.deposit_amount} onChange={set('deposit_amount')} />
                 <p className="text-xs text-stone">Guests pay this to drop their damage excess to CHF 0. You keep the full fee — no AIRLUXO commission.</p>
               </div>
             )}
