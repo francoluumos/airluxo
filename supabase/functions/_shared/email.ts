@@ -61,8 +61,12 @@ export function emailShell(opts: {
   heading: string;
   bodyHtml: string;
   footnote?: string;
+  unsubscribeUrl?: string; // marketing emails only — adds an Unsubscribe link
 }): string {
-  const { preheader = "", heading, bodyHtml, footnote = "" } = opts;
+  const { preheader = "", heading, bodyHtml, footnote = "", unsubscribeUrl = "" } = opts;
+  const unsubLine = unsubscribeUrl
+    ? `<br/><a href="${esc(unsubscribeUrl)}" style="color:${BRAND.ash};text-decoration:underline">Unsubscribe</a> from these emails.`
+    : "";
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:${BRAND.cloud}">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(preheader)}</div>
@@ -78,10 +82,19 @@ export function emailShell(opts: {
           ${footnote ? `<p style="font-size:12px;color:${BRAND.ash};line-height:1.6;margin:22px 0 0">${esc(footnote)}</p>` : ""}
         </td></tr>
         <tr><td style="padding:18px 32px 26px;border-top:1px solid ${BRAND.mist};font-family:${FONT}">
-          <p style="font-size:12px;color:${BRAND.ash};margin:0;line-height:1.6">AIRLUXO · Switzerland's marketplace for extraordinary cars · Geneva</p>
+          <p style="font-size:12px;color:${BRAND.ash};margin:0;line-height:1.6">AIRLUXO · Switzerland's marketplace for extraordinary cars · Geneva${unsubLine}</p>
         </td></tr>
       </table>
     </td></tr>
   </table>
 </body></html>`;
+}
+
+// List-Unsubscribe headers for one-click unsubscribe (RFC 8058) — required by
+// Gmail/Yahoo for bulk senders. Pass the result as Resend `headers`.
+export function unsubHeaders(unsubscribeUrl: string): Record<string, string> {
+  return {
+    "List-Unsubscribe": `<${unsubscribeUrl}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
 }

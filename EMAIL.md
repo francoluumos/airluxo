@@ -30,6 +30,42 @@ so changing the brand once updates all emails. Constraints baked in: inline styl
 **Marketing campaigns** (newsletter blasts to the Audience) are built in **Resend → Broadcasts**
 (visual editor; Resend injects the unsubscribe footer), *not* in code.
 
+## Marketing lifecycle flows (lean in-house)
+
+Triggered/time-based marketing (birthday, win-back, post-trip, new-models) runs on
+**our own data** and sends via Resend — no external ESP, no second contact list.
+Pieces:
+
+- **Consent gate:** `newsletter_subscribers` (the SSOT). Only `subscribed = true` is mailed.
+- **Idempotency + audit:** every send logs to `marketing_sends` with a `(flow, email, sent_on)`
+  unique key, so a flow can't double-send in a day.
+- **One-click unsubscribe:** each subscriber has an `unsubscribe_token`; marketing emails
+  carry `List-Unsubscribe` headers (`unsubHeaders()`) + a footer link, both pointing at the
+  `newsletter-unsubscribe` function (token-based, no auth). Required by Gmail/Yahoo for bulk mail.
+- **Scheduling:** `pg_cron` POSTs to the flow's edge function daily; the function authorises by
+  checking the bearer equals the service-role key, which cron reads from **Vault** at run time.
+
+**Flows live:** `marketing-birthday` (daily 07:00 UTC) — branded birthday note + member gesture.
+
+### ⚠️ One-time activation (required for any cron flow to send)
+
+Run once in the **Supabase SQL editor** (so the key is never handled by tooling):
+
+```sql
+select vault.create_secret('<YOUR_SERVICE_ROLE_KEY>', 'sb_service_role_key');
+```
+
+Until that secret exists, the cron runs but `marketing-birthday` returns 403 (no sends).
+Find the key in Supabase → Project Settings → API → `service_role`. To test immediately after:
+
+```sql
+select net.http_post(
+  url := 'https://shoeopxxjawmusgnjxfh.supabase.co/functions/v1/marketing-birthday',
+  headers := jsonb_build_object('Content-Type','application/json',
+    'Authorization','Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name='sb_service_role_key')),
+  body := '{}'::jsonb);
+```
+
 > When deploying a function that imports `_shared/email.ts` via the MCP, include the shared
 > file in the upload `files` array (name `../_shared/email.ts`) alongside `index.ts`.
 
