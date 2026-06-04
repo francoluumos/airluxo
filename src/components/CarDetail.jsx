@@ -5,7 +5,7 @@ import CarImage from './CarImage.jsx';
 import { Icon } from './Icons.jsx';
 import { FEES } from '../lib/data.js';
 import { chf } from '../lib/format.js';
-import { createBooking, fetchAvailability } from '../lib/bookings.js';
+import { createBooking, fetchAvailability, captureCheckoutLead } from '../lib/bookings.js';
 import { fetchListingLogistics } from '../lib/listings.js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { getStripe, createPaymentIntent } from '../lib/stripe.js';
@@ -259,6 +259,8 @@ export default function CarDetail({ car, onClose }) {
     setErr('');
     if (deliveryMissingAddr) { setErr('Enter a delivery address.'); return; }
     if (!guest.email.trim() || !guest.phone.trim()) { setErr('Email and phone are required.'); return; }
+    // Capture the lead for abandoned-booking recovery (same-car reminder, soft opt-in).
+    captureCheckoutLead({ email: guest.email.trim(), listing_id: car.id, car_label: `${car.make} ${car.model}`, start_date: startISO, end_date: endISO });
     track('booking_licence_step', { listing_id: car.id });
     setPhase('licence');
   }

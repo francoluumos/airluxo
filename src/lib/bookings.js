@@ -18,6 +18,12 @@ export async function createBooking(payload) {
   return { id, ...payload };
 }
 
+// Capture a booking lead when the guest enters their email at checkout (basis for
+// the abandoned-booking recovery flow). Fire-and-forget; no-op if it can't reach.
+export function captureCheckoutLead(payload) {
+  supabase.functions.invoke('checkout-lead', { body: payload }).catch(() => {});
+}
+
 // All bookings for the signed-in partner's cars (RLS scopes to the owner).
 export async function fetchMyBookings() {
   const { data, error } = await supabase

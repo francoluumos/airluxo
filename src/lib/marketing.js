@@ -38,6 +38,13 @@ export const MARKETING_FLOWS = [
     desc: 'A digest of cars added in the last week, to all subscribers. Sends only when there are new arrivals.',
     cadence: 'Weekly · Fri',
   },
+  {
+    flow: 'abandoned',
+    jobname: 'marketing-abandoned-hourly',
+    label: 'Abandoned booking',
+    desc: 'One same-car reminder 1–48h after a guest leaves checkout (soft opt-in; suppressed if they convert or opt out).',
+    cadence: 'Hourly check',
+  },
 ];
 
 // Founder Marketing → Flows: cron status + per-flow send stats + recent sends.

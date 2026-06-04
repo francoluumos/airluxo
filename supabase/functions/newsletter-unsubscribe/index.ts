@@ -46,6 +46,16 @@ Deno.serve(async (req) => {
   if (sub?.email && sub.subscribed) {
     await admin.from("newsletter_subscribers").update({ subscribed: false }).eq("unsubscribe_token", token);
     await mirrorResendOff(sub.email);
+  } else {
+    // Maybe it's an abandoned-booking recovery token — suppress that email's leads.
+    const { data: lead } = await admin
+      .from("checkout_leads")
+      .select("email")
+      .eq("unsubscribe_token", token)
+      .maybeSingle();
+    if (lead?.email) {
+      await admin.from("checkout_leads").update({ unsubscribed: true }).eq("email", lead.email);
+    }
   }
 
   // One-click POST from the mail client expects a bare 200.

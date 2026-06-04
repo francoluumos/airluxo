@@ -24,6 +24,7 @@ const FLOWS: Record<string, {
   subject: (r: Recipient, ctx: Recipient) => string;
   render: (r: Recipient, ctx: Recipient) => Tpl;
   prep?: (admin: ReturnType<typeof createClient>) => Promise<Recipient | null>;
+  onSent?: (admin: ReturnType<typeof createClient>, r: Recipient) => Promise<void>;
 }> = {
   post_trip: {
     rpc: "marketing_recipients_post_trip",
@@ -92,6 +93,25 @@ const FLOWS: Record<string, {
       };
     },
   },
+  // Abandoned-booking recovery. One reminder per lead about the SAME car only.
+  abandoned: {
+    rpc: "marketing_recipients_abandoned",
+    subject: (r) => `Still interested in the ${r.car_label || "car"}?`,
+    render: (r) => {
+      const car = esc(r.car_label || "car");
+      const dates = r.start_date ? ` for ${esc(r.start_date)}${r.end_date && r.end_date !== r.start_date ? ` → ${esc(r.end_date)}` : ""}` : "";
+      return {
+        preheader: "Your selection is saved — pick up where you left off.",
+        heading: `Still interested in the ${car}?`,
+        bodyHtml:
+          p(`You were a step away from booking the <strong style="color:${BRAND.ink}">${car}</strong>${dates}. Your selection is saved — pick up where you left off whenever you're ready.`) +
+          `<p style="margin:4px 0 0">${button("https://airluxo.ch", "Resume your booking")}</p>`,
+      };
+    },
+    onSent: async (admin, r) => {
+      if (r.lead_id) await admin.from("checkout_leads").update({ recovered_at: new Date().toISOString() }).eq("id", r.lead_id);
+    },
+  },
 };
 
 Deno.serve(async (req) => {
@@ -149,6 +169,7 @@ Deno.serve(async (req) => {
       });
       if (!res.ok) throw new Error(`Resend ${res.status}`);
       sent++;
+      if (def.onSent) await def.onSent(admin, r);
     } catch (_e) {
       await admin.from("marketing_sends").delete().eq("id", claim.id);
       failed++;
