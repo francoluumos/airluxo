@@ -18,6 +18,14 @@ export async function fetchMyListings() {
   return data ?? [];
 }
 
+// Generate an evocative car description with AI (partner "list a car" form).
+export async function generateCarDescription(fields) {
+  const { data, error } = await supabase.functions.invoke('generate-description', { body: fields });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.description;
+}
+
 export async function createListing(payload) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not signed in');
@@ -183,5 +191,6 @@ export function mapListing(row) {
     rate_tiers: Array.isArray(row.rate_tiers) ? row.rate_tiers : [],
     year: row.year,
     mileage_per_day: row.mileage_per_day,
+    description: row.description || null,
   };
 }

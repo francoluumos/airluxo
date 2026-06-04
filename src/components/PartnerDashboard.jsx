@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Icon } from './Icons.jsx';
 import { useAuth } from '../lib/auth.jsx';
 import {
-  fetchMyListings, createListing, deleteListing, updateListing, uploadListingPhoto, uploadListingVideo, importListings,
+  fetchMyListings, createListing, deleteListing, updateListing, uploadListingPhoto, uploadListingVideo, importListings, generateCarDescription,
 } from '../lib/listings.js';
 import { downloadTemplate, exportFleet, parseFleetFile } from '../lib/fleetio.js';
 import { makeStudioThumbnail, extractCarDetails } from '../lib/thumbnail.js';
@@ -1537,6 +1537,7 @@ function AddCar({ onClose, onCreated }) {
     cross_border_allowed: false, cross_border_fee: '',
     delivery_available: false, delivery_fee: '', delivery_note: '',
     protection_available: false, protection_fee: '', deposit_amount: '',
+    description: '',
   });
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
@@ -1680,6 +1681,7 @@ function AddCar({ onClose, onCreated }) {
         protection_available: f.protection_available,
         protection_fee: f.protection_available && f.protection_fee ? Number(f.protection_fee) : null,
         deposit_amount: f.protection_available && f.deposit_amount ? Number(f.deposit_amount) : null,
+        description: f.description.trim() || null,
         status: 'Available',
       });
       await onCreated();
@@ -1802,6 +1804,8 @@ function AddCar({ onClose, onCreated }) {
                   <FormSelect label="Gearbox" value={f.gearbox} onChange={set('gearbox')} options={['Auto', 'PDK', 'DCT', 'Manual']} />
                   <FormSelect label="Fuel" value={f.fuel} onChange={set('fuel')} options={FUELS} />
                 </div>
+                <DescriptionField value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))}
+                  carFields={{ make: f.make, model: f.model, year: f.year, category: f.category, power: f.power, gearbox: f.gearbox, fuel: f.fuel, exterior_color: f.exterior_color, interior_color: f.interior_color, location: f.city }} />
               </>
             )}
 
@@ -1986,6 +1990,7 @@ function EditCar({ car, onClose, onSaved }) {
     protection_available: !!car.protection_available,
     protection_fee: car.protection_fee != null ? String(car.protection_fee) : '',
     deposit_amount: car.deposit_amount != null ? String(car.deposit_amount) : '',
+    description: car.description || '',
   });
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
@@ -2035,6 +2040,7 @@ function EditCar({ car, onClose, onSaved }) {
         protection_available: f.protection_available,
         protection_fee: f.protection_available && f.protection_fee ? Number(f.protection_fee) : null,
         deposit_amount: f.protection_available && f.deposit_amount ? Number(f.deposit_amount) : null,
+        description: f.description.trim() || null,
         rate_tiers: tiers.filter((t) => t.label.trim() && Number(t.price) > 0).map((t) => ({ label: t.label.trim(), price: Number(t.price) })),
       };
       if (file) {
@@ -2088,6 +2094,8 @@ function EditCar({ car, onClose, onSaved }) {
             <FormSelect label="Gearbox" value={f.gearbox} onChange={set('gearbox')} options={['Auto', 'PDK', 'DCT', 'Manual']} />
             <FormSelect label="Fuel" value={f.fuel} onChange={set('fuel')} options={FUELS} />
           </div>
+          <DescriptionField value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))}
+            carFields={{ make: f.make, model: f.model, year: f.year, category: f.category, power: f.power, gearbox: f.gearbox, fuel: f.fuel, exterior_color: f.exterior_color, interior_color: f.interior_color, location: f.city }} />
           <div className="grid grid-cols-2 gap-3">
             <FormInput label="Daily rate (CHF)" type="number" value={f.price_per_day} onChange={set('price_per_day')} />
             <FormInput label="Mileage / day (km)" type="number" value={f.mileage_per_day} onChange={set('mileage_per_day')} />
@@ -2361,6 +2369,39 @@ function ImportModal({ onClose, onDone }) {
         )}
       </motion.div>
     </motion.div>
+  );
+}
+
+// Car description with a small "Generate with AI" button. Shared by Add/Edit.
+// `carFields` are the facts sent to the generator (make/model/specs/city).
+function DescriptionField({ value, onChange, carFields }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  async function gen() {
+    if (!carFields.make?.trim() || !carFields.model?.trim()) { setErr('Add the make and model first.'); return; }
+    setBusy(true); setErr('');
+    try { onChange(await generateCarDescription(carFields)); }
+    catch (e) { setErr(e.message || 'Could not generate a description.'); }
+    finally { setBusy(false); }
+  }
+  return (
+    <label className="block">
+      <span className="mb-1.5 flex items-center justify-between">
+        <span className="text-sm font-semibold">Description <span className="font-normal text-stone">· shown on the booking page</span></span>
+        <button type="button" onClick={gen} disabled={busy}
+          className="ring-lux inline-flex items-center gap-1 rounded-full border border-mist px-2.5 py-1 text-[0.7rem] font-semibold text-gold transition-colors hover:border-gold disabled:opacity-50">
+          <span aria-hidden>✦</span> {busy ? 'Writing…' : 'Generate with AI'}
+        </button>
+      </span>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={4}
+        placeholder="A few evocative lines about the car and the experience of driving it."
+        className="ring-lux w-full resize-y rounded-xl border border-mist bg-cloud px-4 py-3 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone"
+      />
+      {err && <p className="mt-1 text-xs text-red-600">{err}</p>}
+    </label>
   );
 }
 

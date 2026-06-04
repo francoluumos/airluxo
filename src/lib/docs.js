@@ -73,6 +73,7 @@ export const DOCS = {
       },
     ],
     changelog: [
+      { date: '2026-06-04', version: 'AI car descriptions', items: ['List a car now has a Description field with a “Generate with AI” button (luxury, evocative tone). The description appears on the booking page. Delivery address now autocompletes Swiss addresses.'] },
       { date: '2026-06-01', version: 'Build 0.6', items: ['Booking no longer requires signing in first — guests book straight through, then are offered a one-tap account on the confirmation.'] },
       { date: '2026-06-01', version: 'Build 0.5', items: ['Subscription tiers wired to real mechanics: commission by plan (Free 15% / Pro 9% / Max 3%) + per-plan car limits enforced on new listings.'] },
       { date: '2026-06-01', version: 'Build 0.4', items: ['Promo & referral codes in the booking flow, attributed to a referrer with a commission; amounts recomputed server-side.'] },
