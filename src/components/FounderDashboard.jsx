@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { chf } from '../lib/format.js';
 import { tierForTrips } from '../lib/loyalty.js';
 import { listSubscribers, setNewsletter } from '../lib/newsletter.js';
+import { MARKETING_FLOWS, marketingOverview, setFlowActive } from '../lib/marketing.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus } from '../lib/prospects.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
@@ -636,8 +637,8 @@ function Stat({ label, value }) {
   );
 }
 
-function SubLabel({ children }) {
-  return <div className="text-[0.7rem] font-bold uppercase tracking-wider text-stone">{children}</div>;
+function SubLabel({ children, className = '' }) {
+  return <div className={`text-[0.7rem] font-bold uppercase tracking-wider text-stone ${className}`}>{children}</div>;
 }
 
 function eventLabel(e) {
@@ -808,6 +809,113 @@ function CustomerDetail({ id }) {
 }
 
 function Marketing() {
+  const [tab, setTab] = useState('flows');
+  const TABS = [['flows', 'Flows'], ['subscribers', 'Subscribers']];
+  return (
+    <div>
+      <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Marketing</h1>
+      <p className="mt-1 text-sm text-stone">Lifecycle email flows and the newsletter subscriber list.</p>
+      <div className="mt-4 inline-flex rounded-full border border-mist bg-cloud p-1">
+        {TABS.map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k)}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${tab === k ? 'bg-ink text-cloud' : 'text-stone hover:text-ink'}`}>{label}</button>
+        ))}
+      </div>
+      <div className="mt-5">{tab === 'flows' ? <MarketingFlows /> : <Subscribers />}</div>
+    </div>
+  );
+}
+
+function MarketingFlows() {
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [err, setErr] = useState('');
+  function load() { marketingOverview().then(setData).catch((e) => { setErr(e.message); setData({ jobs: [], stats: [], recent: [] }); }); }
+  useEffect(() => { load(); }, []);
+
+  if (data === null) return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
+
+  const jobByName = Object.fromEntries((data.jobs || []).map((j) => [j.jobname, j]));
+  const statByFlow = Object.fromEntries((data.stats || []).map((s) => [s.flow, s]));
+
+  async function toggle(flow) {
+    const job = jobByName[flow.jobname];
+    if (!job) return;
+    setBusy(flow.jobname); setErr('');
+    try {
+      await setFlowActive(flow.jobname, !job.active);
+      load();
+    } catch (e) { setErr(e.message || 'Could not update.'); }
+    finally { setBusy(null); }
+  }
+
+  return (
+    <div>
+      {err && <p className="mb-3 text-sm text-red-600">{err}</p>}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {MARKETING_FLOWS.map((f) => {
+          const job = jobByName[f.jobname];
+          const stat = statByFlow[f.flow];
+          const active = job?.active;
+          return (
+            <div key={f.flow} className="rounded-2xl border border-mist bg-cloud p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-display text-lg">{f.label}</span>
+                    {job ? (
+                      <span className={`rounded-full px-2 py-0.5 text-[0.65rem] font-bold ${active ? 'bg-go/15 text-go' : 'bg-mist text-stone'}`}>{active ? 'Active' : 'Paused'}</span>
+                    ) : <span className="rounded-full bg-mist px-2 py-0.5 text-[0.65rem] font-bold text-stone">Not scheduled</span>}
+                  </div>
+                  <p className="mt-1 text-sm text-stone">{f.desc}</p>
+                </div>
+                {job && (
+                  <button onClick={() => toggle(f)} disabled={busy === f.jobname}
+                    className="ring-lux shrink-0 rounded-full border border-mist px-3 py-1 text-xs font-semibold text-stone transition-colors hover:border-ink hover:text-ink disabled:opacity-50">
+                    {busy === f.jobname ? '…' : active ? 'Pause' : 'Resume'}
+                  </button>
+                )}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-xs text-stone">
+                <span>{f.cadence}</span>
+                <span>Sent all-time <b className="text-ink tnum">{stat?.total ?? 0}</b></span>
+                <span>Last 30d <b className="text-ink tnum">{stat?.last_30d ?? 0}</b></span>
+                <span>Last sent <b className="text-ink">{stat?.last_sent ? fmtDate(stat.last_sent) : '—'}</b></span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <SubLabel className="mt-7">Recent sends</SubLabel>
+      <div className="mt-2 overflow-x-auto rounded-2xl border border-mist bg-cloud">
+        <table className="w-full min-w-[560px] text-sm">
+          <thead>
+            <tr className="border-b border-mist text-left text-[0.65rem] uppercase tracking-wider text-stone">
+              <th className="px-4 py-3 font-bold">Flow</th>
+              <th className="px-4 py-3 font-bold">Recipient</th>
+              <th className="px-4 py-3 font-bold">Subject</th>
+              <th className="px-4 py-3 font-bold">Sent</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data.recent || []).map((r, i) => (
+              <tr key={i} className="border-b border-mist/60">
+                <td className="px-4 py-3 font-semibold capitalize">{r.flow}</td>
+                <td className="px-4 py-3 text-stone">{r.email}</td>
+                <td className="px-4 py-3 text-stone">{r.subject || '—'}</td>
+                <td className="px-4 py-3 text-stone">{fmtDateTime(r.sent_at)}</td>
+              </tr>
+            ))}
+            {(data.recent || []).length === 0 && <tr><td colSpan={4} className="px-4 py-10 text-center text-sm text-stone">No marketing emails sent yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Subscribers() {
   const [rows, setRows] = useState(null);
   const [q, setQ] = useState('');
   const [busyId, setBusyId] = useState(null);
@@ -850,11 +958,8 @@ function Marketing() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Marketing</h1>
-          <p className="mt-1 text-sm text-stone">Newsletter subscribers — the single source of truth (Resend mirrors this). {subbed} subscribed · {rows.length - subbed} unsubscribed · {rows.length} total.</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-stone">Newsletter subscribers — the single source of truth (Resend mirrors this). {subbed} subscribed · {rows.length - subbed} unsubscribed · {rows.length} total.</p>
         <div className="flex items-center gap-2">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search email, name, source…"
             className="ring-lux w-full max-w-xs rounded-full border border-mist bg-cloud px-4 py-2 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone sm:w-56" />

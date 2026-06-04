@@ -159,7 +159,8 @@ export const DOCS = {
       { label: 'Founder dashboard — Pipeline (prospect CRM)', state: 'live' },
       { label: 'Founder dashboard — Partners cockpit', state: 'live' },
       { label: 'Founder dashboard — Customers', state: 'live' },
-      { label: 'Founder dashboard — Marketing (newsletter subscribers, CSV)', state: 'live' },
+      { label: 'Founder dashboard — Marketing (subscribers, CSV, lifecycle flows)', state: 'live' },
+      { label: 'Lifecycle email flows (birthday) — in-house on Supabase + Resend', state: 'live', note: 'needs the service-role key in Vault to send' },
       { label: 'Newsletter consent — single source of truth in Supabase', state: 'live', note: 'Resend mirrors it' },
       { label: 'Founder dashboard — Overview / Finance', state: 'planned' },
       { label: 'admin.airluxo.ch subdomain', state: 'live' },
@@ -204,6 +205,7 @@ export const DOCS = {
       },
     ],
     changelog: [
+      { date: '2026-06-04', version: 'Marketing lifecycle flows', items: ['Lean in-house marketing email: triggered flows on Supabase + Resend (consent-gated, idempotent send log, one-click unsubscribe). First flow live — birthday. New Marketing → Flows panel: per-flow status, send stats, recent-sends history, pause/resume. Branded shared email shell across all email.'] },
       { date: '2026-06-03', version: 'Newsletter SSOT + Marketing', items: ['Newsletter consent centralised in Supabase (newsletter_subscribers) as the single source of truth — Resend is now a downstream mirror. New Marketing section: searchable subscriber list (customers + footer leads), manual unsubscribe/resubscribe, and CSV export (incl. id for bulk updates).'] },
       { date: '2026-06-03', version: 'Newsletter consent trail', items: ['Affirmative opt-in checkbox at checkout (unchecked by default, revDSG/GDPR-safe). Consent records when + how (source) it was given and when withdrawn — surfaced in the customer sheet.'] },
       { date: '2026-06-03', version: 'Customers cockpit', items: ['Customers section: searchable list with bookings, revenue, loyalty tier and newsletter opt-in; expandable sheet (tier, points, referrals, birthday from licence, bookings by status, top cars rented, contact + address). Read-only for now.'] },
