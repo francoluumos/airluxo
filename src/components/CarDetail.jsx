@@ -7,6 +7,7 @@ import { FEES } from '../lib/data.js';
 import { chf } from '../lib/format.js';
 import { createBooking, fetchAvailability, captureCheckoutLead } from '../lib/bookings.js';
 import { fetchListingLogistics } from '../lib/listings.js';
+import { searchSwissAddress } from '../lib/geocode.js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { getStripe, createPaymentIntent } from '../lib/stripe.js';
 import { verifyLicence, createLicenceSession, getLicenceSession } from '../lib/licence.js';
@@ -591,12 +592,7 @@ export default function CarDetail({ car, onClose }) {
                           <span className="text-sm font-semibold tnum text-stone">+{chf(car.delivery_fee || 0)}</span>
                         </label>
                         {delivery && (
-                          <input
-                            value={deliveryAddr}
-                            onChange={(e) => setDeliveryAddr(e.target.value)}
-                            placeholder="Delivery address in Switzerland"
-                            className="ring-lux mt-2.5 w-full rounded-lg border border-mist bg-paper px-3 py-2 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone"
-                          />
+                          <DeliveryAddressInput value={deliveryAddr} onChange={setDeliveryAddr} />
                         )}
                         {car.delivery_note && <p className="mt-1.5 text-xs text-stone">{car.delivery_note}</p>}
                       </div>
@@ -745,6 +741,61 @@ export default function CarDetail({ car, onClose }) {
         </motion.div>
       </div>
     </motion.div>
+  );
+}
+
+// Single-field delivery address with Swiss geo autocomplete (api3.geo.admin.ch).
+// Free text is allowed; picking a suggestion fills the full address.
+function DeliveryAddressInput({ value, onChange }) {
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const tRef = useRef(null);
+  const skipRef = useRef(false); // don't re-search the value we just selected
+
+  useEffect(() => {
+    if (skipRef.current) { skipRef.current = false; setLoading(false); return; }
+    const q = (value || '').trim();
+    if (q.length < 3) { setResults([]); setLoading(false); return; }
+    setLoading(true);
+    clearTimeout(tRef.current);
+    tRef.current = setTimeout(async () => {
+      const r = await searchSwissAddress(q);
+      setResults(r); setOpen(true); setLoading(false);
+    }, 280);
+    return () => clearTimeout(tRef.current);
+  }, [value]);
+
+  return (
+    <div className="relative mt-2.5">
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => results.length && setOpen(true)}
+        placeholder="Delivery address in Switzerland"
+        autoComplete="off"
+        className="ring-lux w-full rounded-lg border border-mist bg-paper px-3 py-2 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone"
+      />
+      {loading && <span className="absolute right-3 top-2.5 inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-mist border-t-ink" />}
+      {open && results.length > 0 && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-auto rounded-xl border border-mist bg-cloud py-1 shadow-xl">
+            {results.map((r, i) => (
+              <li key={i}>
+                <button
+                  type="button"
+                  onClick={() => { skipRef.current = true; onChange(r.label); setResults([]); setOpen(false); }}
+                  className="ring-lux block w-full px-3 py-2 text-left text-sm transition-colors hover:bg-paper"
+                >
+                  {r.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
   );
 }
 

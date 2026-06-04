@@ -60,3 +60,11 @@ export async function setFlowActive(jobname, active) {
   if (error) throw error;
   return data;
 }
+
+// Render a flow's email with sample data (admin-gated, no send). Returns { html, subject }.
+export async function previewFlow(flow) {
+  const { data, error } = await supabase.functions.invoke('marketing-run', { body: { flow, preview: true } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}

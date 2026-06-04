@@ -4,7 +4,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { chf } from '../lib/format.js';
 import { tierForTrips } from '../lib/loyalty.js';
 import { listSubscribers, setNewsletter } from '../lib/newsletter.js';
-import { MARKETING_FLOWS, marketingOverview, setFlowActive } from '../lib/marketing.js';
+import { MARKETING_FLOWS, marketingOverview, setFlowActive, previewFlow } from '../lib/marketing.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus } from '../lib/prospects.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
@@ -830,8 +830,19 @@ function MarketingFlows() {
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState('');
+  const [previewing, setPreviewing] = useState(null);
+  const [preview, setPreview] = useState(null); // { label, subject, html }
   function load() { marketingOverview().then(setData).catch((e) => { setErr(e.message); setData({ jobs: [], stats: [], recent: [] }); }); }
   useEffect(() => { load(); }, []);
+
+  async function openPreview(f) {
+    setPreviewing(f.flow); setErr('');
+    try {
+      const r = await previewFlow(f.flow);
+      setPreview({ label: f.label, subject: r.subject, html: r.html });
+    } catch (e) { setErr(e.message || 'Could not load preview.'); }
+    finally { setPreviewing(null); }
+  }
 
   if (data === null) return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
 
@@ -869,12 +880,18 @@ function MarketingFlows() {
                   </div>
                   <p className="mt-1 text-sm text-stone">{f.desc}</p>
                 </div>
-                {job && (
-                  <button onClick={() => toggle(f)} disabled={busy === f.jobname}
-                    className="ring-lux shrink-0 rounded-full border border-mist px-3 py-1 text-xs font-semibold text-stone transition-colors hover:border-ink hover:text-ink disabled:opacity-50">
-                    {busy === f.jobname ? '…' : active ? 'Pause' : 'Resume'}
+                <div className="flex shrink-0 items-center gap-2">
+                  <button onClick={() => openPreview(f)} disabled={previewing === f.flow}
+                    className="ring-lux rounded-full border border-mist px-3 py-1 text-xs font-semibold text-stone transition-colors hover:border-ink hover:text-ink disabled:opacity-50">
+                    {previewing === f.flow ? '…' : 'Preview'}
                   </button>
-                )}
+                  {job && (
+                    <button onClick={() => toggle(f)} disabled={busy === f.jobname}
+                      className="ring-lux rounded-full border border-mist px-3 py-1 text-xs font-semibold text-stone transition-colors hover:border-ink hover:text-ink disabled:opacity-50">
+                      {busy === f.jobname ? '…' : active ? 'Pause' : 'Resume'}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-xs text-stone">
                 <span>{f.cadence}</span>
@@ -911,6 +928,21 @@ function MarketingFlows() {
           </tbody>
         </table>
       </div>
+
+      {preview && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-ink/45 p-4 backdrop-blur-sm" onClick={() => setPreview(null)}>
+          <div className="flex max-h-[88vh] w-full max-w-[600px] flex-col overflow-hidden rounded-[20px] border border-mist bg-paper shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3 border-b border-mist bg-cloud px-5 py-3">
+              <div className="min-w-0">
+                <div className="eyebrow text-gold">{preview.label} preview</div>
+                <div className="truncate text-sm font-semibold">{preview.subject}</div>
+              </div>
+              <button onClick={() => setPreview(null)} className="ring-lux grid h-9 w-9 shrink-0 place-items-center rounded-full border border-mist text-stone transition-colors hover:bg-mist/50"><Icon.X width={16} height={16} /></button>
+            </div>
+            <iframe title="Email preview" srcDoc={preview.html} className="h-[72vh] w-full border-0 bg-white" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

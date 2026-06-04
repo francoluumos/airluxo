@@ -10,8 +10,13 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { emailShell, unsubHeaders, button, rows, chf, esc, BRAND } from "../_shared/email.ts";
 
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 const json = (b: unknown, status = 200) =>
-  new Response(JSON.stringify(b), { status, headers: { "Content-Type": "application/json" } });
+  new Response(JSON.stringify(b), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
 const firstName = (full: unknown) => (String(full || "").trim().split(/\s+/)[0] || "there");
 const p = (html: string) => `<p style="font-size:14px;color:${BRAND.stone};line-height:1.6;margin:0 0 16px">${html}</p>`;
@@ -26,6 +31,18 @@ const FLOWS: Record<string, {
   prep?: (admin: ReturnType<typeof createClient>) => Promise<Recipient | null>;
   onSent?: (admin: ReturnType<typeof createClient>, r: Recipient) => Promise<void>;
 }> = {
+  birthday: {
+    rpc: "marketing_birthday_recipients",
+    subject: () => "Happy birthday from AIRLUXO",
+    render: (r) => ({
+      preheader: "A little something for your birthday.",
+      heading: `Happy birthday, ${esc(firstName(r.full_name))}.`,
+      bodyHtml:
+        p("From everyone at AIRLUXO — we hope the year ahead is full of remarkable drives.") +
+        p("As our gift, enjoy a complimentary category upgrade on your next booking. Just reply to this email and we'll arrange it.") +
+        `<p style="margin:4px 0 0">${button("https://airluxo.ch", "Browse the collection")}</p>`,
+    }),
+  },
   post_trip: {
     rpc: "marketing_recipients_post_trip",
     subject: (r) => `How was the ${r.car_label || "drive"}?`,
@@ -115,18 +132,49 @@ const FLOWS: Record<string, {
 };
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   const srk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  if (bearer !== srk) return json({ error: "Forbidden" }, 403);
 
   let flow: string | undefined;
-  try { ({ flow } = await req.json()); } catch { return json({ error: "Invalid JSON" }, 400); }
+  let preview = false;
+  try { const b = await req.json(); flow = b.flow; preview = !!b.preview; } catch { return json({ error: "Invalid JSON" }, 400); }
   const def = flow ? FLOWS[flow] : undefined;
   if (!def) return json({ error: `Unknown flow: ${flow}` }, 400);
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, srk);
+
+  // Preview mode: render the template with sample data and return HTML — no send.
+  // Gated to admins (the dashboard calls this with the founder's session, not the
+  // service-role key). Keeps templates in one place (no client-side duplication).
+  if (preview) {
+    const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: req.headers.get("Authorization") || "" } },
+    });
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) return json({ error: "Not signed in" }, 401);
+    const { data: adm } = await admin.from("app_admins").select("user_id").eq("user_id", user.id).maybeSingle();
+    if (!adm) return json({ error: "Not authorized" }, 403);
+
+    const sample: Recipient = {
+      full_name: "Alex Müller", email: "preview@airluxo.ch", car_label: "McLaren 720S Spider",
+      saved_car: "Ferrari Roma", saved_count: 2, start_date: "2026-07-01", end_date: "2026-07-04",
+      unsubscribe_token: "preview",
+    };
+    const ctx: Recipient = flow === "new_models"
+      ? { cars: [{ make: "Aston Martin", model: "Vantage", price_per_day: 1400 }, { make: "Lamborghini", model: "Huracán", price_per_day: 2200 }] }
+      : {};
+    const t = def.render(sample, ctx);
+    const unsubscribeUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/newsletter-unsubscribe?token=preview`;
+    const html = emailShell({ preheader: t.preheader, heading: t.heading, bodyHtml: t.bodyHtml, unsubscribeUrl });
+    return json({ html, subject: def.subject(sample, ctx) });
+  }
+
+  // Send mode: only the cron/service role may trigger real sends.
+  if (bearer !== srk) return json({ error: "Forbidden" }, 403);
+
   const apiKey = Deno.env.get("RESEND_API_KEY");
   if (!apiKey) return json({ skipped: "RESEND_API_KEY not set" });
   const from = Deno.env.get("RESEND_FROM") || "AirLuxo News <noreply@send.airluxo.ch>";
