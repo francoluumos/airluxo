@@ -33,7 +33,15 @@ Repo + Vercel + airluxo.ch are DONE; remaining = staging environment. Setup agre
   - _v2:_ mirror `search_performed` + booking-stage events into a Supabase `events` table to join demand against live `listings`/`partner_locations` for a precise partner-acquisition report.
 
 ## Email & notifications
-- **Decide the mailing / transactional-email solution (blocker for several features).** Today bookings trigger a `booking-notify` Edge Function written for **Resend**, but no provider is fully set up (no verified sender domain), and Supabase Auth emails (password reset, future email confirmation) go through Supabase's heavily rate-limited built-in mailer. **Decide on one provider** (Resend / Postmark / Amazon SES / Mailgun), then: verify a sending domain (SPF/DKIM/DMARC), set `RESEND_API_KEY`/`RESEND_FROM` (or equivalent) on the Edge Functions, and configure **custom SMTP in Supabase Auth** so reset/confirmation emails actually deliver. This unblocks: reliable password-reset emails, booking notifications, and invoices/statements.
+- ✅ **Transactional email foundation — DONE (Resend; verified 4 Jun 2026).** Provider = **Resend**; `send.airluxo.ch` sending domain verified (SPF/DKIM/DMARC); all `RESEND_*` secrets set; **Supabase Auth custom SMTP → Resend** configured (magic-link / password-reset deliver through Resend). Confirmed live in the Resend logs. See [EMAIL.md](EMAIL.md).
+- ✅ **Branded template system — DONE 4 Jun 2026.** `supabase/functions/_shared/email.ts` is the single source of truth (`emailShell` + `rows`/`button`/`chf`/`esc`); brand once, applies everywhere. Marketing blasts use Resend → Broadcasts.
+- ✅ **Guest invoice / receipt — DONE 4 Jun 2026.** `booking-invoice` emails the guest a branded receipt (full price breakdown, reference, deposit-waived note) fired server-side from `stripe-capture` the moment the card is charged (→ Confirmed). _Not a formal VAT invoice — see follow-ups._
+- **⬜ Remaining follow-ups:**
+  - **Refactor the 3 older emails onto the shared shell** (`booking-confirm`, `booking-notify`, `newsletter-subscribe` still carry their own inline brand HTML — works, but should import `_shared/email.ts` for true consistency).
+  - **Partner statement email** (periodic payout/commission summary — needs aggregation + a schedule/cron).
+  - **Formal VAT invoice + PDF** (sequential numbering, VAT reg. no., per-supply VAT split partner-rental vs AIRLUXO-fee, PDF attachment) before B2B/expense use.
+  - **Notification routing** (below) — alerts → support contact, invoices → billing contact.
+  - **Newsletter abuse hardening** — captcha/rate-limit on the public `newsletter-subscribe` endpoint (Turnstile/hCaptcha or HMAC unsubscribe links).
 - **Route notifications to the right profile contacts.** `booking-notify` currently emails the partner's **login (auth) email**. Now that the profile captures **support** / **billing** contacts and an **invoice-only email**, route by topic: booking/operational alerts → support (or a dedicated notifications) email; invoices & statements → `invoice_email` / `billing_email`. Add per-event recipient settings + let the partner choose which address receives what. Also build the actual invoice/statement emails (none exist yet).
 
 ## Integrations

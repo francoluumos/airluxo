@@ -83,6 +83,20 @@ Deno.serve(async (req) => {
     if (refunded_amount != null) patch.refunded_amount = refunded_amount;
     await admin.from("bookings").update(patch).eq("id", booking_id);
 
+    // On a successful capture (card actually charged), email the guest their
+    // branded invoice/receipt. Fire-and-forget — never blocks or fails the capture.
+    if (status === "Confirmed" && payment_status === "captured") {
+      const srk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const send = fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/booking-invoice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: srk, Authorization: `Bearer ${srk}` },
+        body: JSON.stringify({ booking_id }),
+      }).catch(() => {});
+      // @ts-ignore — EdgeRuntime is provided by the Supabase runtime
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) EdgeRuntime.waitUntil(send);
+      else await send;
+    }
+
     return json({ ok: true, status, payment_status, refunded_amount });
   } catch (e) {
     return json({ error: String((e as Error)?.message || e) }, 500);

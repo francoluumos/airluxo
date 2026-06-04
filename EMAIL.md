@@ -1,14 +1,37 @@
 # Email (Resend)
 
-AIRLUXO sends all email through **Resend**. Three flows:
+AIRLUXO sends all email through **Resend**. **Setup is live** (since 1 Jun 2026): the
+`send.airluxo.ch` sending domain is **verified** (SPF/DKIM/DMARC), all `RESEND_*`
+secrets are set, and **Supabase Auth custom SMTP → Resend** is configured (magic-link
+/ password-reset emails deliver through Resend, not Supabase's rate-limited mailer).
+Verified against the Resend logs 4 Jun 2026.
+
+Flows:
 
 | Flow | Function | Trigger | Secrets used |
 |------|----------|---------|--------------|
 | Partner new-booking alert | `booking-notify` | booking created | `RESEND_API_KEY`, `RESEND_FROM` |
 | Guest booking confirmation | `booking-confirm` | booking created | `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` |
-| Newsletter signup → Audience + welcome | `newsletter-subscribe` | footer signup form | `RESEND_API_KEY`, `RESEND_AUDIENCE_ID`, `RESEND_FROM` |
+| Guest invoice / receipt | `booking-invoice` | capture succeeds (→ Confirmed) | `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` |
+| Newsletter signup → SSOT + Audience + welcome | `newsletter-subscribe` | footer / checkout / profile | `RESEND_API_KEY`, `RESEND_AUDIENCE_ID`, `RESEND_FROM` |
+| Auth (magic link, password reset) | Supabase Auth | sign-in / reset | custom SMTP (Resend) |
 
-All three **no-op gracefully** until the secrets are set — so nothing sends by accident.
+All edge-function flows **no-op gracefully** until the secrets are set — so nothing sends by accident.
+
+## Brand templates — where they live
+
+Transactional email styling is centralised in **`supabase/functions/_shared/email.ts`** —
+the single source of truth. It exports `emailShell({ preheader, heading, bodyHtml, footnote })`
+(the AIRLUXO wordmark header, brand palette from `DESIGN.md`/`src/index.css`, footer),
+plus `rows()`, `button()`, `chf()`, `esc()`. Every function imports it (`../_shared/email.ts`),
+so changing the brand once updates all emails. Constraints baked in: inline styles + tables
+(Outlook), a **system-font stack** (Clash Display / Satoshi don't load in mail clients), hidden preheader.
+
+**Marketing campaigns** (newsletter blasts to the Audience) are built in **Resend → Broadcasts**
+(visual editor; Resend injects the unsubscribe footer), *not* in code.
+
+> When deploying a function that imports `_shared/email.ts` via the MCP, include the shared
+> file in the upload `files` array (name `../_shared/email.ts`) alongside `index.ts`.
 
 > **One shared backend.** There is a single Supabase project (`shoeopxxjawmusgnjxfh`) behind *both* the production and staging frontends. These secrets are set once and apply to both. A booking made on `staging.airluxo.ch` will send real email just like production. Use test addresses when testing on staging.
 
