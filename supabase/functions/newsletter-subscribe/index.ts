@@ -13,6 +13,7 @@
 //   RESEND_FROM / RESEND_REPLY_TO             (optional).
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { emailShell, BRAND } from "../_shared/email.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -104,18 +105,13 @@ Deno.serve(async (req) => {
         to: email,
         reply_to: Deno.env.get("RESEND_REPLY_TO") || undefined,
         subject: "Welcome to AIRLUXO",
-        html: `
-          <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:520px;margin:auto;color:#0b0b0c">
-            <div style="font-weight:600;letter-spacing:0.06em;font-size:20px">AIR<span style="color:#b89150">LUXO</span></div>
-            <h2 style="font-weight:700;font-size:21px;margin:18px 0 6px">You're on the list.</h2>
-            <p style="color:#76746d;font-size:14px;line-height:1.6;margin:0">
-              Thanks for subscribing. We'll share new arrivals, rare drives and the occasional
-              members-only release — never spam. You can unsubscribe from any email at any time.
-            </p>
-            <p style="color:#a8a59b;font-size:12px;margin-top:22px;border-top:1px solid #e7e4db;padding-top:14px">
-              AIRLUXO · Switzerland's marketplace for extraordinary cars · Geneva
-            </p>
-          </div>`,
+        html: emailShell({
+          preheader: "New arrivals, rare drives and the occasional members-only release.",
+          heading: "You're on the list.",
+          bodyHtml: `<p style="font-size:14px;color:${BRAND.stone};line-height:1.6;margin:0">
+            Thanks for subscribing. We'll share new arrivals, rare drives and the occasional
+            members-only release — never spam. You can unsubscribe from any email at any time.</p>`,
+        }),
       }),
     });
   } catch { /* mirror is non-critical — Supabase already has the truth */ }

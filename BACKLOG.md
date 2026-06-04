@@ -36,8 +36,8 @@ Repo + Vercel + airluxo.ch are DONE; remaining = staging environment. Setup agre
 - ✅ **Transactional email foundation — DONE (Resend; verified 4 Jun 2026).** Provider = **Resend**; `send.airluxo.ch` sending domain verified (SPF/DKIM/DMARC); all `RESEND_*` secrets set; **Supabase Auth custom SMTP → Resend** configured (magic-link / password-reset deliver through Resend). Confirmed live in the Resend logs. See [EMAIL.md](EMAIL.md).
 - ✅ **Branded template system — DONE 4 Jun 2026.** `supabase/functions/_shared/email.ts` is the single source of truth (`emailShell` + `rows`/`button`/`chf`/`esc`); brand once, applies everywhere. Marketing blasts use Resend → Broadcasts.
 - ✅ **Guest invoice / receipt — DONE 4 Jun 2026.** `booking-invoice` emails the guest a branded receipt (full price breakdown, reference, deposit-waived note) fired server-side from `stripe-capture` the moment the card is charged (→ Confirmed). _Not a formal VAT invoice — see follow-ups._
+- ✅ **All transactional emails on the shared shell — DONE 4 Jun 2026.** `booking-confirm`, `booking-notify` (was unbranded system-ui) and the `newsletter-subscribe` welcome all refactored to import `_shared/email.ts`. One source of truth for brand styling.
 - **⬜ Remaining follow-ups:**
-  - **Refactor the 3 older emails onto the shared shell** (`booking-confirm`, `booking-notify`, `newsletter-subscribe` still carry their own inline brand HTML — works, but should import `_shared/email.ts` for true consistency).
   - **Partner statement email** (periodic payout/commission summary — needs aggregation + a schedule/cron).
   - **Formal VAT invoice + PDF** (sequential numbering, VAT reg. no., per-supply VAT split partner-rental vs AIRLUXO-fee, PDF attachment) before B2B/expense use.
   - **Notification routing** (below) — alerts → support contact, invoices → billing contact.

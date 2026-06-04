@@ -1,14 +1,14 @@
 // AIRLUXO — booking-confirm
-// Emails the GUEST a branded booking confirmation. Called (fire-and-forget) by
-// the client right after a booking insert, alongside booking-notify (partner)
-// and booking-webhook. Reads the booking server-side with the service role,
-// then sends via Resend.
+// Emails the GUEST a branded booking confirmation ("request received"). Called
+// (fire-and-forget) by the client right after a booking insert, alongside
+// booking-notify (partner) and booking-webhook. Reads the booking server-side
+// with the service role, renders via the shared email shell, sends through Resend.
 //
-// Secrets: RESEND_API_KEY (required to actually send), RESEND_FROM (optional,
-// defaults to "AirLuxo News <noreply@send.airluxo.ch>"). No-ops gracefully if unset.
-// verify_jwt OFF — guests create bookings unauthenticated.
+// Secrets: RESEND_API_KEY (required to send), RESEND_FROM, RESEND_REPLY_TO (optional).
+// No-ops gracefully if unset. verify_jwt OFF — guests create bookings unauthenticated.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { emailShell, rows, chf, esc, BRAND } from "../_shared/email.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -18,10 +18,6 @@ const cors = {
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-const chf = (n: number) => `CHF ${Number(n).toLocaleString("de-CH")}`;
-const esc = (s: unknown) =>
-  String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -30,11 +26,7 @@ Deno.serve(async (req) => {
   try { ({ booking_id } = await req.json()); } catch { return json({ error: "Invalid JSON" }, 400); }
   if (!booking_id) return json({ error: "booking_id required" }, 400);
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
-
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const { data: b } = await supabase.from("bookings").select("*").eq("id", booking_id).maybeSingle();
   if (!b) return json({ error: "booking not found" }, 404);
 
@@ -44,46 +36,42 @@ Deno.serve(async (req) => {
   const apiKey = Deno.env.get("RESEND_API_KEY");
   if (!apiKey) return json({ skipped: "RESEND_API_KEY not set" });
 
-  const from = Deno.env.get("RESEND_FROM") || "AirLuxo News <noreply@send.airluxo.ch>";
   const dates = b.end_date && b.end_date !== b.start_date ? `${b.start_date} → ${b.end_date}` : b.start_date;
   const addons = [
     b.cross_border ? "Cross-border travel" : null,
     b.delivery ? `Delivery${b.delivery_address ? ` to ${b.delivery_address}` : ""}` : null,
   ].filter(Boolean).join(" · ") || "—";
 
-  const html = `
-    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:560px;margin:auto;color:#0b0b0c">
-      <div style="font-weight:600;letter-spacing:0.06em;font-size:20px;margin-bottom:6px">AIR<span style="color:#b89150">LUXO</span></div>
-      <h2 style="font-weight:700;font-size:22px;margin:18px 0 4px">Your booking is in, ${esc(b.guest_name)}.</h2>
-      <p style="color:#76746d;font-size:14px;line-height:1.5;margin:0 0 18px">
-        We've received your request for the <strong style="color:#0b0b0c">${esc(b.car_label)}</strong>.
-        The host will confirm availability shortly — you'll get a final confirmation by email once they accept.
-      </p>
-      <table style="width:100%;border-collapse:collapse;font-size:14px">
-        <tr><td style="padding:6px 0;color:#a8a59b">Car</td><td style="padding:6px 0;text-align:right">${esc(b.car_label)}</td></tr>
-        <tr><td style="padding:6px 0;color:#a8a59b">Dates</td><td style="padding:6px 0;text-align:right">${esc(dates)}</td></tr>
-        <tr><td style="padding:6px 0;color:#a8a59b">Rate</td><td style="padding:6px 0;text-align:right">${esc(b.rate_label)} ×${esc(b.quantity)}</td></tr>
-        <tr><td style="padding:6px 0;color:#a8a59b">Add-ons</td><td style="padding:6px 0;text-align:right">${esc(addons)}</td></tr>
-        <tr><td style="padding:10px 0;border-top:1px solid #e7e4db;font-weight:700">Total</td><td style="padding:10px 0;border-top:1px solid #e7e4db;text-align:right;font-weight:700">${chf(b.total_amount)}</td></tr>
-      </table>
-      <p style="color:#76746d;font-size:13px;line-height:1.5;margin:18px 0 0">
-        Reference: <span style="font-family:ui-monospace,monospace">${esc(b.id)}</span><br/>
-        Questions? Just reply to this email.
-      </p>
-      <p style="color:#a8a59b;font-size:12px;margin-top:22px;border-top:1px solid #e7e4db;padding-top:14px">
-        AIRLUXO · Switzerland's marketplace for extraordinary cars · Geneva
-      </p>
-    </div>`;
+  const bodyHtml = `
+    <p style="font-size:14px;color:${BRAND.stone};line-height:1.6;margin:0 0 16px">
+      We've received your request for the <strong style="color:${BRAND.ink}">${esc(b.car_label)}</strong>.
+      The host will confirm availability shortly — you'll get a final confirmation and receipt by email once they accept.
+    </p>
+    ${rows([
+      ["Car", String(b.car_label ?? "")],
+      ["Dates", String(dates ?? "")],
+      ["Rate", `${b.rate_label} ×${b.quantity}`],
+      ["Add-ons", addons],
+      ["Total", chf(b.total_amount), { total: true }],
+    ])}
+    <p style="font-size:13px;color:${BRAND.ash};line-height:1.6;margin:18px 0 0">
+      Reference <span style="font-family:ui-monospace,Menlo,monospace;color:${BRAND.stone}">${esc(String(b.id).slice(0, 8).toUpperCase())}</span>
+    </p>`;
 
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from,
+      from: Deno.env.get("RESEND_FROM") || "AirLuxo News <noreply@send.airluxo.ch>",
       to,
-      subject: `Booking received — ${b.car_label} (${dates})`,
-      html,
       reply_to: Deno.env.get("RESEND_REPLY_TO") || undefined,
+      subject: `Booking received — ${b.car_label} (${dates})`,
+      html: emailShell({
+        preheader: `We've got your request for the ${b.car_label} — the host will confirm shortly.`,
+        heading: `Your booking is in, ${b.guest_name}.`,
+        bodyHtml,
+        footnote: "Questions? Just reply to this email.",
+      }),
     }),
   });
   if (!r.ok) return json({ error: `Resend ${r.status}: ${(await r.text()).slice(0, 300)}` }, 502);
