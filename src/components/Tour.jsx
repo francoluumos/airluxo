@@ -28,7 +28,9 @@ function visibleRect(el) {
 // viewport. Target-less / mobile → centered, in the upper third (sits higher).
 function cardPosition(rect, placement, size) {
   const vw = window.innerWidth, vh = window.innerHeight;
-  const w = size.w, h = size.h, m = 14;
+  // Clear the spotlight (which extends PAD beyond the target) plus breathing room,
+  // so the card never touches the highlighted element or the sidebar behind it.
+  const w = size.w, h = size.h, m = PAD + 18;
   if (!rect || vw < 640) {
     return { left: Math.max(12, (vw - w) / 2), top: Math.max(16, Math.min(vh - h - 16, vh * 0.16)) };
   }
