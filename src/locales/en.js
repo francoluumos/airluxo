@@ -105,4 +105,17 @@ export const en = {
   'auth.continueEmail': 'Continue with email',
   'auth.termsPre': 'By continuing you agree to our',
   'auth.privacyPolicy': 'Privacy & Cookie Policy',
+
+  // Home — marketing sections + footer
+  'home.featured': 'Featured in Lugano',
+  'home.fullyInsured': 'Fully insured',
+  'home.zeroExcessOption': 'CHF 0 excess option',
+  'home.whereToFind': 'Where to find them',
+  'home.becomePartner': 'Become a partner',
+  'footer.tagline': "Switzerland's marketplace for extraordinary cars. Made in Geneva.",
+  'footer.newsletterHeading': 'New arrivals, rare drives',
+  'footer.newsletterSub': 'Join the list. No spam — unsubscribe anytime.',
+  'footer.privacy': 'Privacy',
+  'footer.terms': 'Terms',
+  'footer.cookies': 'Cookies',
 };

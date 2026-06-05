@@ -262,7 +262,7 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
               <CarImage car={hero} className="h-full w-full" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/55 via-transparent to-transparent" />
               <div className="absolute bottom-5 left-5 text-cloud">
-                <div className="eyebrow text-cloud/70">Featured in Lugano</div>
+                <div className="eyebrow text-cloud/70">{t('home.featured')}</div>
                 <div className="font-display text-2xl">{hero.make} {hero.model}</div>
               </div>
             </div>
@@ -282,7 +282,7 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
               className="absolute -right-3 bottom-16 flex items-center gap-2.5 rounded-2xl border border-mist bg-cloud/95 px-4 py-3 shadow-xl backdrop-blur sm:-right-6"
             >
               <Icon.Shield className="text-go" width={20} height={20} />
-              <div className="text-xs font-semibold leading-tight">Fully insured<br /><span className="text-stone font-normal">CHF 0 excess option</span></div>
+              <div className="text-xs font-semibold leading-tight">{t('home.fullyInsured')}<br /><span className="text-stone font-normal">{t('home.zeroExcessOption')}</span></div>
             </motion.div>
           </motion.div>
         </div>
@@ -401,7 +401,7 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
       <section id="map" className="mx-auto max-w-[1240px] px-5 pb-16 sm:px-8 lg:pb-24">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="eyebrow text-gold">Where to find them</div>
+            <div className="eyebrow text-gold">{t('home.whereToFind')}</div>
             <h2 className="font-display mt-2 text-[clamp(1.8rem,3.4vw,2.6rem)] leading-[1.04]">
               The fleet across Switzerland.
             </h2>
@@ -426,7 +426,7 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
       <section id="how" className="relative bg-void text-cloud spotlight">
         <div className="mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
           <div className="max-w-2xl">
-            <div className="eyebrow text-gold-soft">For rental companies</div>
+            <div className="eyebrow text-gold-soft">{t('site.forCompanies')}</div>
             <h2 className="font-display mt-3 text-[clamp(2.2rem,4.6vw,3.6rem)] leading-[1.0]">
               Your fleet, fully booked.
             </h2>
@@ -476,7 +476,7 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
       <section id="partner" className="mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <div>
-            <div className="eyebrow text-gold">Become a partner</div>
+            <div className="eyebrow text-gold">{t('home.becomePartner')}</div>
             <h2 className="font-display mt-3 text-[clamp(2.2rem,4.6vw,3.6rem)] leading-[1.0]">
               List a car by Friday.<br />Get paid by Monday.
             </h2>
@@ -573,10 +573,10 @@ function Footer({ onPartner }) {
           <div className="max-w-sm">
             <div className="wordmark text-2xl">AIR<span className="text-gold">LUXO</span></div>
             <p className="mt-3 text-sm text-stone">
-              Switzerland's marketplace for extraordinary cars. Made in Geneva.
+              {t('footer.tagline')}
             </p>
-            <p className="eyebrow mt-7 text-ink">New arrivals, rare drives</p>
-            <p className="mb-3 mt-1 text-sm text-stone">Join the list. No spam — unsubscribe anytime.</p>
+            <p className="eyebrow mt-7 text-ink">{t('footer.newsletterHeading')}</p>
+            <p className="mb-3 mt-1 text-sm text-stone">{t('footer.newsletterSub')}</p>
             <NewsletterSignup source="footer" />
           </div>
           <div className="grid grid-cols-2 gap-10 sm:grid-cols-3">
@@ -588,9 +588,9 @@ function Footer({ onPartner }) {
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-mist pt-6 text-xs text-stone sm:flex-row sm:items-center">
           <span>© 2026 AIRLUXO SA · CHE-123.456.789</span>
           <span className="flex items-center gap-1.5">
-            <a href="/?privacy" target="_blank" rel="noreferrer" className="ring-lux transition-colors hover:text-ink">Privacy</a> ·
-            <span>Terms</span> ·
-            <button type="button" onClick={openConsentSettings} className="ring-lux transition-colors hover:text-ink">Cookies</button>
+            <a href="/?privacy" target="_blank" rel="noreferrer" className="ring-lux transition-colors hover:text-ink">{t('footer.privacy')}</a> ·
+            <span>{t('footer.terms')}</span> ·
+            <button type="button" onClick={openConsentSettings} className="ring-lux transition-colors hover:text-ink">{t('footer.cookies')}</button>
           </span>
         </div>
       </div>

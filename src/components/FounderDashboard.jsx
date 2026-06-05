@@ -1121,10 +1121,11 @@ function Translations() {
         <table className="w-full min-w-[860px] table-fixed text-sm">
           <thead>
             <tr className="border-b border-mist text-left text-[0.65rem] uppercase tracking-wider text-stone">
-              <th className="w-[15%] px-4 py-3 font-bold">Key</th>
-              <th className="w-[27%] px-4 py-3 font-bold">English</th>
-              <th className="w-[42%] px-4 py-3 font-bold">{SUPPORTED_LOCALES.find((l) => l.code === locale)?.enLabel}</th>
-              <th className="w-[16%] px-4 py-3 font-bold"></th>
+              <th className="w-[14%] px-4 py-3 font-bold">Key</th>
+              <th className="w-[10%] px-4 py-3 font-bold">Status</th>
+              <th className="w-[24%] px-4 py-3 font-bold">English</th>
+              <th className="w-[38%] px-4 py-3 font-bold">{SUPPORTED_LOCALES.find((l) => l.code === locale)?.enLabel}</th>
+              <th className="w-[14%] px-4 py-3 font-bold"></th>
             </tr>
           </thead>
           <tbody>
@@ -1134,7 +1135,8 @@ function Translations() {
               const dirty = edits[k] != null && edits[k] !== (rows[k]?.value ?? '');
               return (
                 <tr key={k} className="border-b border-mist/60 align-top">
-                  <td className="px-4 py-3"><code className="text-[0.7rem] text-stone">{k}</code><div className="mt-1"><span className={`rounded-full px-2 py-0.5 text-[0.6rem] font-bold ${badge[st]}`}>{label[st]}</span></div></td>
+                  <td className="px-4 py-3"><code className="text-[0.7rem] text-stone">{k}</code></td>
+                  <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-[0.6rem] font-bold ${badge[st]}`}>{label[st]}</span></td>
                   <td className="px-4 py-3 text-stone">{en[k]}</td>
                   <td className="px-4 py-3">
                     <textarea value={val} onChange={(e) => setEdits((d) => ({ ...d, [k]: e.target.value }))}
