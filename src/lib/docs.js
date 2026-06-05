@@ -73,6 +73,7 @@ export const DOCS = {
       },
     ],
     changelog: [
+      { date: '2026-06-05', version: 'Setup guide', items: ['A step-by-step setup guide now greets new partners — a guided tour of the dashboard with a spotlight on each area. Leave anytime, and replay it from Settings → Guide & changelog.'] },
       { date: '2026-06-04', version: 'AI car descriptions', items: ['List a car now has a Description field with a “Generate with AI” button (luxury, evocative tone). The description appears on the booking page. Delivery address now autocompletes Swiss addresses.'] },
       { date: '2026-06-01', version: 'Build 0.6', items: ['Booking no longer requires signing in first — guests book straight through, then are offered a one-tap account on the confirmation.'] },
       { date: '2026-06-01', version: 'Build 0.5', items: ['Subscription tiers wired to real mechanics: commission by plan (Free 15% / Pro 9% / Max 3%) + per-plan car limits enforced on new listings.'] },

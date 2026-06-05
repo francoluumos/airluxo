@@ -15,6 +15,7 @@ import { fetchMyBlocks, createBlock, deleteBlock } from '../lib/blocks.js';
 import { startPayoutOnboarding, refreshPayoutStatus, partnerSettle } from '../lib/stripe.js';
 import { updatePartner, fetchLocations, createLocation, deleteLocation } from '../lib/partner.js';
 import { chf, num } from '../lib/format.js';
+import Tour from './Tour.jsx';
 import LocationForm, { AddressFields } from './LocationForm.jsx';
 import { newWebhookSecret, saveWebhook, sendTestWebhook, fireBookingWebhook, ensureCalendarFeed, calendarFeedUrl } from '../lib/integrations.js';
 
@@ -36,6 +37,19 @@ const EMPTY_ADDR = { street: '', street_number: '', zip: '', city: '', country: 
 const addrOrNull = (a) => (a && (a.street || a.city || a.zip || a.address)) ? a : null;
 const toLocDraft = (l) => ({ ...EMPTY_LOC, ...l, after_hours_fee: l.after_hours_fee != null ? String(l.after_hours_fee) : '' });
 
+// First-run setup guide. Each step optionally switches `section` (the dashboard
+// view) and spotlights a `target` (data-tour attribute). Target-less steps centre.
+const PARTNER_TOUR = [
+  { title: 'Welcome to AIRLUXO', body: 'A quick tour of your partner dashboard. You can leave anytime, and replay it later from Settings.' },
+  { target: '[data-tour="add-car"]', section: 'overview', placement: 'right', title: 'List your cars', body: 'Add each car with photos, specs and pricing — our AI cleans up the photo into a studio shot and even drafts the description.' },
+  { target: '[data-tour="location"]', section: 'location', placement: 'right', title: 'Pick-up locations', body: 'Set your sites, addresses and opening hours. Guests pick up from here, and booking times respect your hours.' },
+  { target: '[data-tour="bookings"]', section: 'bookings', placement: 'right', title: 'Bookings', body: 'Incoming reservations land here. Confirm to charge the guest, or decline to release the hold — no charge.' },
+  { target: '[data-tour="calendar"]', section: 'calendar', placement: 'right', title: 'Calendar', body: 'See availability at a glance, and block dates for maintenance or personal use.' },
+  { target: '[data-tour="earnings"]', section: 'earnings', placement: 'right', title: 'Earnings & payouts', body: 'Track net earnings and your payout history. Connect Stripe in Settings to actually get paid.' },
+  { target: '[data-tour="settings"]', section: 'settings', placement: 'right', title: 'Settings', body: 'Connect Stripe payouts, embed your fleet on your own site, add a webhook or calendar feed — and replay this guide anytime.' },
+  { title: "You're all set", body: 'That’s the tour. The best first step is to list your first car. You can replay this guide from Settings whenever you like.' },
+];
+
 const NAV = [
   { id: 'overview', label: 'Overview', icon: Icon.Grid },
   { id: 'fleet', label: 'My fleet', icon: Icon.Car },
@@ -52,6 +66,7 @@ export default function PartnerDashboard({ onExit }) {
   const [view, setView] = useState('overview');
   const [addOpen, setAddOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
 
   const [listings, setListings] = useState(null); // null = loading
   const [bookings, setBookings] = useState(null);
@@ -81,6 +96,21 @@ export default function PartnerDashboard({ onExit }) {
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
+
+  // Auto-start the setup guide once for a new partner (never finished/skipped it).
+  useEffect(() => {
+    if (!partner) return;
+    let seen = false;
+    try { seen = localStorage.getItem('airluxo:partner-tour') === 'done'; } catch { /* ignore */ }
+    if (!partner.onboarded_at && !seen) setTourOpen(true);
+  }, [partner]);
+
+  // Finishing or skipping both end the guide and stamp it so it won't auto-reappear.
+  const endTour = useCallback(() => {
+    setTourOpen(false);
+    try { localStorage.setItem('airluxo:partner-tour', 'done'); } catch { /* ignore */ }
+    updatePartner({ onboarded_at: new Date().toISOString() }).catch(() => {});
+  }, []);
 
   const companyName = partner?.company_name || 'Your rental company';
   const initials = companyName.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -123,6 +153,7 @@ export default function PartnerDashboard({ onExit }) {
             return (
               <button
                 key={n.id}
+                data-tour={n.id}
                 onClick={() => { setView(n.id); setNavOpen(false); }}
                 className={`ring-lux flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-colors ${active ? 'bg-cloud text-ink' : 'text-ash hover:bg-coal hover:text-cloud'}`}
               >
@@ -137,7 +168,7 @@ export default function PartnerDashboard({ onExit }) {
         </nav>
 
         <div className="p-4">
-          <button onClick={openAdd} className="ring-lux flex w-full items-center justify-center gap-2 rounded-xl bg-gold-soft py-3 text-sm font-bold text-ink transition-colors hover:bg-gold">
+          <button data-tour="add-car" onClick={openAdd} className="ring-lux flex w-full items-center justify-center gap-2 rounded-xl bg-gold-soft py-3 text-sm font-bold text-ink transition-colors hover:bg-gold">
             <Icon.Plus width={17} height={17} /> List a car
           </button>
           <button onClick={handleSignOut} className="ring-lux mt-2 w-full rounded-xl py-2.5 text-center text-xs font-semibold text-ash transition-colors hover:text-cloud">
@@ -188,7 +219,7 @@ export default function PartnerDashboard({ onExit }) {
               {view === 'calendar' && <Calendar bookings={bookings} blocks={blocks} />}
               {view === 'earnings' && <Earnings bookings={bookings} />}
               {view === 'plans' && <Plans listings={listings} />}
-              {view === 'settings' && <SettingsView />}
+              {view === 'settings' && <SettingsView onReplayTour={() => setTourOpen(true)} />}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -197,6 +228,10 @@ export default function PartnerDashboard({ onExit }) {
       <AnimatePresence>
         {addOpen && <AddCar onClose={() => setAddOpen(false)} onCreated={reload} />}
       </AnimatePresence>
+
+      {tourOpen && (
+        <Tour steps={PARTNER_TOUR} onNavigate={setView} onClose={endTour} onFinish={endTour} />
+      )}
     </div>
   );
 }
@@ -388,16 +423,23 @@ function EmbedCard() {
 }
 
 /* ---------------- Settings (integrations) ---------------- */
-function SettingsView() {
+function SettingsView({ onReplayTour }) {
   return (
     <div className="max-w-5xl space-y-6">
       <ProfileCard />
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <Panel title="Guide & changelog">
           <p className="text-sm text-stone">A full walkthrough of the partner dashboard, kept up to date as features ship — with a changelog of everything we've changed.</p>
-          <a href="/?docs" target="_blank" rel="noreferrer" className="ring-lux mt-3 inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void">
-            Open the partner guide <Icon.ArrowUpRight width={14} height={14} />
-          </a>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <a href="/?docs" target="_blank" rel="noreferrer" className="ring-lux inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void">
+              Open the partner guide <Icon.ArrowUpRight width={14} height={14} />
+            </a>
+            {onReplayTour && (
+              <button onClick={onReplayTour} className="ring-lux inline-flex items-center gap-2 rounded-full border border-mist px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink">
+                Replay setup guide
+              </button>
+            )}
+          </div>
         </Panel>
         <ChangePasswordCard />
         <WebhookCard />
