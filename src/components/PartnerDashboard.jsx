@@ -108,8 +108,16 @@ export default function PartnerDashboard({ onExit }) {
   // Finishing or skipping both end the guide and stamp it so it won't auto-reappear.
   const endTour = useCallback(() => {
     setTourOpen(false);
+    setNavOpen(false);
     try { localStorage.setItem('airluxo:partner-tour', 'done'); } catch { /* ignore */ }
     updatePartner({ onboarded_at: new Date().toISOString() }).catch(() => {});
+  }, []);
+
+  // Tour navigation: switch section, and on mobile open the off-canvas nav so the
+  // sidebar targets (nav items, "List a car") can be spotlighted.
+  const tourNavigate = useCallback((section) => {
+    setView(section);
+    if (window.innerWidth < 1024) setNavOpen(true);
   }, []);
 
   const companyName = partner?.company_name || 'Your rental company';
@@ -230,7 +238,7 @@ export default function PartnerDashboard({ onExit }) {
       </AnimatePresence>
 
       {tourOpen && (
-        <Tour steps={PARTNER_TOUR} onNavigate={setView} onClose={endTour} onFinish={endTour} />
+        <Tour steps={PARTNER_TOUR} onNavigate={tourNavigate} onClose={endTour} onFinish={endTour} />
       )}
     </div>
   );

@@ -31,8 +31,15 @@ function cardPosition(rect, placement, size) {
   // Clear the spotlight (which extends PAD beyond the target) plus breathing room,
   // so the card never touches the highlighted element or the sidebar behind it.
   const w = size.w, h = size.h, m = PAD + 18;
-  if (!rect || vw < 640) {
-    return { left: Math.max(12, (vw - w) / 2), top: Math.max(16, Math.min(vh - h - 16, vh * 0.16)) };
+  if (vw < 640) {
+    // Mobile: full-width card. With a spotlight, dock it to the bottom (a sheet) so
+    // it never covers the highlighted item; target-less steps sit in the upper third.
+    const mw = vw - 24;
+    const top = rect ? Math.max(16, vh - h - 16) : Math.max(16, vh * 0.16);
+    return { left: 12, top, width: mw };
+  }
+  if (!rect) {
+    return { left: Math.max(12, (vw - w) / 2), top: Math.max(16, Math.min(vh - h - 16, vh * 0.16)), width: w };
   }
   let pl = placement;
   if (!pl) {
@@ -68,15 +75,18 @@ export default function Tour({ steps, onClose, onFinish, onNavigate }) {
     if (step?.section && onNavigate) onNavigate(step.section);
     if (!step?.target) return;
     let tries = 0;
+    // Poll until the element is actually on-screen (not just present) — covers the
+    // mobile nav drawer sliding in. Give up after ~2s → centered fallback.
     const find = () => {
       if (cancelled) return;
       const el = document.querySelector(step.target);
-      if (el) {
+      const r = el ? visibleRect(el) : null;
+      if (r) {
         el.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
-        timer = setTimeout(() => { if (!cancelled) setRect(visibleRect(el)); }, reduceMotion ? 0 : 240);
+        timer = setTimeout(() => { if (!cancelled && el) setRect(visibleRect(el)); }, reduceMotion ? 0 : 220);
         return;
       }
-      if (tries++ < 30) timer = setTimeout(find, 50);
+      if (tries++ < 40) timer = setTimeout(find, 50);
     };
     find();
     return () => { cancelled = true; clearTimeout(timer); };
