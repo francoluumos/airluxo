@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Icon } from './Icons.jsx';
 import { useAuth } from '../lib/auth.jsx';
+import { useT } from '../lib/i18n.jsx';
 
 // Combined log-in / sign-up modal (Airbnb-style). One flow serves new and
 // returning users: Google OAuth, or an email magic link. A clearly-marked slot
 // is left for a future phone-OTP tab (see BACKLOG). Mounted once in App Shell.
 export default function AuthModal({ intent, onClose }) {
   const { signInWithGoogle, sendEmailLink } = useAuth();
+  const t = useT();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState('');      // '' | 'google' | 'email'
   const [error, setError] = useState('');
@@ -48,7 +50,7 @@ export default function AuthModal({ intent, onClose }) {
       >
         {/* header */}
         <div className="flex items-center justify-between border-b border-mist px-5 py-4">
-          <span className="text-sm font-bold text-ink">Log in or sign up</span>
+          <span className="text-sm font-bold text-ink">{t('menu.logInSignUp')}</span>
           <button onClick={onClose} aria-label="Close" className="ring-lux grid h-9 w-9 place-items-center rounded-full border border-mist text-stone transition-colors hover:bg-mist/50">
             <Icon.X width={16} height={16} />
           </button>
@@ -60,24 +62,19 @@ export default function AuthModal({ intent, onClose }) {
               <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-go/12 text-go">
                 <Icon.Check width={30} height={30} />
               </div>
-              <h2 className="font-display mt-5 text-2xl">Check your email.</h2>
-              <p className="mt-3 text-sm text-stone">
-                We sent a sign-in link to <span className="font-semibold text-ink">{email}</span>.
-                Open it on this device to continue.
-              </p>
+              <h2 className="font-display mt-5 text-2xl">{t('auth.checkEmail')}</h2>
+              <p className="mt-3 text-sm text-stone">{t('auth.sentLink', { email })}</p>
               <button onClick={onClose} className="ring-lux mt-7 rounded-full bg-ink px-6 py-3 text-sm font-bold text-cloud transition-colors hover:bg-void">
-                Done
+                {t('auth.done')}
               </button>
             </div>
           ) : (
             <>
               <h2 className="font-display text-[1.7rem] leading-tight">
-                {booking ? 'Almost there.' : 'Welcome to AIRLUXO.'}
+                {booking ? t('auth.almostThere') : t('auth.welcome')}
               </h2>
               <p className="mt-2 text-sm text-stone">
-                {booking
-                  ? 'Log in or sign up to confirm your booking.'
-                  : 'Log in or create an account to book and save cars.'}
+                {booking ? t('auth.subBooking') : t('auth.subDefault')}
               </p>
 
               {/* Google */}
@@ -87,18 +84,18 @@ export default function AuthModal({ intent, onClose }) {
                 className="ring-lux mt-6 flex w-full items-center justify-center gap-3 rounded-2xl border border-mist bg-cloud py-3.5 text-sm font-semibold text-ink transition-colors hover:bg-mist/40 disabled:opacity-60"
               >
                 {busy === 'google' ? <Spinner dark /> : <GoogleMark />}
-                Continue with Google
+                {t('auth.continueGoogle')}
               </button>
 
               {/* divider */}
               <div className="my-5 flex items-center gap-4 text-xs font-semibold uppercase tracking-wider text-stone">
-                <span className="h-px flex-1 bg-mist" /> or <span className="h-px flex-1 bg-mist" />
+                <span className="h-px flex-1 bg-mist" /> {t('auth.or')} <span className="h-px flex-1 bg-mist" />
               </div>
 
               {/* email magic link */}
               <form onSubmit={email_} className="space-y-3">
                 <label className="block">
-                  <span className="mb-1.5 block text-sm font-semibold text-ink">Email</span>
+                  <span className="mb-1.5 block text-sm font-semibold text-ink">{t('auth.email')}</span>
                   <span className="flex items-center gap-3 rounded-2xl border border-mist bg-cloud px-4 py-3.5 transition-colors focus-within:border-ink">
                     <span className="text-stone"><MailGlyph /></span>
                     <input
@@ -118,13 +115,13 @@ export default function AuthModal({ intent, onClose }) {
                   type="submit" disabled={!!busy}
                   className="ring-lux flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60"
                 >
-                  {busy === 'email' ? <Spinner /> : <>Continue with email <Icon.Arrow width={15} height={15} /></>}
+                  {busy === 'email' ? <Spinner /> : <>{t('auth.continueEmail')} <Icon.Arrow width={15} height={15} /></>}
                 </button>
               </form>
 
               <p className="mt-6 text-center text-xs leading-relaxed text-stone">
-                By continuing you agree to our{' '}
-                <a href="?privacy" className="font-semibold text-ink underline-offset-2 hover:underline">Privacy &amp; Cookie Policy</a>.
+                {t('auth.termsPre')}{' '}
+                <a href="?privacy" className="font-semibold text-ink underline-offset-2 hover:underline">{t('auth.privacyPolicy')}</a>.
               </p>
             </>
           )}

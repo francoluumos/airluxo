@@ -90,4 +90,19 @@ export const en = {
   'booking.statusHours': 'Choose a pick-up time within opening hours.',
   'booking.statusDeliveryAddr': 'Enter a delivery address to continue.',
   'booking.statusNoCharge': "You won't be charged yet.",
+
+  // Auth modal (log in / sign up)
+  'auth.checkEmail': 'Check your email.',
+  'auth.sentLink': 'We sent a sign-in link to {email}. Open it on this device to continue.',
+  'auth.done': 'Done',
+  'auth.almostThere': 'Almost there.',
+  'auth.welcome': 'Welcome to AIRLUXO.',
+  'auth.subBooking': 'Log in or sign up to confirm your booking.',
+  'auth.subDefault': 'Log in or create an account to book and save cars.',
+  'auth.continueGoogle': 'Continue with Google',
+  'auth.or': 'or',
+  'auth.email': 'Email',
+  'auth.continueEmail': 'Continue with email',
+  'auth.termsPre': 'By continuing you agree to our',
+  'auth.privacyPolicy': 'Privacy & Cookie Policy',
 };
