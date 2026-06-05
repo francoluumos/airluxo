@@ -1137,8 +1137,9 @@ function Translations() {
                   <td className="px-4 py-3"><code className="text-[0.7rem] text-stone">{k}</code><div className="mt-1"><span className={`rounded-full px-2 py-0.5 text-[0.6rem] font-bold ${badge[st]}`}>{label[st]}</span></div></td>
                   <td className="px-4 py-3 text-stone">{en[k]}</td>
                   <td className="px-4 py-3">
-                    <textarea value={val} onChange={(e) => setEdits((d) => ({ ...d, [k]: e.target.value }))} rows={1}
-                      className="ring-lux w-full resize-y rounded-lg border border-mist bg-paper px-2.5 py-1.5 text-sm outline-none focus:border-ink" />
+                    <textarea value={val} onChange={(e) => setEdits((d) => ({ ...d, [k]: e.target.value }))}
+                      rows={Math.min(8, Math.max(2, Math.ceil((val.length || en[k].length || 0) / 42)))}
+                      className="ring-lux w-full resize-y rounded-lg border border-mist bg-paper px-2.5 py-1.5 text-sm leading-snug outline-none focus:border-ink" />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
