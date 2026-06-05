@@ -5,6 +5,8 @@ import { chf } from '../lib/format.js';
 import { tierForTrips } from '../lib/loyalty.js';
 import { listSubscribers, setNewsletter } from '../lib/newsletter.js';
 import { MARKETING_FLOWS, marketingOverview, setFlowActive, previewFlow } from '../lib/marketing.js';
+import { en, SUPPORTED_LOCALES } from '../locales/en.js';
+import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus } from '../lib/prospects.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
@@ -21,6 +23,7 @@ const NAV = [
   { key: 'customers', label: 'Customers' },
   { key: 'finance', label: 'Finance' },
   { key: 'marketing', label: 'Marketing' },
+  { key: 'translations', label: 'Translations' },
   { key: 'overview', label: 'Overview' },
   { key: 'docs', label: 'Docs' },
 ];
@@ -142,6 +145,7 @@ function FounderShell() {
           : section === 'partners' ? <Partners />
           : section === 'customers' ? <Customers />
           : section === 'marketing' ? <Marketing />
+          : section === 'translations' ? <Translations />
           : section === 'docs' ? <DocsHub />
           : <SectionPlaceholder label={NAV.find((n) => n.key === section)?.label} />}
       </main>
@@ -1034,6 +1038,119 @@ function Subscribers() {
               </tr>
             ))}
             {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-stone">{rows.length ? 'No subscribers match.' : 'No subscribers yet.'}</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Translations() {
+  const KEYS = Object.keys(en);
+  const TARGETS = SUPPORTED_LOCALES.filter((l) => l.code !== 'en');
+  const [locale, setLocale] = useState('de');
+  const [rows, setRows] = useState(null); // key -> { value, source_hash, auto }
+  const [edits, setEdits] = useState({});
+  const [busy, setBusy] = useState('');
+  const [err, setErr] = useState('');
+
+  function load(loc) {
+    setRows(null);
+    fetchTranslations().then((all) => {
+      const map = {};
+      all.filter((r) => r.locale === loc).forEach((r) => { map[r.key] = r; });
+      setRows(map); setEdits({});
+    }).catch((e) => { setErr(e.message); setRows({}); });
+  }
+  useEffect(() => { load(locale); }, [locale]);
+
+  if (rows === null) return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
+
+  const status = (k) => { const r = rows[k]; if (!r) return 'missing'; return r.source_hash !== hashStr(en[k]) ? 'stale' : 'ok'; };
+  const done = KEYS.filter((k) => status(k) === 'ok').length;
+  const pct = Math.round((done / KEYS.length) * 100);
+  const pending = KEYS.filter((k) => status(k) !== 'ok');
+
+  async function saveOne(key) {
+    const v = (edits[key] ?? rows[key]?.value ?? '').trim();
+    if (!v) return;
+    setBusy(key); setErr('');
+    try { await saveTranslation(locale, key, v); load(locale); }
+    catch (e) { setErr(e.message); } finally { setBusy(''); }
+  }
+  async function aiOne(key) {
+    setBusy(key); setErr('');
+    try { const map = await aiTranslate(locale, [{ key, text: en[key] }]); if (map[key] != null) setEdits((d) => ({ ...d, [key]: map[key] })); }
+    catch (e) { setErr(e.message); } finally { setBusy(''); }
+  }
+  async function fillPending() {
+    if (!pending.length) return;
+    setBusy('bulk'); setErr('');
+    try {
+      const map = await aiTranslate(locale, pending.map((k) => ({ key: k, text: en[k] })));
+      await saveTranslationsBatch(locale, map);
+      load(locale);
+    } catch (e) { setErr(e.message); } finally { setBusy(''); }
+  }
+
+  const badge = { ok: 'bg-go/15 text-go', stale: 'bg-gold/15 text-gold', missing: 'bg-mist text-stone' };
+  const label = { ok: 'Translated', stale: 'Stale', missing: 'Missing' };
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Translations</h1>
+          <p className="mt-1 text-sm text-stone">English is the source (in code). Edit or AI-generate the other languages here — the site loads them live. {done}/{KEYS.length} keys ({pct}%) translated in {SUPPORTED_LOCALES.find((l) => l.code === locale)?.label}.</p>
+        </div>
+        <button onClick={fillPending} disabled={!!busy || !pending.length}
+          className="ring-lux shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-50">
+          {busy === 'bulk' ? 'Translating…' : `AI-fill ${pending.length} missing/stale`}
+        </button>
+      </div>
+
+      <div className="mt-4 inline-flex rounded-full border border-mist bg-cloud p-1">
+        {TARGETS.map((l) => (
+          <button key={l.code} onClick={() => setLocale(l.code)}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${locale === l.code ? 'bg-ink text-cloud' : 'text-stone hover:text-ink'}`}>{l.label}</button>
+        ))}
+      </div>
+      {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-mist bg-cloud">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead>
+            <tr className="border-b border-mist text-left text-[0.65rem] uppercase tracking-wider text-stone">
+              <th className="px-4 py-3 font-bold">Key</th>
+              <th className="px-4 py-3 font-bold">English</th>
+              <th className="px-4 py-3 font-bold">{SUPPORTED_LOCALES.find((l) => l.code === locale)?.label}</th>
+              <th className="px-4 py-3 font-bold"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {KEYS.map((k) => {
+              const st = status(k);
+              const val = edits[k] ?? rows[k]?.value ?? '';
+              const dirty = edits[k] != null && edits[k] !== (rows[k]?.value ?? '');
+              return (
+                <tr key={k} className="border-b border-mist/60 align-top">
+                  <td className="px-4 py-3"><code className="text-[0.7rem] text-stone">{k}</code><div className="mt-1"><span className={`rounded-full px-2 py-0.5 text-[0.6rem] font-bold ${badge[st]}`}>{label[st]}</span></div></td>
+                  <td className="px-4 py-3 text-stone">{en[k]}</td>
+                  <td className="px-4 py-3">
+                    <textarea value={val} onChange={(e) => setEdits((d) => ({ ...d, [k]: e.target.value }))} rows={1}
+                      className="ring-lux w-full resize-y rounded-lg border border-mist bg-paper px-2.5 py-1.5 text-sm outline-none focus:border-ink" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => aiOne(k)} disabled={!!busy} title="Translate with AI"
+                        className="ring-lux rounded-full border border-mist px-2.5 py-1 text-[0.7rem] font-semibold text-gold transition-colors hover:border-gold disabled:opacity-50">{busy === k ? '…' : '✦ AI'}</button>
+                      <button onClick={() => saveOne(k)} disabled={!!busy || !dirty}
+                        className="ring-lux rounded-full bg-ink px-2.5 py-1 text-[0.7rem] font-bold text-cloud transition-colors hover:bg-void disabled:opacity-40">Save</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

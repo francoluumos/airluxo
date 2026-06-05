@@ -15,7 +15,9 @@ import { fetchMyBlocks, createBlock, deleteBlock } from '../lib/blocks.js';
 import { startPayoutOnboarding, refreshPayoutStatus, partnerSettle } from '../lib/stripe.js';
 import { updatePartner, fetchLocations, createLocation, deleteLocation } from '../lib/partner.js';
 import { chf, num } from '../lib/format.js';
+import { useT } from '../lib/i18n.jsx';
 import Tour from './Tour.jsx';
+import LanguageSwitcher from './LanguageSwitcher.jsx';
 import LocationForm, { AddressFields } from './LocationForm.jsx';
 import { newWebhookSecret, saveWebhook, sendTestWebhook, fireBookingWebhook, ensureCalendarFeed, calendarFeedUrl } from '../lib/integrations.js';
 
@@ -63,6 +65,7 @@ const NAV = [
 
 export default function PartnerDashboard({ onExit }) {
   const { partner, user, signOut } = useAuth();
+  const t = useT();
   const [view, setView] = useState('overview');
   const [addOpen, setAddOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -150,7 +153,7 @@ export default function PartnerDashboard({ onExit }) {
             </div>
           </div>
           <div className="mt-3 flex items-center gap-1.5 border-t border-graphite pt-3 text-xs text-ash">
-            <span className="h-1.5 w-1.5 rounded-full bg-go" /> Verified partner
+            <span className="h-1.5 w-1.5 rounded-full bg-go" /> {t('partner.verifiedPartner')}
           </div>
         </div>
 
@@ -166,7 +169,7 @@ export default function PartnerDashboard({ onExit }) {
                 className={`ring-lux flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-colors ${active ? 'bg-cloud text-ink' : 'text-ash hover:bg-coal hover:text-cloud'}`}
               >
                 <Ic width={18} height={18} className={active ? 'text-gold' : ''} />
-                {n.label}
+                {t(`nav.${n.id}`)}
                 {n.id === 'fleet' && Array.isArray(listings) && listings.length > 0 && (
                   <span className={`ml-auto rounded-full px-2 py-0.5 text-[0.7rem] tnum ${active ? 'bg-ink/10 text-ink' : 'bg-coal text-ash'}`}>{listings.length}</span>
                 )}
@@ -177,10 +180,11 @@ export default function PartnerDashboard({ onExit }) {
 
         <div className="p-4">
           <button data-tour="add-car" onClick={openAdd} className="ring-lux flex w-full items-center justify-center gap-2 rounded-xl bg-gold-soft py-3 text-sm font-bold text-ink transition-colors hover:bg-gold">
-            <Icon.Plus width={17} height={17} /> List a car
+            <Icon.Plus width={17} height={17} /> {t('partner.listCar')}
           </button>
+          <div className="mt-2"><LanguageSwitcher className="w-full" /></div>
           <button onClick={handleSignOut} className="ring-lux mt-2 w-full rounded-xl py-2.5 text-center text-xs font-semibold text-ash transition-colors hover:text-cloud">
-            Sign out
+            {t('partner.signOut')}
           </button>
         </div>
       </aside>

@@ -10,6 +10,8 @@ import { uploadListingPhoto } from '../lib/listings.js';
 import { setNewsletter, mySubscription } from '../lib/newsletter.js';
 import { openConsentSettings } from '../lib/consent.js';
 import { searchSwissAddress } from '../lib/geocode.js';
+import { useT } from '../lib/i18n.jsx';
+import LanguageSwitcher from './LanguageSwitcher.jsx';
 import { chf } from '../lib/format.js';
 import { tierForTrips, nextTier, pointsToChf, REFERRAL } from '../lib/loyalty.js';
 
@@ -26,6 +28,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export default function CustomerAccount({ initialTab = 'trips', onExit, onOpenCar }) {
   const { customer } = useAuth();
+  const tr = useT();
   const [tab, setTab] = useState(initialTab);
   useEffect(() => { setTab(initialTab); }, [initialTab]);
 
@@ -34,15 +37,18 @@ export default function CustomerAccount({ initialTab = 'trips', onExit, onOpenCa
       <header className="sticky top-0 z-40 border-b border-mist bg-paper/80 backdrop-blur-xl">
         <div className="mx-auto flex h-[68px] max-w-[1100px] items-center justify-between px-5 sm:px-8">
           <button onClick={onExit} className="ring-lux wordmark text-[1.35rem] text-ink">AIR<span className="text-gold">LUXO</span></button>
-          <button onClick={onExit} className="ring-lux flex items-center gap-1.5 text-sm font-semibold text-stone transition-colors hover:text-ink">
-            <Icon.Arrow width={15} height={15} className="rotate-180" /> Back to site
-          </button>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <button onClick={onExit} className="ring-lux flex items-center gap-1.5 text-sm font-semibold text-stone transition-colors hover:text-ink">
+              <Icon.Arrow width={15} height={15} className="rotate-180" /> {tr('account.backToSite')}
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-[1100px] px-5 py-8 sm:px-8 sm:py-12">
         <h1 className="font-display text-[clamp(1.8rem,4vw,2.6rem)] leading-tight">
-          {customer?.full_name ? `Hi, ${customer.full_name.split(' ')[0]}.` : 'Your account.'}
+          {customer?.full_name ? tr('account.greeting', { name: customer.full_name.split(' ')[0] }) : tr('account.title')}
         </h1>
 
         <div className="mt-6 flex gap-1 overflow-x-auto border-b border-mist">
@@ -52,7 +58,7 @@ export default function CustomerAccount({ initialTab = 'trips', onExit, onOpenCa
               onClick={() => setTab(t.key)}
               className={`ring-lux relative whitespace-nowrap px-4 py-3 text-sm font-semibold transition-colors ${tab === t.key ? 'text-ink' : 'text-stone hover:text-ink'}`}
             >
-              {t.label}
+              {tr(`account.tab.${t.key}`)}
               {tab === t.key && <motion.span layoutId="acct-tab" className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-ink" />}
             </button>
           ))}

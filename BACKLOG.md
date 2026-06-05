@@ -78,7 +78,12 @@ Multi-language for the **customer frontend, customer account, and partner dashbo
 4. **Emails** (locale-aware `_shared/email.ts` + flow copy, keyed off the recipient's `locale`) + **per-locale AI car descriptions** (content layer).
 5. **Add FR, then IT** — mostly "AI fills the new column, human reviews"; consider URL locales for SEO at this point.
 
+**Language detection ≠ IP.** Language is chosen from **`navigator.languages`** (the browser preference), never IP — IP gives country, which in multilingual Switzerland (DE/FR/IT) can't pick a language. Priority: saved profile `locale` → `?lang=` → `navigator.languages` → English.
+
 **Open decisions:** (a) car descriptions per-locale vs single-language for v1 — recommend single-language first, per-locale in Phase 4; (b) confirmed: all UI translations in Supabase (not repo JSON) for the AI-admin-editor workflow.
+
+## Region-based defaults via geolocation (future)
+Separate from language: use **IP/region geolocation** for region-aware defaults — default **currency**, "cars near you" / nearest pick-up region, region-specific promos, and soft fraud signals. Source is free on our stack: **Vercel edge geolocation** (`country`/`region`/`city` on the request at the edge) or Cloudflare `CF-IPCountry` — no paid API. Build: a small edge function/middleware that reads the geo headers and returns region; the client uses it only for defaults (always overridable), never for language. Revisit when expanding beyond CH or adding multi-currency.
 
 ## Integrations
 - **Embeddable booking widget — v1 DONE.** `?embed=<partnerId>` renders a chrome-less partner fleet + full booking flow (`Embed.jsx`); dashboard Overview has an iframe-snippet generator (EmbedCard). _v2 refinements:_ dedicated embed key (revocable) instead of partner id; postMessage auto-height; theming (light/dark + accent); allowed-origins/CSP; gate by plan (Pro/Max); single-car embed variant.

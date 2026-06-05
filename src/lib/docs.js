@@ -163,6 +163,7 @@ export const DOCS = {
       { label: 'Founder dashboard — Customers', state: 'live' },
       { label: 'Founder dashboard — Marketing (subscribers, CSV, lifecycle flows)', state: 'live' },
       { label: 'Lifecycle email flows (birthday, post-trip, win-back, wishlist, new-models, abandoned-booking)', state: 'live', note: 'in-house on Supabase + Resend; needs the service-role key in Vault to send' },
+      { label: 'Localization — i18n foundation + Translations section (EN source, DE/FR/IT via AI)', state: 'beta', note: 'Phase 1: infra + admin editor live; string extraction across the app is ongoing' },
       { label: 'Newsletter consent — single source of truth in Supabase', state: 'live', note: 'Resend mirrors it' },
       { label: 'Founder dashboard — Overview / Finance', state: 'planned' },
       { label: 'admin.airluxo.ch subdomain', state: 'live' },
@@ -207,6 +208,7 @@ export const DOCS = {
       },
     ],
     changelog: [
+      { date: '2026-06-05', version: 'Localization — Phase 1', items: ['i18n foundation (English source in code; DE/FR/IT in Supabase, merged live), browser language detection + a language switcher, locale saved per profile. New Translations section: coverage table with stale detection + per-key/bulk AI translation. First strings wired (partner nav, customer account).'] },
       { date: '2026-06-04', version: 'Abandoned-booking recovery', items: ['Captures the lead when a guest enters their email at checkout; one same-car reminder 1–48h later (soft opt-in, suppressed on conversion/opt-out, one-click unsubscribe). Built to the legal guardrails.'] },
       { date: '2026-06-04', version: 'Marketing flows expanded', items: ['Four more lifecycle flows via a generic runner: post-trip (2 days after a trip), win-back (no booking in 6 months), wishlist (saved cars, no recent booking), new-models (weekly digest of new arrivals). Each consent-gated + re-send throttled; managed from the Flows panel.'] },
       { date: '2026-06-04', version: 'Marketing lifecycle flows', items: ['Lean in-house marketing email: triggered flows on Supabase + Resend (consent-gated, idempotent send log, one-click unsubscribe). First flow live — birthday. New Marketing → Flows panel: per-flow status, send stats, recent-sends history, pause/resume. Branded shared email shell across all email.'] },
