@@ -6,11 +6,13 @@
 //
 // Interpolation: use {name} placeholders; t('key', { name }) fills them.
 
+// `label` = native name (shown in the customer-facing language switcher);
+// `enLabel` = English name (shown in the English founder dashboard).
 export const SUPPORTED_LOCALES = [
-  { code: 'en', label: 'English' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'fr', label: 'Français' },
-  { code: 'it', label: 'Italiano' },
+  { code: 'en', label: 'English', enLabel: 'English' },
+  { code: 'de', label: 'Deutsch', enLabel: 'German' },
+  { code: 'fr', label: 'Français', enLabel: 'French' },
+  { code: 'it', label: 'Italiano', enLabel: 'Italian' },
 ];
 
 export const en = {

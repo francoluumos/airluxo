@@ -1101,7 +1101,7 @@ function Translations() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Translations</h1>
-          <p className="mt-1 text-sm text-stone">English is the source (in code). Edit or AI-generate the other languages here — the site loads them live. {done}/{KEYS.length} keys ({pct}%) translated in {SUPPORTED_LOCALES.find((l) => l.code === locale)?.label}.</p>
+          <p className="mt-1 text-sm text-stone">English is the source (in code). Edit or AI-generate the other languages here — the site loads them live. {done}/{KEYS.length} keys ({pct}%) translated in {SUPPORTED_LOCALES.find((l) => l.code === locale)?.enLabel}.</p>
         </div>
         <button onClick={fillPending} disabled={!!busy || !pending.length}
           className="ring-lux shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-50">
@@ -1112,7 +1112,7 @@ function Translations() {
       <div className="mt-4 inline-flex rounded-full border border-mist bg-cloud p-1">
         {TARGETS.map((l) => (
           <button key={l.code} onClick={() => setLocale(l.code)}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${locale === l.code ? 'bg-ink text-cloud' : 'text-stone hover:text-ink'}`}>{l.label}</button>
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${locale === l.code ? 'bg-ink text-cloud' : 'text-stone hover:text-ink'}`}>{l.enLabel}</button>
         ))}
       </div>
       {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
@@ -1123,7 +1123,7 @@ function Translations() {
             <tr className="border-b border-mist text-left text-[0.65rem] uppercase tracking-wider text-stone">
               <th className="px-4 py-3 font-bold">Key</th>
               <th className="px-4 py-3 font-bold">English</th>
-              <th className="px-4 py-3 font-bold">{SUPPORTED_LOCALES.find((l) => l.code === locale)?.label}</th>
+              <th className="px-4 py-3 font-bold">{SUPPORTED_LOCALES.find((l) => l.code === locale)?.enLabel}</th>
               <th className="px-4 py-3 font-bold"></th>
             </tr>
           </thead>
