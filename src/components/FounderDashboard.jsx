@@ -1118,13 +1118,13 @@ function Translations() {
       {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
 
       <div className="mt-5 overflow-x-auto rounded-2xl border border-mist bg-cloud">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="w-full min-w-[860px] table-fixed text-sm">
           <thead>
             <tr className="border-b border-mist text-left text-[0.65rem] uppercase tracking-wider text-stone">
-              <th className="px-4 py-3 font-bold">Key</th>
-              <th className="px-4 py-3 font-bold">English</th>
-              <th className="px-4 py-3 font-bold">{SUPPORTED_LOCALES.find((l) => l.code === locale)?.enLabel}</th>
-              <th className="px-4 py-3 font-bold"></th>
+              <th className="w-[15%] px-4 py-3 font-bold">Key</th>
+              <th className="w-[27%] px-4 py-3 font-bold">English</th>
+              <th className="w-[42%] px-4 py-3 font-bold">{SUPPORTED_LOCALES.find((l) => l.code === locale)?.enLabel}</th>
+              <th className="w-[16%] px-4 py-3 font-bold"></th>
             </tr>
           </thead>
           <tbody>

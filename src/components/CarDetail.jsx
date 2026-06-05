@@ -563,20 +563,20 @@ export default function CarDetail({ car, onClose }) {
                 {/* add-ons */}
                 {(car.cross_border_allowed || car.delivery_available || car.protection_available) && (
                   <div className="mt-3 space-y-2">
-                    <div className="text-[0.65rem] uppercase tracking-wider text-stone">Add-ons</div>
+                    <div className="text-[0.65rem] uppercase tracking-wider text-stone">{t('booking.addons')}</div>
                     {car.protection_available && (
                       <div className="rounded-xl border border-gold/30 bg-gold/5 px-4 py-2.5">
                         <label className="flex cursor-pointer items-center justify-between">
                           <span className="flex items-center gap-2.5 text-sm font-semibold">
                             <input type="checkbox" checked={protection} onChange={(e) => setProtection(e.target.checked)} className="ring-lux h-4 w-4 accent-ink" />
-                            <span className="flex items-center gap-1.5"><Icon.Shield width={15} height={15} className="text-gold" /> Damage protection</span>
+                            <span className="flex items-center gap-1.5"><Icon.Shield width={15} height={15} className="text-gold" /> {t('booking.damageProtection')}</span>
                           </span>
                           <span className="text-sm font-semibold tnum text-stone">+{chf(car.protection_fee || 0)}</span>
                         </label>
                         <p className="mt-1.5 text-xs text-stone">
                           {car.deposit_amount
-                            ? <>Reduces your excess to CHF 0 — no {chf(car.deposit_amount)} security deposit to put down.</>
-                            : <>Reduces your damage excess to CHF 0 for the trip.</>}
+                            ? t('booking.protectionNoteDeposit', { deposit: chf(car.deposit_amount) })
+                            : t('booking.protectionNote')}
                         </p>
                       </div>
                     )}
@@ -584,7 +584,7 @@ export default function CarDetail({ car, onClose }) {
                       <label className="flex cursor-pointer items-center justify-between rounded-xl border border-mist bg-cloud px-4 py-2.5">
                         <span className="flex items-center gap-2.5 text-sm font-semibold">
                           <input type="checkbox" checked={crossBorder} onChange={(e) => setCrossBorder(e.target.checked)} className="ring-lux h-4 w-4 accent-ink" />
-                          Cross-border trip
+                          {t('booking.crossBorderTrip')}
                         </span>
                         <span className="text-sm font-semibold tnum text-stone">+{chf(car.cross_border_fee || 0)}</span>
                       </label>
@@ -594,7 +594,7 @@ export default function CarDetail({ car, onClose }) {
                         <label className="flex cursor-pointer items-center justify-between">
                           <span className="flex items-center gap-2.5 text-sm font-semibold">
                             <input type="checkbox" checked={delivery} onChange={(e) => setDelivery(e.target.checked)} className="ring-lux h-4 w-4 accent-ink" />
-                            Delivery &amp; collection
+                            {t('booking.deliveryCollection')}
                           </span>
                           <span className="text-sm font-semibold tnum text-stone">+{chf(car.delivery_fee || 0)}</span>
                         </label>
@@ -610,14 +610,14 @@ export default function CarDetail({ car, onClose }) {
                 {/* price breakdown */}
                 <div className="mt-5 space-y-2.5 text-sm">
                   <Row label={`${chf(rate.price)} × ${qty} ${isDay ? (qty === 1 ? 'day' : 'days') : rate.label}`} value={chf(base)} />
-                  {crossBorderFee > 0 && <Row label="Cross-border surcharge" value={`+${chf(crossBorderFee)}`} muted />}
-                  {deliveryFee > 0 && <Row label="Delivery & collection" value={`+${chf(deliveryFee)}`} muted />}
-                  {afterHoursFee > 0 && <Row label="After-hours handover" value={`+${chf(afterHoursFee)}`} muted />}
-                  {protectionFee > 0 && <Row label="Damage protection · zero excess" value={`+${chf(protectionFee)}`} muted />}
+                  {crossBorderFee > 0 && <Row label={t('booking.crossBorderSurcharge')} value={`+${chf(crossBorderFee)}`} muted />}
+                  {deliveryFee > 0 && <Row label={t('booking.deliveryCollection')} value={`+${chf(deliveryFee)}`} muted />}
+                  {afterHoursFee > 0 && <Row label={t('booking.afterHours')} value={`+${chf(afterHoursFee)}`} muted />}
+                  {protectionFee > 0 && <Row label={t('booking.protectionZeroExcess')} value={`+${chf(protectionFee)}`} muted />}
                   <Row
                     label={
                       <span className="flex items-center gap-1.5">
-                        AIRLUXO service fee
+                        {t('booking.serviceFee')}
                         <span className="rounded bg-mist/70 px-1.5 py-0.5 text-[0.65rem] font-bold tnum">{Math.round(FEES.guestService * 100)}%</span>
                       </span>
                     }
@@ -632,7 +632,7 @@ export default function CarDetail({ car, onClose }) {
                   )}
                   {loyaltyCredit > 0 && (
                     <div className="flex items-center justify-between text-go">
-                      <span className="font-semibold">Member credit · points</span>
+                      <span className="font-semibold">{t('booking.memberCredit')}</span>
                       <span className="font-semibold tnum">−{chf(loyaltyCredit)}</span>
                     </div>
                   )}
@@ -643,7 +643,7 @@ export default function CarDetail({ car, onClose }) {
                     </div>
                   )}
                   <div className="flex items-center justify-between border-t border-mist pt-3">
-                    <span className="font-display text-base">Total</span>
+                    <span className="font-display text-base">{t('booking.total')}</span>
                     <span className="font-display text-xl tnum">{chf(serverBreakdown?.total_amount ?? discountedTotal)}</span>
                   </div>
                 </div>
@@ -653,7 +653,7 @@ export default function CarDetail({ car, onClose }) {
                   <label className="mt-3 flex cursor-pointer items-center justify-between rounded-xl border border-gold/30 bg-gold/5 px-4 py-2.5">
                     <span className="flex items-center gap-2.5 text-sm font-semibold">
                       <input type="checkbox" checked={usePoints} onChange={(e) => setUsePoints(e.target.checked)} className="ring-lux h-4 w-4 accent-ink" />
-                      Use my {loyaltyPoints.toLocaleString('de-CH')} points
+                      {t('booking.usePoints', { points: loyaltyPoints.toLocaleString('de-CH') })}
                     </span>
                     <span className="text-sm font-semibold tnum text-gold">up to −{chf(Math.floor(loyaltyPoints / POINTS_PER_CHF_REDEEMED))}</span>
                   </label>
@@ -665,7 +665,7 @@ export default function CarDetail({ car, onClose }) {
 
                 {booked ? (
                   <div className="mt-4 space-y-3">
-                    <div className="flex w-full items-center justify-center gap-2 rounded-2xl bg-go py-4 text-sm font-bold text-cloud"><Icon.Check width={17} height={17} /> Reservation requested</div>
+                    <div className="flex w-full items-center justify-center gap-2 rounded-2xl bg-go py-4 text-sm font-bold text-cloud"><Icon.Check width={17} height={17} /> {t('booking.reservationRequested')}</div>
                     {signInWithGoogle && !user && <PostBookingAccount email={guest.email} onGoogle={signInWithGoogle} onEmail={sendEmailLink} />}
                   </div>
                 ) : phase === 'payment' && clientSecret ? (
@@ -734,13 +734,13 @@ export default function CarDetail({ car, onClose }) {
 
                 {err && <p className="mt-3 text-center text-xs text-red-600">{err}</p>}
                 <p className="mt-3 text-center text-xs text-stone">
-                  {booked ? 'Sent to the host — they’ll confirm shortly.'
-                    : phase === 'payment' ? 'Your card is authorised now — charged only when the host confirms.'
-                    : phase === 'licence' ? 'Your licence details are shared with the host to verify the driver.'
-                    : !datesChosen ? 'Select your dates to continue.'
-                    : hoursBlocked ? 'Choose a pick-up time within opening hours.'
-                    : deliveryMissingAddr ? 'Enter a delivery address to continue.'
-                    : "You won't be charged yet."}
+                  {booked ? t('booking.statusSent')
+                    : phase === 'payment' ? t('booking.statusAuthorised')
+                    : phase === 'licence' ? t('booking.statusLicence')
+                    : !datesChosen ? t('booking.statusDates')
+                    : hoursBlocked ? t('booking.statusHours')
+                    : deliveryMissingAddr ? t('booking.statusDeliveryAddr')
+                    : t('booking.statusNoCharge')}
                 </p>
               </div>
             </div>
