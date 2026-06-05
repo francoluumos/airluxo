@@ -55,6 +55,31 @@ Transactional WhatsApp alongside email: **booking confirmation, pick-up reminder
 - **Architecture (mirrors email):** a `whatsapp-send` edge function called from the same triggers (booking created/confirmed → confirmation; a daily cron → pick-up reminder before `start_date`; on-demand → docs as a document message). Pre-approved **Utility** templates (transactional, cheap, allowed); **Marketing** templates separate + explicit opt-in. WhatsApp opt-in at checkout (phone already collected); send log like `marketing_sends`. Inbound webhook for replies later.
 - **Prereqs (account/ops, before code):** Meta Business verification + WhatsApp Business Account, a BSP account, template approval (~1–2 days). So: set up the account first, then wire the function.
 
+## Localization / i18n (planned 5 Jun 2026)
+Multi-language for the **customer frontend, customer account, and partner dashboard** (founder/admin stays English — internal). Languages in order: **EN (source) → DE → FR → IT** (Swiss set). Auto-detected from the browser, always overridable, persisted per user.
+
+**Four layers (each different work):** (1) UI strings, (2) user/AI content (car descriptions etc.), (3) emails (transactional + marketing), (4) formatting (dates/numbers/currency via `Intl`). _Honest headline: infrastructure is moderate; **extracting every hardcoded string into keys is the big mechanical job** — AI speeds translating, not extraction. Phase it._
+
+**Stack & architecture (decided in brainstorm):**
+- **`react-i18next`** — JSON catalogs, namespaces (`customer` / `partner`), runtime switch, lazy-load, browser-language detection.
+- **Hybrid source of truth:** **English in the repo** (canonical keys); **DE/FR/IT in Supabase** (`translations` table: `namespace, key, locale, value, source_hash, updated_at, auto`), loaded at runtime (cached in localStorage), falling back to EN. This makes the admin Translation section a natural DB editor + AI-fill — no CI needed to edit translations.
+- **Detect + set:** map `navigator.language` (`de-CH`→`de`, etc.), switcher in nav/footer, persist to **localStorage + a `locale` field on customers/partners** (same field the marketing-email language routing uses). Logged-out = localStorage + detect.
+- **SEO (later):** locale in the URL (`/de/…` or `?lang=`) so Google indexes each language for the public marketplace; v1 cookie/localStorage-based.
+
+**Admin Translation section (founder dashboard):**
+- Coverage table: namespace · key · EN (source) · DE/FR/IT, each tagged **translated / missing / stale**.
+- **Stale detection** via `source_hash` — if the EN source changes, its translations flip to "review".
+- **AI translate** per-cell / per-column ("fill all missing DE") / bulk, via a `translate` edge function (Claude) with brand-voice guidance (luxury tone, keep `{placeholders}` intact, never translate "AIRLUXO"/brand names). Coverage % per locale.
+
+**Phases:**
+1. **Setup** — react-i18next provider + detection + language switcher; `locale` on customer/partner profiles; `translations` table + admin Translation section shell + `translate` edge fn. Ship EN + DE scaffolding.
+2. **Customer marketplace + booking flow** — extract strings (highest-value, customer-facing) → EN + DE.
+3. **Customer account**, then **partner dashboard** — extract + translate.
+4. **Emails** (locale-aware `_shared/email.ts` + flow copy, keyed off the recipient's `locale`) + **per-locale AI car descriptions** (content layer).
+5. **Add FR, then IT** — mostly "AI fills the new column, human reviews"; consider URL locales for SEO at this point.
+
+**Open decisions:** (a) car descriptions per-locale vs single-language for v1 — recommend single-language first, per-locale in Phase 4; (b) confirmed: all UI translations in Supabase (not repo JSON) for the AI-admin-editor workflow.
+
 ## Integrations
 - **Embeddable booking widget — v1 DONE.** `?embed=<partnerId>` renders a chrome-less partner fleet + full booking flow (`Embed.jsx`); dashboard Overview has an iframe-snippet generator (EmbedCard). _v2 refinements:_ dedicated embed key (revocable) instead of partner id; postMessage auto-height; theming (light/dark + accent); allowed-origins/CSP; gate by plan (Pro/Max); single-car embed variant.
 - **Webhook out (partner's own system) — v1 DONE.** Settings → Webhook: partner sets an **endpoint URL** + Enabled toggle; AIRLUXO POSTs JSON on `booking.created` / `booking.updated` (fired from `createBooking` + dashboard status changes) via the `booking-webhook` edge function. Each delivery is HMAC-SHA256 signed (`X-AIRLUXO-Signature: sha256=…`) with a per-partner `webhook_secret` shown in the UI (reveal/copy/regenerate). A **"Send test event"** button posts a sample payload and reports the HTTP status. _v2:_ delivery log + retries/backoff; per-event subscription toggles; multiple endpoints; Zapier/Make recipe templates (the raw webhook already works with a Zapier "Catch Hook" trigger).
