@@ -119,18 +119,21 @@ export default function Tour({ steps, onClose, onFinish, onNavigate }) {
       {/* Blocks interaction with the dashboard behind the tour. */}
       <div className="absolute inset-0" />
 
-      {/* Spotlight (or full dim while resolving / for centered steps). */}
+      {/* Spotlight (or full dim while resolving / for centered steps). Distinct
+          keys so React swaps the nodes instantly instead of cross-fading the
+          transition between them (which briefly thinned the dim on Next). */}
       {rect ? (
         <div
+          key="tour-spotlight"
           className="pointer-events-none absolute rounded-[14px]"
           style={{
             left: rect.left - PAD, top: rect.top - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2,
             boxShadow: '0 0 0 2px rgba(184,145,80,0.9), 0 0 0 9999px rgba(11,11,12,0.55)',
-            transition: reduceMotion ? 'none' : 'all .25s cubic-bezier(0.22,1,0.36,1)',
+            transition: reduceMotion ? 'none' : 'left .25s cubic-bezier(0.22,1,0.36,1), top .25s cubic-bezier(0.22,1,0.36,1), width .25s cubic-bezier(0.22,1,0.36,1), height .25s cubic-bezier(0.22,1,0.36,1)',
           }}
         />
       ) : (
-        <div className="absolute inset-0 bg-ink/55" />
+        <div key="tour-dim" className="absolute inset-0 bg-ink/55" />
       )}
 
       {/* Step card — only once its anchored position is known (no centered flash). */}
