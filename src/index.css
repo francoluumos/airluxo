@@ -33,9 +33,12 @@
 
 html {
   scroll-behavior: smooth;
-  /* Reserve the scrollbar gutter so the layout doesn't shift/shrink when content
-     grows from non-scrollable to scrollable (e.g. expanding a dashboard row). */
+  /* Stop the layout shifting/shrinking when a page grows from non-scrollable to
+     scrollable. scrollbar-gutter is the modern fix; overflow-y:scroll forces the
+     track to always be reserved as a fallback for browsers without it (Safari
+     < 18.2). Both no-op on macOS overlay scrollbars (which never take space). */
   scrollbar-gutter: stable;
+  overflow-y: scroll;
 }
 
 body {

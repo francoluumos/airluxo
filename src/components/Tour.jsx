@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Icon } from './Icons.jsx';
 
@@ -24,23 +24,35 @@ function visibleRect(el) {
   return r;
 }
 
-function cardPosition(rect, placement = 'bottom') {
+// Position the card next to the target (using its measured size), clamped to the
+// viewport. Target-less / mobile → centered, in the upper third (sits higher).
+function cardPosition(rect, placement, size) {
   const vw = window.innerWidth, vh = window.innerHeight;
-  const cardW = Math.min(360, vw - 24);
+  const w = size.w, h = size.h, m = 14;
   if (!rect || vw < 640) {
-    // Centered (welcome/finish, no target, or small screens).
-    return { left: (vw - cardW) / 2, top: Math.max(16, vh / 2 - 130), width: cardW };
+    return { left: Math.max(12, (vw - w) / 2), top: Math.max(16, Math.min(vh - h - 16, vh * 0.16)) };
   }
-  const m = 14, estH = 210;
-  const wantTop = placement === 'top' || (rect.bottom + estH + m > vh && rect.top - estH - m > 12);
-  const top = wantTop ? Math.max(12, rect.top - m - estH) : Math.min(vh - estH - 12, rect.bottom + m);
-  const left = Math.min(Math.max(12, rect.left), vw - cardW - 12);
-  return { left, top, width: cardW };
+  let pl = placement;
+  if (!pl) {
+    pl = (vw - rect.right > w + 2 * m) ? 'right'
+      : (rect.left > w + 2 * m) ? 'left'
+        : (vh - rect.bottom > h + 2 * m) ? 'bottom' : 'top';
+  }
+  let top, left;
+  if (pl === 'right') { left = rect.right + m; top = rect.top + rect.height / 2 - h / 2; }
+  else if (pl === 'left') { left = rect.left - m - w; top = rect.top + rect.height / 2 - h / 2; }
+  else if (pl === 'top') { top = rect.top - m - h; left = rect.left + rect.width / 2 - w / 2; }
+  else { top = rect.bottom + m; left = rect.left + rect.width / 2 - w / 2; }
+  left = Math.min(Math.max(12, left), vw - w - 12);
+  top = Math.min(Math.max(12, top), vh - h - 12);
+  return { left, top, width: w };
 }
 
 export default function Tour({ steps, onClose, onFinish, onNavigate }) {
   const [i, setI] = useState(0);
   const [rect, setRect] = useState(null);
+  const [size, setSize] = useState({ w: Math.min(360, (typeof window !== 'undefined' ? window.innerWidth : 360) - 24), h: 200 });
+  const cardRef = useRef(null);
   const step = steps[i];
 
   const finish = useCallback(() => onFinish(), [onFinish]);
@@ -88,8 +100,16 @@ export default function Tour({ steps, onClose, onFinish, onNavigate }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, next, back]);
 
+  // Measure the card so positioning uses its real size (runs before paint).
+  const ready = !step?.target || !!rect;
+  useLayoutEffect(() => {
+    if (!ready || !cardRef.current) return;
+    const r = cardRef.current.getBoundingClientRect();
+    setSize((s) => (Math.abs(s.h - r.height) > 1 || Math.abs(s.w - r.width) > 1 ? { w: r.width, h: r.height } : s));
+  }, [i, ready, rect]);
+
   if (!step) return null;
-  const pos = cardPosition(rect, step.placement);
+  const pos = cardPosition(rect, step.placement, size);
   const last = i === steps.length - 1;
 
   return (
@@ -97,7 +117,7 @@ export default function Tour({ steps, onClose, onFinish, onNavigate }) {
       {/* Blocks interaction with the dashboard behind the tour. */}
       <div className="absolute inset-0" />
 
-      {/* Spotlight (or full dim for centered steps). */}
+      {/* Spotlight (or full dim while resolving / for centered steps). */}
       {rect ? (
         <div
           className="pointer-events-none absolute rounded-[14px]"
@@ -111,44 +131,47 @@ export default function Tour({ steps, onClose, onFinish, onNavigate }) {
         <div className="absolute inset-0 bg-ink/55" />
       )}
 
-      {/* Step card */}
-      <motion.div
-        key={i}
-        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="absolute rounded-2xl border border-mist bg-paper p-5 shadow-2xl"
-        style={{ left: pos.left, top: pos.top, width: pos.width }}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="eyebrow text-gold">Setup guide · {i + 1}/{steps.length}</div>
-          <button onClick={onClose} className="ring-lux -mr-1 -mt-1 grid h-7 w-7 place-items-center rounded-full text-stone transition-colors hover:bg-mist/60" aria-label="Leave guide">
-            <Icon.X width={14} height={14} />
-          </button>
-        </div>
-        <h3 className="font-display mt-2 text-lg leading-tight">{step.title}</h3>
-        <p className="mt-1.5 text-sm leading-relaxed text-stone">{step.body}</p>
-
-        <div className="mt-4 flex items-center justify-between">
-          <div className="flex gap-1.5">
-            {steps.map((_, n) => (
-              <span key={n} className={`h-1.5 rounded-full transition-all ${n === i ? 'w-4 bg-ink' : 'w-1.5 bg-mist'}`} />
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            {i > 0 && (
-              <button onClick={back} className="ring-lux rounded-full px-3 py-1.5 text-xs font-semibold text-stone transition-colors hover:text-ink">Back</button>
-            )}
-            <button onClick={next} className="ring-lux rounded-full bg-ink px-4 py-1.5 text-xs font-bold text-cloud transition-colors hover:bg-void">
-              {last ? 'Finish' : 'Next'}
+      {/* Step card — only once its anchored position is known (no centered flash). */}
+      {ready && (
+        <motion.div
+          ref={cardRef}
+          key={i}
+          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+          className="absolute rounded-2xl border border-mist bg-paper p-5 shadow-2xl"
+          style={{ left: pos.left, top: pos.top, width: pos.width }}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="eyebrow text-gold">Setup guide · {i + 1}/{steps.length}</div>
+            <button onClick={onClose} className="ring-lux -mr-1 -mt-1 grid h-7 w-7 place-items-center rounded-full text-stone transition-colors hover:bg-mist/60" aria-label="Leave guide">
+              <Icon.X width={14} height={14} />
             </button>
           </div>
-        </div>
+          <h3 className="font-display mt-2 text-lg leading-tight">{step.title}</h3>
+          <p className="mt-1.5 text-sm leading-relaxed text-stone">{step.body}</p>
 
-        <button onClick={onClose} className="ring-lux mt-3 block w-full text-center text-[0.7rem] font-semibold text-stone transition-colors hover:text-ink">
-          Skip the guide
-        </button>
-      </motion.div>
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex gap-1.5">
+              {steps.map((_, n) => (
+                <span key={n} className={`h-1.5 rounded-full transition-all ${n === i ? 'w-4 bg-ink' : 'w-1.5 bg-mist'}`} />
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              {i > 0 && (
+                <button onClick={back} className="ring-lux rounded-full px-3 py-1.5 text-xs font-semibold text-stone transition-colors hover:text-ink">Back</button>
+              )}
+              <button onClick={next} className="ring-lux rounded-full bg-ink px-4 py-1.5 text-xs font-bold text-cloud transition-colors hover:bg-void">
+                {last ? 'Finish' : 'Next'}
+              </button>
+            </div>
+          </div>
+
+          <button onClick={onClose} className="ring-lux mt-3 block w-full text-center text-[0.7rem] font-semibold text-stone transition-colors hover:text-ink">
+            Skip the guide
+          </button>
+        </motion.div>
+      )}
     </div>
   );
 }
