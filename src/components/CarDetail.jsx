@@ -16,9 +16,11 @@ import { useAuth } from '../lib/auth.jsx';
 import { supabase } from '../lib/supabase.js';
 import { validatePromo, promoReasonText } from '../lib/promo.js';
 import { subscribeNewsletter, mySubscription } from '../lib/newsletter.js';
+import { useT } from '../lib/i18n.jsx';
 import { POINTS_PER_CHF_REDEEMED } from '../lib/loyalty.js';
 
 export default function CarDetail({ car, onClose }) {
+  const t = useT();
   // Null-safe: the white-label embed renders CarDetail outside AuthProvider, and
   // there we intentionally keep anonymous guest checkout (no login gate).
   const auth = useAuth();
@@ -397,7 +399,7 @@ export default function CarDetail({ car, onClose }) {
           {/* header bar */}
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-mist bg-cloud/80 px-5 py-3.5 backdrop-blur sm:px-7">
             <button onClick={onClose} className="ring-lux flex items-center gap-2 text-sm font-semibold text-stone transition-colors hover:text-ink">
-              <Icon.Arrow width={16} height={16} className="rotate-180" /> Back to fleet
+              <Icon.Arrow width={16} height={16} className="rotate-180" /> {t('booking.backToFleet')}
             </button>
             <button onClick={onClose} className="ring-lux grid h-9 w-9 place-items-center rounded-full border border-mist text-stone transition-colors hover:bg-mist/50">
               <Icon.X width={16} height={16} />
@@ -705,12 +707,12 @@ export default function CarDetail({ car, onClose }) {
                     </div>
 
                     <button onClick={proceed} disabled={busy} className="ring-lux mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-4 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
-                      {busy ? (<span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-cloud/30 border-t-cloud" />) : (<>Confirm &amp; continue <Icon.Arrow width={16} height={16} /></>)}
+                      {busy ? (<span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-cloud/30 border-t-cloud" />) : (<>{t('booking.confirmContinue')} <Icon.Arrow width={16} height={16} /></>)}
                     </button>
                   </div>
                 ) : phase === 'details' ? (
                   <div className="mt-4 border-t border-mist pt-4">
-                    <div className="text-[0.65rem] uppercase tracking-wider text-stone">Your details · Step 1 of 2</div>
+                    <div className="text-[0.65rem] uppercase tracking-wider text-stone">{t('booking.yourDetailsStep')}</div>
                     <div className="mt-2.5 space-y-2.5">
                       <input value={guest.email} onChange={(e) => setGuest((g) => ({ ...g, email: e.target.value }))} type="email" placeholder="Email" className="ring-lux w-full rounded-lg border border-mist bg-paper px-3 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
                       <input value={guest.phone} onChange={(e) => setGuest((g) => ({ ...g, phone: e.target.value }))} type="tel" placeholder="Phone" className="ring-lux w-full rounded-lg border border-mist bg-paper px-3 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
@@ -721,12 +723,12 @@ export default function CarDetail({ car, onClose }) {
                       <span>Send me the AIRLUXO newsletter — new arrivals, member offers and events. Unsubscribe anytime.</span>
                     </label>
                     <button onClick={detailsContinue} disabled={deliveryMissingAddr} className="ring-lux mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-4 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
-                      Continue <Icon.Arrow width={16} height={16} />
+                      {t('booking.continue')} <Icon.Arrow width={16} height={16} />
                     </button>
                   </div>
                 ) : (
                   <button onClick={startReserve} disabled={deliveryMissingAddr || !datesChosen || hoursBlocked} className="ring-lux mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-4 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
-                    Reserve now <Icon.Arrow width={16} height={16} />
+                    {t('booking.reserveNow')} <Icon.Arrow width={16} height={16} />
                   </button>
                 )}
 

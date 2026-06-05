@@ -1143,7 +1143,7 @@ function Translations() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => aiOne(k)} disabled={!!busy} title="Translate with AI"
-                        className="ring-lux rounded-full border border-mist px-2.5 py-1 text-[0.7rem] font-semibold text-gold transition-colors hover:border-gold disabled:opacity-50">{busy === k ? '…' : '✦ AI'}</button>
+                        className="ring-lux rounded-full border border-mist px-2.5 py-1 text-[0.7rem] font-semibold text-gold transition-colors hover:border-gold disabled:opacity-50">{busy === k ? '…' : '✦'}</button>
                       <button onClick={() => saveOne(k)} disabled={!!busy || !dirty}
                         className="ring-lux rounded-full bg-ink px-2.5 py-1 text-[0.7rem] font-bold text-cloud transition-colors hover:bg-void disabled:opacity-40">Save</button>
                     </div>

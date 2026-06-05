@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Icon } from './Icons.jsx';
 import { useAuth } from '../lib/auth.jsx';
+import { useT } from '../lib/i18n.jsx';
 
 // Airbnb-style account menu: a hamburger + avatar pill that opens a dropdown.
 // Logged-out → log in / sign up + list-your-cars. Logged-in → trips / saved /
@@ -9,6 +10,7 @@ import { useAuth } from '../lib/auth.jsx';
 // `onPartner` are navigation callbacks from the Shell.
 export default function AccountMenu({ onAccount, onPartner, dark = false }) {
   const { session, customer, isPartner, openAuth, signOut } = useAuth();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -51,18 +53,18 @@ export default function AccountMenu({ onAccount, onPartner, dark = false }) {
                   {customer?.email && <div className="truncate text-xs text-stone">{customer.email}</div>}
                 </div>
                 <Divider />
-                <Item onClick={go(() => onAccount('trips'))}>My trips</Item>
-                <Item onClick={go(() => onAccount('saved'))}>Saved</Item>
-                <Item onClick={go(() => onAccount('account'))}>Account</Item>
+                <Item onClick={go(() => onAccount('trips'))}>{t('menu.myTrips')}</Item>
+                <Item onClick={go(() => onAccount('saved'))}>{t('menu.saved')}</Item>
+                <Item onClick={go(() => onAccount('account'))}>{t('menu.account')}</Item>
                 <Divider />
-                <Item onClick={go(onPartner)}>{isPartner ? 'Partner dashboard' : 'List your cars'}</Item>
-                <Item onClick={go(signOut)}>Log out</Item>
+                <Item onClick={go(onPartner)}>{isPartner ? t('menu.partnerDashboard') : t('site.listYourCars')}</Item>
+                <Item onClick={go(signOut)}>{t('menu.logOut')}</Item>
               </>
             ) : (
               <>
-                <Item bold onClick={go(() => openAuth())}>Log in or sign up</Item>
+                <Item bold onClick={go(() => openAuth())}>{t('menu.logInSignUp')}</Item>
                 <Divider />
-                <Item onClick={go(onPartner)}>List your cars</Item>
+                <Item onClick={go(onPartner)}>{t('site.listYourCars')}</Item>
               </>
             )}
           </motion.div>

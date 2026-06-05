@@ -41,4 +41,32 @@ export const en = {
 
   // Common
   'common.language': 'Language',
+
+  // Marketplace chrome (nav + account menu)
+  'site.explore': 'Explore',
+  'site.howItWorks': 'How it works',
+  'site.forCompanies': 'For rental companies',
+  'site.listYourCars': 'List your cars',
+  'menu.myTrips': 'My trips',
+  'menu.saved': 'Saved',
+  'menu.account': 'Account',
+  'menu.logOut': 'Log out',
+  'menu.logInSignUp': 'Log in or sign up',
+  'menu.partnerDashboard': 'Partner dashboard',
+
+  // Home — hero + search
+  'home.heroLine1': 'Drive the',
+  'home.heroLine2': 'extraordinary.',
+  'home.heroSubtitle': "The marketplace where Switzerland's finest luxury-car rental companies meet drivers who want something rarer than a sedan. Insured, vetted, delivered.",
+  'home.where': 'Where',
+  'home.when': 'When',
+  'home.searchPlaceholder': 'Search make, model, colour or city…',
+  'home.collection': 'The collection',
+
+  // Booking flow (car detail)
+  'booking.backToFleet': 'Back to fleet',
+  'booking.reserveNow': 'Reserve now',
+  'booking.continue': 'Continue',
+  'booking.confirmContinue': 'Confirm & continue',
+  'booking.yourDetailsStep': 'Your details · Step 1 of 2',
 };

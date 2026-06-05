@@ -8,6 +8,7 @@ import { CARS, CATEGORIES, CITIES, STEPS, FEES } from '../lib/data.js';
 import { fetchPublicListings, mapListing, fetchFleetPins } from '../lib/listings.js';
 import { fetchFleetAvailability } from '../lib/bookings.js';
 import { chf } from '../lib/format.js';
+import { useT } from '../lib/i18n.jsx';
 import { track } from '../lib/analytics.js';
 import { openConsentSettings } from '../lib/consent.js';
 import { useAuth } from '../lib/auth.jsx';
@@ -43,6 +44,7 @@ const rise = {
 };
 
 export default function Home({ onOpenCar, onPartner, onAccount }) {
+  const t = useT();
   const [cat, setCat] = useState('All');
   const [q, setQ] = useState('');
   const [cars, setCars] = useState(null); // null = loading
@@ -196,14 +198,13 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
               variants={rise}
               className="font-display mt-5 text-[clamp(2.9rem,6.4vw,5.2rem)] font-semibold leading-[0.94]"
             >
-              Drive the
+              {t('home.heroLine1')}
               <br />
-              <span className="italic text-gold">extraordinary.</span>
+              <span className="italic text-gold">{t('home.heroLine2')}</span>
             </motion.h1>
 
             <motion.p variants={rise} className="mt-6 max-w-md text-[1.05rem] leading-relaxed text-stone">
-              The marketplace where Switzerland's finest luxury-car rental companies meet
-              drivers who want something rarer than a sedan. Insured, vetted, delivered.
+              {t('home.heroSubtitle')}
             </motion.p>
 
             {/* search panel */}
@@ -215,7 +216,7 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
                 <div className="relative flex items-center gap-3 rounded-[14px] px-4 py-2.5">
                   <span className="text-stone"><Icon.Pin /></span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[0.65rem] uppercase tracking-[0.15em] text-stone">Where</div>
+                    <div className="text-[0.65rem] uppercase tracking-[0.15em] text-stone">{t('home.where')}</div>
                     <PlaceSearch value={near} onSelect={handleNear} />
                   </div>
                 </div>
@@ -227,7 +228,7 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
                   >
                     <span className="text-stone"><Icon.Calendar /></span>
                     <span className="min-w-0">
-                      <span className="block text-[0.65rem] uppercase tracking-[0.15em] text-stone">When</span>
+                      <span className="block text-[0.65rem] uppercase tracking-[0.15em] text-stone">{t('home.when')}</span>
                       <span className="block truncate text-sm font-semibold">{dateLabel(date)}</span>
                     </span>
                   </button>
@@ -302,7 +303,7 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
       <section id="fleet" className="mx-auto max-w-[1240px] px-5 py-16 sm:px-8 lg:py-24">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="eyebrow text-gold">The collection</div>
+            <div className="eyebrow text-gold">{t('home.collection')}</div>
             <h2 className="font-display mt-2 text-[clamp(2rem,4vw,3rem)] leading-[1.02]">
               Cars worth the detour.
             </h2>
@@ -330,7 +331,7 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search make, model, colour or city…"
+            placeholder={t('home.searchPlaceholder')}
             className="ring-lux w-full bg-transparent text-sm outline-none placeholder:text-stone"
           />
           <span className="hidden shrink-0 text-xs text-stone sm:block tnum">{cars === null ? '…' : `${fleet.length} available`}</span>

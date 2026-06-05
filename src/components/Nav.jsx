@@ -1,6 +1,8 @@
 import AccountMenu from './AccountMenu.jsx';
+import { useT } from '../lib/i18n.jsx';
 
 export default function Nav({ onHome, onPartner, onAccount, dark = false }) {
+  const t = useT();
   const tone = dark
     ? { text: 'text-cloud', sub: 'text-ash hover:text-cloud', line: 'border-graphite', btn: 'bg-cloud text-ink hover:bg-paper' }
     : { text: 'text-ink', sub: 'text-stone hover:text-ink', line: 'border-mist', btn: 'bg-ink text-cloud hover:bg-void' };
@@ -15,9 +17,9 @@ export default function Nav({ onHome, onPartner, onAccount, dark = false }) {
         </button>
 
         <nav className={`hidden items-center gap-8 text-sm font-medium md:flex ${tone.sub}`}>
-          <button onClick={onHome} className="ring-lux transition-colors">Explore</button>
-          <a href="#how" className="ring-lux transition-colors">How it works</a>
-          <a href="#partner" className="ring-lux transition-colors">For rental companies</a>
+          <button onClick={onHome} className="ring-lux transition-colors">{t('site.explore')}</button>
+          <a href="#how" className="ring-lux transition-colors">{t('site.howItWorks')}</a>
+          <a href="#partner" className="ring-lux transition-colors">{t('site.forCompanies')}</a>
         </nav>
 
         <div className="flex items-center gap-2.5">
@@ -25,7 +27,7 @@ export default function Nav({ onHome, onPartner, onAccount, dark = false }) {
             onClick={onPartner}
             className={`ring-lux hidden rounded-full px-4 py-2 text-sm font-semibold transition-colors sm:block ${tone.btn}`}
           >
-            List your cars
+            {t('site.listYourCars')}
           </button>
           <AccountMenu onAccount={onAccount} onPartner={onPartner} dark={dark} />
         </div>
