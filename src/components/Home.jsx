@@ -566,6 +566,7 @@ function Stat({ k, v }) {
 }
 
 function Footer({ onPartner }) {
+  const t = useT();
   return (
     <footer className="border-t border-mist bg-paper">
       <div className="mx-auto max-w-[1240px] px-5 py-14 sm:px-8">
