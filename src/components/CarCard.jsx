@@ -32,6 +32,7 @@ export default function CarCard({ car, onOpen, isFav, onToggleFav }) {
     <motion.div
       role="button"
       tabIndex={0}
+      data-testid="car-card"
       onClick={() => onOpen(car)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(car); } }}
       onMouseEnter={onEnter}

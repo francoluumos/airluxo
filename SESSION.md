@@ -8,7 +8,7 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 
 ## ▶ Pick up here — as of 2026-06-07
 
-**Immediate next:** restart → `claude --continue` → **approve the `playwright` MCP** → author the first real E2E **flow specs** (booking end-to-end, auth/login, language switch, partner setup tour) interactively, saved in `tests/` + documented in TESTING.md.
+**Immediate next:** restart → `claude --continue` → **approve the `playwright` MCP** → author the remaining E2E **flow specs** that need live selector discovery: **booking end-to-end** (date pick → reserve → details → licence), **language switch** (needs a logged-in account), **partner setup tour**. Done so far (CLI, all browsers green): `smoke`, `auth`, `marketplace` + `HomePage` page object.
 
 **State (all committed + pushed to `staging`; tip `e20877e`):**
 - **Staging/prod are intentionally password-gated** (own `middleware.js` Basic auth via `SITE_PASSWORD`; realm "AIRLUXO private preview"). A white page = just re-enter the Basic-auth password (user `airluxo`). At launch: remove `SITE_PASSWORD` from the **Production** env scope only.

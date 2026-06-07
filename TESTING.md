@@ -12,9 +12,14 @@ for the gated staging).
 - **CI:** `.github/workflows/e2e.yml` runs on every push/PR to `main`/`staging` and uploads the report artifact → the "when/what was tested" history. (Set `VITE_*` repo secrets to exercise data-dependent flows; without them the build still runs and smoke passes.)
 
 **Flows covered so far:**
-- `smoke.spec.ts` — every key route (home, partner login, admin login, docs, privacy) mounts with **no uncaught JS errors** and a non-empty `#root`. This is the guard for white-page crashes (it would have caught the `t()`-without-`useT()` regression). Plus: home renders the collection + opening a car doesn't crash the booking modal.
+- `smoke.spec.ts` — every key route (home, partner login, admin login, docs, privacy) mounts with **no uncaught JS errors** and a non-empty `#root`. Guard for white-page crashes (would have caught the `t()`-without-`useT()` regression).
+- `auth.spec.ts` — the log-in / sign-up modal opens from the account menu with Google + email options (doesn't submit → no real magic link).
+- `marketplace.spec.ts` — searching narrows the collection grid; opening a car shows its booking detail. Skips gracefully if no listings loaded (data-less CI).
+- `tests/pages/home.ts` — `HomePage` page object (reusable selectors/actions); cars are tagged `data-testid="car-card"`.
 
-**To add a flow:** drop a `tests/<flow>.spec.ts`; reuse helpers in `tests/pages/` (page objects) as they grow. Keep this list current as flows are added.
+**To add a flow:** drop a `tests/<flow>.spec.ts`; reuse/extend the page objects in `tests/pages/`. Keep this list current as flows are added.
+
+**Next flows to author** (need the Playwright MCP for live selector discovery — date pickers etc.): booking end-to-end (date pick → reserve → details → licence), language switch (needs a logged-in account where the switcher lives), partner setup-guide tour.
 
 ---
 
