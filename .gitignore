@@ -33,3 +33,4 @@ supabase/.temp/
 /blob-report/
 /playwright/.cache/
 .last-run.json
+/.playwright-mcp/
