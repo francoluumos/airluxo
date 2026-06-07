@@ -30,6 +30,8 @@ The HTML report (`playwright-report/`) is **overwritten every run** — it's the
 
 1. **Local archive** (`test-archive/`, gitignored) — `npm run test:archive` runs the suite, then copies that run's report into `test-archive/<date>__<branch>__<commit>/report/` (never overwritten) with a `summary.md`, and appends a row to `test-archive/INDEX.md` (the logbook: when · pass/fail/skip · commit). Open any past run with `npx playwright show-report test-archive/<folder>/report`. Pass args through, e.g. `npm run test:archive -- --project=chromium`.
 2. **Pre-push hook** (`.githooks/pre-push`) — on every `git push`, launches `test:archive` **in the background** (non-blocking: the push isn't held up or blocked) so the suite runs and the report opens + archives automatically after each push. Skips when `CI` is set or `SKIP_E2E_HOOK=1 git push`. Enable on a fresh clone with `git config core.hooksPath .githooks`.
+
+   **Logged-in flows on push:** `test:archive` loads `.e2e.env` (gitignored, repo root) into the environment, so the partner logged-in flows run too — locally and on every push, not just in CI. The file holds `E2E_PARTNER_EMAIL` / `E2E_PARTNER_PASSWORD` (a partner *test* account). Without it, the logged-in specs simply skip. Already-set env vars (e.g. CI secrets) take precedence over the file.
 3. **CI artifacts** (GitHub Actions) — every push/PR to `main`/`staging` uploads the report tied to its commit (14-day retention). The shareable, per-commit history.
 
 **Next flows to author:** full booking → licence → Stripe-test-card payment (needs a Stripe-connected car + test mode); customer-account logged-in flows (needs a customer session fixture — magic-link/Google, so likely a programmatic Supabase sign-in).

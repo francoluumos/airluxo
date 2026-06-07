@@ -16,6 +16,21 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, appendFileS
 import { join } from 'node:path';
 
 const ROOT = process.cwd();
+
+// Load local-only E2E secrets (.e2e.env, gitignored) so the logged-in flows run.
+// Existing env vars win (CI passes them directly); KEY=VALUE lines, # comments.
+function loadEnvFile(file) {
+  if (!existsSync(file)) return;
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    if (!line.trim() || line.trim().startsWith('#')) continue;
+    const m = line.match(/^\s*([\w.]+)\s*=\s*(.*?)\s*$/);
+    if (!m) continue;
+    const [, k, raw] = m;
+    if (!(k in process.env)) process.env[k] = raw.replace(/^["']|["']$/g, '');
+  }
+}
+loadEnvFile(join(ROOT, '.e2e.env'));
+
 const ARCHIVE_DIR = join(ROOT, 'test-archive');
 const REPORT_DIR = join(ROOT, 'playwright-report');
 const RESULTS_JSON = join(ROOT, 'test-results', 'results.json');

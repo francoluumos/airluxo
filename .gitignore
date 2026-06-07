@@ -36,3 +36,4 @@ supabase/.temp/
 /.playwright-mcp/
 /tests/.auth/
 /test-archive/
+.e2e.env
