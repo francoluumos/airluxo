@@ -1,0 +1,23 @@
+#!/bin/sh
+# AIRLUXO pre-push hook — non-blocking E2E.
+#
+# On every `git push`, launch the Playwright suite in the BACKGROUND and archive
+# + open the report when it finishes. The push is NOT held up and NOT blocked by
+# a red run (CI is the gate; this is your local "show me the report" reflex).
+#
+# Skips when:
+#   - CI is set (the GitHub Actions workflow already runs the suite), or
+#   - SKIP_E2E_HOOK=1 (use when pushing many times in a row, or from automation).
+#
+# Enable on a fresh clone with:  git config core.hooksPath .githooks
+
+[ -n "$CI" ] && exit 0
+[ -n "$SKIP_E2E_HOOK" ] && exit 0
+
+echo "▶ AIRLUXO: launching E2E suite in the background — report will open + archive when done."
+echo "  (log: /tmp/airluxo-e2e.log · skip next time with SKIP_E2E_HOOK=1 git push)"
+
+# Double-fork so the run fully detaches and survives this hook exiting.
+( npm run test:archive >/tmp/airluxo-e2e.log 2>&1 & ) &
+
+exit 0

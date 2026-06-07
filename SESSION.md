@@ -27,6 +27,11 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 
 ## Log (newest first)
 
+### 2026-06-07 (cont.) — Test run archive + auto-run-on-push
+- **Local archive:** `npm run test:archive` (`scripts/test-archive.mjs`) runs the suite, snapshots that run's HTML report into `test-archive/<date>__<branch>__<commit>/` (gitignored, never overwritten) + `summary.md`, and appends to `test-archive/INDEX.md` (logbook). Added a `json` reporter to the config for counts.
+- **Auto-on-push:** `.githooks/pre-push` (wired via `core.hooksPath`) launches `test:archive` in the **background** on every push — non-blocking, report opens + archives when done. Skips on `CI` / `SKIP_E2E_HOOK=1`.
+- Reminder: the live `playwright-report/` is always the *last* run; history = `test-archive/` (local) + CI artifacts (per-commit, shareable).
+
 ### 2026-06-07 (cont.) — E2E flows via the Playwright MCP
 - Approved + used the Playwright MCP (live browser) to map the booking + partner-login flows and author specs.
 - Added `auth`, `marketplace`, `booking` flow specs + `HomePage`/`BookingModal` page objects. `data-testid` on car-card + calendar. 50 × 5 browsers green.

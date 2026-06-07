@@ -35,3 +35,4 @@ supabase/.temp/
 .last-run.json
 /.playwright-mcp/
 /tests/.auth/
+/test-archive/

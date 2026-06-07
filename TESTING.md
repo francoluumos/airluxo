@@ -7,7 +7,7 @@ no password gate) by default; point at another env with `BASE_URL` (+ `BASIC_AUT
 for the gated staging).
 
 - **Browsers:** chromium · firefox · webkit (Desktop Safari) · mobile-chrome (Pixel 7) · mobile-safari (iPhone 14).
-- **Run:** `npm test` (all), `npm run test:chromium` (fast single-browser), `npm run test:ui` (interactive), `npm run test:report` (open last HTML report).
+- **Run:** `npm test` (all), `npm run test:chromium` (fast single-browser), `npm run test:ui` (interactive), `npm run test:report` (open last HTML report), `npm run test:archive` (run + snapshot the report into a kept folder, see below).
 - **Config:** `playwright.config.ts`. **Specs:** `tests/`. The HTML report + traces (on retry) are the record of what passed, when, on which browser.
 - **CI:** `.github/workflows/e2e.yml` runs on every push/PR to `main`/`staging` and uploads the report artifact → the "when/what was tested" history. (Set `VITE_*` repo secrets to exercise data-dependent flows; without them the build still runs and smoke passes.)
 
@@ -23,6 +23,14 @@ for the gated staging).
 - **Auth fixture:** `auth.setup.ts` logs in once as a partner and saves the session to `tests/.auth/partner.json` (gitignored); the `logged-in` project reuses it. Set `E2E_PARTNER_EMAIL` / `E2E_PARTNER_PASSWORD` (a partner test account) — locally as env vars, in CI as repo secrets. Without them the setup + logged-in specs skip; public flows still run.
 
 **To add a flow:** public → `tests/<flow>.spec.ts`; logged-in → `tests/<flow>.loggedin.spec.ts` (auto-runs the auth setup first). Reuse/extend `tests/pages/`.
+
+### Run history — three trails
+
+The HTML report (`playwright-report/`) is **overwritten every run** — it's the *last* run, not a history. History lives in three places:
+
+1. **Local archive** (`test-archive/`, gitignored) — `npm run test:archive` runs the suite, then copies that run's report into `test-archive/<date>__<branch>__<commit>/report/` (never overwritten) with a `summary.md`, and appends a row to `test-archive/INDEX.md` (the logbook: when · pass/fail/skip · commit). Open any past run with `npx playwright show-report test-archive/<folder>/report`. Pass args through, e.g. `npm run test:archive -- --project=chromium`.
+2. **Pre-push hook** (`.githooks/pre-push`) — on every `git push`, launches `test:archive` **in the background** (non-blocking: the push isn't held up or blocked) so the suite runs and the report opens + archives automatically after each push. Skips when `CI` is set or `SKIP_E2E_HOOK=1 git push`. Enable on a fresh clone with `git config core.hooksPath .githooks`.
+3. **CI artifacts** (GitHub Actions) — every push/PR to `main`/`staging` uploads the report tied to its commit (14-day retention). The shareable, per-commit history.
 
 **Next flows to author:** full booking → licence → Stripe-test-card payment (needs a Stripe-connected car + test mode); customer-account logged-in flows (needs a customer session fixture — magic-link/Google, so likely a programmatic Supabase sign-in).
 
