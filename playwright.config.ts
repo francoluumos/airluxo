@@ -7,6 +7,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:4173';
 
+// The public browser projects skip the auth setup and the logged-in specs.
+const PUBLIC_IGNORE = [/auth\.setup\.ts/, /\.loggedin\.spec\.ts/];
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
@@ -28,11 +31,23 @@ export default defineConfig({
   },
 
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
-    { name: 'mobile-safari', use: { ...devices['iPhone 14'] } },
+    // Auth fixture: logs in once and saves the session for logged-in specs.
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+
+    // Public flows across all browsers (skip the auth setup + logged-in specs).
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: PUBLIC_IGNORE },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: PUBLIC_IGNORE },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: PUBLIC_IGNORE },
+    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] }, testIgnore: PUBLIC_IGNORE },
+    { name: 'mobile-safari', use: { ...devices['iPhone 14'] }, testIgnore: PUBLIC_IGNORE },
+
+    // Logged-in flows (*.loggedin.spec.ts) reuse the saved partner session.
+    {
+      name: 'logged-in',
+      testMatch: /\.loggedin\.spec\.ts/,
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'], storageState: 'tests/.auth/partner.json' },
+    },
   ],
 
   // Build once + serve the production bundle locally. Reused if already running.

@@ -8,7 +8,7 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 
 ## ▶ Pick up here — as of 2026-06-07
 
-**Immediate next:** author the remaining E2E flows — **language switch** (needs a logged-in account where the switcher lives → build an auth fixture) and **partner setup tour**. Playwright MCP is approved + live (use `browser_navigate`/`browser_snapshot` against `npm run preview` on :4173 to discover selectors). Flows done + green (50 tests × 5 browsers): `smoke`, `auth`, `marketplace`, `booking` (open car → pick dates → reserve → details step) with `HomePage` + `BookingModal` page objects.
+**Immediate next:** more E2E flows — full booking → licence → **Stripe test payment** (needs a Stripe-connected car + test mode), and **customer-account** logged-in flows (needs a customer session fixture — magic-link/Google, so a programmatic Supabase sign-in). Playwright MCP is live (drive `browser_navigate`/`browser_snapshot` against `npm run preview` :4173). Done + green: `smoke`, `auth`, `marketplace`, `booking` (public, 5 browsers) + `partner.loggedin` (language switch + tour replay) via an **auth fixture** (`auth.setup.ts` → `tests/.auth/partner.json`, creds `E2E_PARTNER_EMAIL/PASSWORD`). 53 with creds / 50 + 3 skipped without.
 
 **State (all committed + pushed to `staging`; tip `e20877e`):**
 - **Staging/prod are intentionally password-gated** (own `middleware.js` Basic auth via `SITE_PASSWORD`; realm "AIRLUXO private preview"). A white page = just re-enter the Basic-auth password (user `airluxo`). At launch: remove `SITE_PASSWORD` from the **Production** env scope only.
@@ -28,8 +28,9 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 ## Log (newest first)
 
 ### 2026-06-07 (cont.) — E2E flows via the Playwright MCP
-- Approved + used the Playwright MCP (live browser) to map the booking flow and author specs.
-- Added `auth`, `marketplace`, `booking` flow specs + `HomePage`/`BookingModal` page objects. `data-testid` on car-card + calendar. **50 tests × 5 browsers green.**
+- Approved + used the Playwright MCP (live browser) to map the booking + partner-login flows and author specs.
+- Added `auth`, `marketplace`, `booking` flow specs + `HomePage`/`BookingModal` page objects. `data-testid` on car-card + calendar. 50 × 5 browsers green.
+- **Auth fixture** (`auth.setup.ts` partner UI login → storageState) + `partner.loggedin.spec.ts` (language switch + tour replay). `setup` + `logged-in` projects in the config; CI secrets `E2E_PARTNER_*`. Verified with creds (all pass) and without (public pass, logged-in skip).
 
 ### 2026-06-07 — Playwright suite + white-page fix + i18n Phase 2
 - **Fixed white-page crash** (`Footer` used `t()` without `useT()` → ReferenceError, blanked the app; build can't catch runtime errors). Found via headless console capture. `377ad9f`.

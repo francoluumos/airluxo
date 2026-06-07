@@ -27,6 +27,10 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
+          # Optional: a partner test account → unlocks the logged-in flows. Without
+          # them the auth setup + logged-in specs skip.
+          E2E_PARTNER_EMAIL: ${{ secrets.E2E_PARTNER_EMAIL }}
+          E2E_PARTNER_PASSWORD: ${{ secrets.E2E_PARTNER_PASSWORD }}
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:

@@ -18,9 +18,13 @@ for the gated staging).
 - `booking.spec.ts` — open a car → pick a date range in the calendar → Reserve enables → reach the details step (Email/Phone/Continue). Stops before licence/payment + before submitting (no DB write).
 - `tests/pages/` — `HomePage` + `BookingModal` page objects. Stable hooks: `data-testid="car-card"`, `data-testid="calendar"`.
 
-**To add a flow:** drop a `tests/<flow>.spec.ts`; reuse/extend the page objects in `tests/pages/`. Keep this list current as flows are added.
+**Logged-in flows** (`*.loggedin.spec.ts`, run under the `logged-in` project):
+- `partner.loggedin.spec.ts` — partner **language switch** updates the locale; **setup guide replay** from Settings opens the tour.
+- **Auth fixture:** `auth.setup.ts` logs in once as a partner and saves the session to `tests/.auth/partner.json` (gitignored); the `logged-in` project reuses it. Set `E2E_PARTNER_EMAIL` / `E2E_PARTNER_PASSWORD` (a partner test account) — locally as env vars, in CI as repo secrets. Without them the setup + logged-in specs skip; public flows still run.
 
-**Next flows to author:** language switch (needs a logged-in account where the switcher lives), partner setup-guide tour, full booking → licence → Stripe-test-card payment (needs a Stripe-connected car + test mode).
+**To add a flow:** public → `tests/<flow>.spec.ts`; logged-in → `tests/<flow>.loggedin.spec.ts` (auto-runs the auth setup first). Reuse/extend `tests/pages/`.
+
+**Next flows to author:** full booking → licence → Stripe-test-card payment (needs a Stripe-connected car + test mode); customer-account logged-in flows (needs a customer session fixture — magic-link/Google, so likely a programmatic Supabase sign-in).
 
 ---
 
