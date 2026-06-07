@@ -6,6 +6,9 @@ export class HomePage {
 
   async goto() {
     await this.page.goto('/');
+    // Clear the cookie banner so it can't intercept clicks during a flow.
+    const accept = this.page.getByRole('button', { name: 'Accept all' });
+    if (await accept.isVisible().catch(() => false)) await accept.click();
   }
 
   cards() {

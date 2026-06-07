@@ -15,11 +15,12 @@ for the gated staging).
 - `smoke.spec.ts` — every key route (home, partner login, admin login, docs, privacy) mounts with **no uncaught JS errors** and a non-empty `#root`. Guard for white-page crashes (would have caught the `t()`-without-`useT()` regression).
 - `auth.spec.ts` — the log-in / sign-up modal opens from the account menu with Google + email options (doesn't submit → no real magic link).
 - `marketplace.spec.ts` — searching narrows the collection grid; opening a car shows its booking detail. Skips gracefully if no listings loaded (data-less CI).
-- `tests/pages/home.ts` — `HomePage` page object (reusable selectors/actions); cars are tagged `data-testid="car-card"`.
+- `booking.spec.ts` — open a car → pick a date range in the calendar → Reserve enables → reach the details step (Email/Phone/Continue). Stops before licence/payment + before submitting (no DB write).
+- `tests/pages/` — `HomePage` + `BookingModal` page objects. Stable hooks: `data-testid="car-card"`, `data-testid="calendar"`.
 
 **To add a flow:** drop a `tests/<flow>.spec.ts`; reuse/extend the page objects in `tests/pages/`. Keep this list current as flows are added.
 
-**Next flows to author** (need the Playwright MCP for live selector discovery — date pickers etc.): booking end-to-end (date pick → reserve → details → licence), language switch (needs a logged-in account where the switcher lives), partner setup-guide tour.
+**Next flows to author:** language switch (needs a logged-in account where the switcher lives), partner setup-guide tour, full booking → licence → Stripe-test-card payment (needs a Stripe-connected car + test mode).
 
 ---
 

@@ -888,7 +888,7 @@ function DatePicker({ busy, mode, pickup, ret, onPick, onClose }) {
   const monthName = monthStart.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
   return (
-    <div className="mt-2 rounded-xl border border-mist bg-cloud p-3">
+    <div data-testid="calendar" className="mt-2 rounded-xl border border-mist bg-cloud p-3">
       <div className="flex items-center justify-between">
         <button type="button" onClick={() => setCursor((c) => (c.m === 0 ? { y: c.y - 1, m: 11 } : { y: c.y, m: c.m - 1 }))} className="ring-lux grid h-7 w-7 place-items-center rounded-full border border-mist text-ink"><Icon.Arrow width={13} height={13} className="rotate-180" /></button>
         <span className="text-sm font-semibold">{monthName}</span>

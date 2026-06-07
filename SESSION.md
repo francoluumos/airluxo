@@ -8,7 +8,7 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 
 ## ▶ Pick up here — as of 2026-06-07
 
-**Immediate next:** restart → `claude --continue` → **approve the `playwright` MCP** → author the remaining E2E **flow specs** that need live selector discovery: **booking end-to-end** (date pick → reserve → details → licence), **language switch** (needs a logged-in account), **partner setup tour**. Done so far (CLI, all browsers green): `smoke`, `auth`, `marketplace` + `HomePage` page object.
+**Immediate next:** author the remaining E2E flows — **language switch** (needs a logged-in account where the switcher lives → build an auth fixture) and **partner setup tour**. Playwright MCP is approved + live (use `browser_navigate`/`browser_snapshot` against `npm run preview` on :4173 to discover selectors). Flows done + green (50 tests × 5 browsers): `smoke`, `auth`, `marketplace`, `booking` (open car → pick dates → reserve → details step) with `HomePage` + `BookingModal` page objects.
 
 **State (all committed + pushed to `staging`; tip `e20877e`):**
 - **Staging/prod are intentionally password-gated** (own `middleware.js` Basic auth via `SITE_PASSWORD`; realm "AIRLUXO private preview"). A white page = just re-enter the Basic-auth password (user `airluxo`). At launch: remove `SITE_PASSWORD` from the **Production** env scope only.
@@ -26,6 +26,10 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 ---
 
 ## Log (newest first)
+
+### 2026-06-07 (cont.) — E2E flows via the Playwright MCP
+- Approved + used the Playwright MCP (live browser) to map the booking flow and author specs.
+- Added `auth`, `marketplace`, `booking` flow specs + `HomePage`/`BookingModal` page objects. `data-testid` on car-card + calendar. **50 tests × 5 browsers green.**
 
 ### 2026-06-07 — Playwright suite + white-page fix + i18n Phase 2
 - **Fixed white-page crash** (`Footer` used `t()` without `useT()` → ReferenceError, blanked the app; build can't catch runtime errors). Found via headless console capture. `377ad9f`.
