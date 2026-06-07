@@ -1,4 +1,24 @@
-# Testing checklist
+# Testing
+
+## Automated end-to-end tests (Playwright) — added 7 Jun 2026
+
+Multi-browser E2E suite. Runs against a local production preview (`vite preview`,
+no password gate) by default; point at another env with `BASE_URL` (+ `BASIC_AUTH=user:pass`
+for the gated staging).
+
+- **Browsers:** chromium · firefox · webkit (Desktop Safari) · mobile-chrome (Pixel 7) · mobile-safari (iPhone 14).
+- **Run:** `npm test` (all), `npm run test:chromium` (fast single-browser), `npm run test:ui` (interactive), `npm run test:report` (open last HTML report).
+- **Config:** `playwright.config.ts`. **Specs:** `tests/`. The HTML report + traces (on retry) are the record of what passed, when, on which browser.
+- **CI:** `.github/workflows/e2e.yml` runs on every push/PR to `main`/`staging` and uploads the report artifact → the "when/what was tested" history. (Set `VITE_*` repo secrets to exercise data-dependent flows; without them the build still runs and smoke passes.)
+
+**Flows covered so far:**
+- `smoke.spec.ts` — every key route (home, partner login, admin login, docs, privacy) mounts with **no uncaught JS errors** and a non-empty `#root`. This is the guard for white-page crashes (it would have caught the `t()`-without-`useT()` regression). Plus: home renders the collection + opening a car doesn't crash the booking modal.
+
+**To add a flow:** drop a `tests/<flow>.spec.ts`; reuse helpers in `tests/pages/` (page objects) as they grow. Keep this list current as flows are added.
+
+---
+
+## Manual testing checklist
 
 Everything built this session, to test in one pass. **Test on `https://staging.airluxo.ch`** (shared Supabase backend — use throwaway emails). After you've run through it, I can verify the DB side via MCP (rows created, links, amounts).
 

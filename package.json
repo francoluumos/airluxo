@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "playwright test",
+    "test:chromium": "playwright test --project=chromium",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report"
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
@@ -22,6 +26,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/vite": "^4.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "tailwindcss": "^4.0.0",
