@@ -26,7 +26,14 @@ const NAV = [
   { key: 'translations', label: 'Translations' },
   { key: 'overview', label: 'Overview' },
   { key: 'docs', label: 'Docs' },
+  { key: 'developer', label: 'Developer' },
 ];
+
+// Local Playwright HTML report server (started by `npm run test:report` or
+// automatically after a push via the pre-push hook). Override at build time
+// with VITE_PLAYWRIGHT_REPORT_URL if you host the report somewhere reachable.
+const REPORT_URL = import.meta.env.VITE_PLAYWRIGHT_REPORT_URL || 'http://localhost:9323';
+const CI_RUNS_URL = 'https://github.com/francoluumos/airluxo/actions/workflows/e2e.yml';
 
 export default function FounderApp() {
   const { loading, session, isAdmin } = useAuth();
@@ -147,8 +154,51 @@ function FounderShell() {
           : section === 'marketing' ? <Marketing />
           : section === 'translations' ? <Translations />
           : section === 'docs' ? <DocsHub />
+          : section === 'developer' ? <Developer />
           : <SectionPlaceholder label={NAV.find((n) => n.key === section)?.label} />}
       </main>
+    </div>
+  );
+}
+
+// Developer tools (founder-only). First section: the Playwright E2E report.
+function Developer() {
+  const [copied, setCopied] = useState(false);
+  const copyCmd = async () => {
+    try { await navigator.clipboard.writeText('npm run test:report'); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* ignore */ }
+  };
+  return (
+    <div className="max-w-3xl">
+      <h1 className="font-display text-2xl">Developer</h1>
+      <p className="mt-1 text-sm text-stone">Internal tooling. Not shown to partners or customers.</p>
+
+      <div className="mt-7 rounded-[var(--radius-card)] border border-mist bg-cloud p-6">
+        <div className="flex items-center gap-2">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-paper text-ink"><Icon.Check width={18} height={18} /></span>
+          <div>
+            <h2 className="font-display text-lg leading-none">Testing — Playwright</h2>
+            <p className="mt-1 text-xs text-stone">The end-to-end suite (smoke · auth · marketplace · booking · partner) across 5 browsers.</p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <a href={REPORT_URL} target="_blank" rel="noreferrer" className="ring-lux inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void">
+            Open latest report <Icon.ArrowUpRight width={15} height={15} />
+          </a>
+          <a href={CI_RUNS_URL} target="_blank" rel="noreferrer" className="ring-lux inline-flex items-center gap-2 rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink">
+            CI test runs <Icon.ArrowUpRight width={14} height={14} />
+          </a>
+        </div>
+
+        <div className="mt-5 rounded-xl border border-mist bg-paper p-3.5 text-xs leading-relaxed text-stone">
+          <p><span className="font-semibold text-ink">Open latest report</span> opens the local report server (<code className="rounded bg-mist/60 px-1 py-0.5">{REPORT_URL}</code>). It's served automatically after each <code className="rounded bg-mist/60 px-1 py-0.5">git push</code>, or start it yourself:</p>
+          <div className="mt-2 flex items-center gap-2">
+            <code className="rounded-lg border border-mist bg-cloud px-2.5 py-1.5 text-ink">npm run test:report</code>
+            <button onClick={copyCmd} className="ring-lux rounded-full border border-mist px-3 py-1 text-[0.7rem] font-semibold text-stone transition-colors hover:border-ink hover:text-ink">{copied ? 'Copied ✓' : 'Copy'}</button>
+          </div>
+          <p className="mt-2"><span className="font-semibold text-ink">CI test runs</span> opens GitHub Actions, where every push/PR uploads its report (downloadable, 14-day history) — reachable from anywhere.</p>
+        </div>
+      </div>
     </div>
   );
 }
