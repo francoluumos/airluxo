@@ -116,3 +116,99 @@ Add the record at Hostpoint; Vercel then verifies and issues the TLS cert automa
    plus apex records).
 7. (Optional) Add the pre-push hook + `core.hooksPath`, and the e2e GitHub Action.
 8. **Launch:** remove `SITE_PASSWORD` from the Production scope only.
+
+---
+
+# Working system — docs, changelog & SESSION.md
+
+This is the preferred operating model: **knowledge lives in the repo, not in chat
+history.** Every concern gets a small Markdown file; the agent reads them at the
+start of a session and updates them as part of the work. Replicate this on a new
+project — it's the system to carry forward.
+
+## 1. Per-domain Markdown docs (repo root)
+
+One file per concern, kept short and current. The agent reads the relevant one before
+working in that area and updates it when the area changes. AIRLUXO's set (adapt names to
+the project):
+
+| File | What it holds |
+| --- | --- |
+| `PRODUCT.md` | What the product is, who it's for, the core model. |
+| `DESIGN.md`  | Visual system: tokens, type, spacing, components, brand rules. |
+| `BACKLOG.md` | The full roadmap / open threads (the "everything we might do" list). |
+| `SESSION.md` | Handoff log — where we are, what's next (see §3). |
+| `RELEASE.md` | Branch→env table + the promote-to-prod flow (`scripts/promote.sh`). |
+| `DEPLOY.md`  | This file — infra, gating, DNS, git conventions. |
+| `TESTING.md` | Test suite, how to run it, the run-history trails. |
+| domain files | One each for real subsystems: `EMAIL.md`, `AUTH.md`, `PROMO.md`, `OPERATIONS.md`, `MARKETING.md`, `INSURANCE.md`, `CANCELLATION_POLICY.md`, … |
+
+Rules: keep each file tight (most are < 130 lines); convert relative dates to absolute;
+when code and a doc disagree, fix the doc in the same change. New non-obvious subsystem →
+new `<NAME>.md`, don't bloat an existing one.
+
+## 2. Changelog = data, rendered in-app
+
+The changelog is **not** a `CHANGELOG.md` — it's structured data the app renders, so it's
+visible to the actual audience (here: partners), and **updated with every shipped change**:
+
+- Source of truth: `src/lib/docs.js` (a `changelog` array of releases — version/date +
+  bullet list, plus the guide content).
+- Rendered by the in-app **Docs hub** (`src/components/Docs.jsx`, reached at `/?docs`,
+  with a "Changelog" section), and linked from the dashboard's "Guide & changelog" card.
+- Convention (stated at the top of `docs.js`): *keep the changelog updated with every
+  change.* Shipping a user-visible change = add a changelog entry in the same commit.
+
+For a new project: keep a changelog as data next to the code and surface it in-app, rather
+than a loose Markdown file no user ever sees. (A plain `CHANGELOG.md` is a fine fallback if
+there's no in-app docs surface yet.)
+
+## 3. SESSION.md — the handoff ritual
+
+The single "where were we / what's next" pointer. **Read it first every session; conclude
+every session by updating it.** Structure:
+
+```markdown
+# SESSION — handoff log
+
+Read this first on a new start; update it at the end of every session.
+This is the "where were we / what's next" pointer — see BACKLOG.md for the full
+roadmap and TESTING.md for the test suite.
+
+## ▶ Pick up here — as of <absolute date>
+**Immediate next:** <the one or two things to do next>.
+**State (all committed + pushed to `staging`; tip `<sha>`):** <bullet list of what's live>
+**Open threads (pick any):** <short list, or pointer to BACKLOG.md>
+
+## Log (newest first)
+### <date> — <headline>
+- <what changed, with commit refs>
+```
+
+Conventions: newest entry on top; the `▶ Pick up here` block always reflects the *current*
+tip; reference commit SHAs so the log ties to git history; keep entries to what a future
+reader needs, not a transcript.
+
+## 4. Git + release flow (recap)
+
+- Work on `staging`; commit small and focused; promote to `main` via `scripts/promote.sh`
+  (fast-forwards `main` from `staging` — so prod never gets anything not first on staging).
+- Pre-push hook runs the test suite in the background + archives the report (see `TESTING.md`).
+
+## 5. (Claude Code) persistent memory
+
+Beyond the repo docs, durable cross-session facts live in Claude Code's file memory
+(`~/.claude/projects/<project>/memory/` + a `MEMORY.md` index) — things not derivable from
+the code: env quirks, the SSO-vs-Basic-auth gotcha, the project ref, etc. Repo docs are for
+anyone; memory is the agent's private notebook. Don't duplicate the repo in memory.
+
+## Bootstrap a new project with this system (initial instructions)
+
+1. Create `PRODUCT.md`, `DESIGN.md`, `BACKLOG.md`, `SESSION.md`, `RELEASE.md`, `DEPLOY.md`,
+   `TESTING.md` at the repo root (stub them; fill as you go).
+2. Add a changelog as data + an in-app docs/changelog surface (or a `CHANGELOG.md` stub).
+3. Seed `SESSION.md` with a `▶ Pick up here` block and an empty `Log`.
+4. Tell the agent, as standing instructions: *"Read SESSION.md first. Keep the per-domain
+   `.md` docs and the in-app changelog current as you work. Conclude every session by
+   updating SESSION.md (newest entry on top, refresh ▶ Pick up here). Work on `staging`,
+   promote to `main`."*

@@ -6,9 +6,14 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 
 ---
 
-## ▶ Pick up here — as of 2026-06-07
+## ▶ Pick up here — as of 2026-06-10
 
-**Immediate next:** more E2E flows — full booking → licence → **Stripe test payment** (needs a Stripe-connected car + test mode), and **customer-account** logged-in flows (needs a customer session fixture — magic-link/Google, so a programmatic Supabase sign-in). Playwright MCP is live (drive `browser_navigate`/`browser_snapshot` against `npm run preview` :4173). Done + green: `smoke`, `auth`, `marketplace`, `booking` (public, 5 browsers) + `partner.loggedin` (language switch + tour replay) via an **auth fixture** (`auth.setup.ts` → `tests/.auth/partner.json`, creds `E2E_PARTNER_EMAIL/PASSWORD`). 53 with creds / 50 + 3 skipped without.
+**Immediate next (pick any):**
+1. **Human-review the AI DE/FR/IT** for the partner dashboard in Founder → Translations (1356 rows, `auto=true` = machine, pending review). Tighten any awkward ones (e.g. some `partner.addcar.*` deposit phrasings).
+2. **i18n data layer:** plan tier names/taglines/features (`lib/plans.js`) and per-locale car descriptions are still English — these are *data*, not JSX, so they were deliberately left for a data-translation pass.
+3. Earlier open threads: full booking → licence → **Stripe test payment** E2E; **customer-account** logged-in flows (needs a programmatic Supabase customer session fixture); activate marketing sends (Vault key).
+
+**Partner dashboard is now fully translatable + DE/FR/IT-filled** (see the 2026-06-10 log entry). Test suite: public flows (5 browsers) + `partner.loggedin` (language switch · **German body render** · tour replay) via the auth fixture. Run with creds (`set -a; . ./.e2e.env; set +a; npx playwright test`) → all green.
 
 **State (all committed + pushed to `staging`; tip `e20877e`):**
 - **Staging/prod are intentionally password-gated** (own `middleware.js` Basic auth via `SITE_PASSWORD`; realm "AIRLUXO private preview"). A white page = just re-enter the Basic-auth password (user `airluxo`). At launch: remove `SITE_PASSWORD` from the **Production** env scope only.
@@ -26,6 +31,14 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 ---
 
 ## Log (newest first)
+
+### 2026-06-10 — Partner dashboard fully translatable (DE/FR/IT) + Developer menu + DEPLOY.md
+- **i18n extraction complete:** all partner-dashboard surfaces now route through `t()` — 9 tabs (Overview, Settings, Bookings, Calendar, Earnings, Plans, Location, My fleet + Add/Edit-car) + sidebar/header chrome + setup tour (`Tour.jsx` + `PARTNER_TOUR`) + partner login (`PartnerLogin.jsx`). ~452 new `partner.*` keys in `src/locales/en.js`. Dates/months/weekdays localised via `Intl` (de-CH/fr-CH/it-CH); statuses/payment via a `statusLabel(t, …)` helper (stored values stay English). Committed per-section.
+- **DE/FR/IT AI-filled:** `scripts/i18n-fill.mjs` (signs in as admin, calls the `translate` edge function, upserts to `public.translations`, `auto=true` → pending review). 452 × 3 = 1356 rows saved. Domain terms verified (Selbstbehalt/franchise/franchigia, Kaution/Caution, Provision/Commissione). Refine any in Founder → Translations.
+- **Proven:** `partner.loggedin.spec.ts` now asserts the dashboard flips to German on switch (Active listings → Aktive Inserate). Logged-in suite 4/4 green (with creds).
+- **Developer menu** added to the admin/founder dashboard — first card opens the latest Playwright report (local server + CI-runs link).
+- **DEPLOY.md** written: Vercel + Hostpoint + git/gating runbook **and** the working-system section (per-domain docs, changelog-as-data, SESSION.md ritual, bootstrap instructions for new projects).
+- Note: the machine had a transient disk/IO stall mid-session (git/node timeouts); cleared a stale `.git/index.lock`. All work committed + pushed to `staging`.
 
 ### 2026-06-07 (cont.) — Test run archive + auto-run-on-push
 - **Local archive:** `npm run test:archive` (`scripts/test-archive.mjs`) runs the suite, snapshots that run's HTML report into `test-archive/<date>__<branch>__<commit>/` (gitignored, never overwritten) + `summary.md`, and appends to `test-archive/INDEX.md` (logbook). Added a `json` reporter to the config for counts.
