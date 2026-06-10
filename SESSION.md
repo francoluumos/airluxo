@@ -9,24 +9,16 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 ## ▶ Pick up here — as of 2026-06-10
 
 **Immediate next (pick any):**
-1. **Human-review the AI DE/FR/IT** for the partner dashboard in Founder → Translations (1356 rows, `auto=true` = machine, pending review). Tighten any awkward ones (e.g. some `partner.addcar.*` deposit phrasings).
+1. **Human-review the AI DE/FR/IT** in Founder → Translations — all three locales are 100% (536/536) but every row is `auto=true` (machine, unreviewed). Tighten any awkward ones (esp. some `partner.addcar.*` deposit phrasings); saving marks a row reviewed. Then optionally **promote `staging → main`** (`./scripts/promote.sh`).
 2. **i18n data layer:** plan tier names/taglines/features (`lib/plans.js`) and per-locale car descriptions are still English — these are *data*, not JSX, so they were deliberately left for a data-translation pass.
 3. Earlier open threads: full booking → licence → **Stripe test payment** E2E; **customer-account** logged-in flows (needs a programmatic Supabase customer session fixture); activate marketing sends (Vault key).
 
-**Partner dashboard is now fully translatable + DE/FR/IT-filled** (see the 2026-06-10 log entry). Test suite: public flows (5 browsers) + `partner.loggedin` (language switch · **German body render** · tour replay) via the auth fixture. Run with creds (`set -a; . ./.e2e.env; set +a; npx playwright test`) → all green.
-
-**State (all committed + pushed to `staging`; tip `e20877e`):**
-- **Staging/prod are intentionally password-gated** (own `middleware.js` Basic auth via `SITE_PASSWORD`; realm "AIRLUXO private preview"). A white page = just re-enter the Basic-auth password (user `airluxo`). At launch: remove `SITE_PASSWORD` from the **Production** env scope only.
-- **i18n Phase 1+2 live:** EN source in `src/locales/en.js`; DE/FR/IT in Supabase, AI-filled from Founder → **Translations**. Customer journey + chrome (nav, hero/search, booking flow, auth modal, footer) are translatable. Provider `src/lib/i18n.jsx`, `useT()`.
-- **Playwright E2E suite live:** 5 browsers incl. mobile-chrome/safari; `smoke.spec.ts` guards white-page crashes; CI in `.github/workflows/e2e.yml`. `npm test`. 30/30 green.
-- **Marketing email flows built** (birthday/post-trip/win-back/wishlist/new-models/abandoned) — **inactive until** the service-role key is stored in Vault as `sb_service_role_key` (see EMAIL.md).
-- Partner **setup-guide tour**, founder dashboard (pipeline/partners/customers/marketing/translations), branded email shell + guest invoice — all live.
-
-**Open threads (pick any):**
-1. **E2E flow specs** (needs the Playwright MCP) — the planned next step.
-2. **i18n remainder:** footer link columns, partner-pitch body, `DatePopover`/`PlaceSearch` sub-components, licence capture, `data.js` content (STEPS/categories), per-locale car descriptions (Phase 4), locale-aware emails. Then AI-fill DE/FR/IT.
-3. **Activate marketing sends** (Vault key) + verify a live flow.
-4. **Screenshot UI bugs** (empty box on account tabs; add-car form clipping) — awaiting your confirmation they still repro.
+**State (all committed + pushed to `staging`; tip `7a72c71`). Not yet promoted to `main`/prod.**
+- **Staging/prod password-gated** (own `middleware.js` Basic auth via `SITE_PASSWORD`; user `airluxo`). White page on a custom domain = just re-enter it. Launch = remove `SITE_PASSWORD` from the **Production** scope only. (Full deploy/gating + working-system runbook now in **DEPLOY.md**.)
+- **i18n: customer journey + the ENTIRE partner dashboard are translatable.** EN source in `src/locales/en.js` (536 keys); DE/FR/IT in Supabase `public.translations` — **all three now 536/536 (100%)**, all `auto=true` (machine, **pending human review** in Founder → Translations). Provider `src/lib/i18n.jsx`, `useT()`. Dates via `Intl` (de-CH/fr-CH/it-CH); statuses via `statusLabel(t,…)`.
+- **Bulk AI-fill** in Founder → Translations now batches (20 + retry, saves per chunk) — the old "non-2xx" on large fills is fixed. Script alternative: `node scripts/i18n-fill.mjs --gaps` (signs in as admin via `.e2e.env`).
+- **Playwright E2E:** public flows (5 browsers) + `partner.loggedin` (language switch · **German body render** · tour replay) via the auth fixture. Run with creds: `set -a; . ./.e2e.env; set +a; npx playwright test` → all green. Pre-push hook auto-runs + archives (see TESTING.md).
+- **Developer menu** in the admin dashboard (opens latest Playwright report). Marketing flows built but **inactive** until the Vault `sb_service_role_key` is set (EMAIL.md). Founder dashboard (pipeline/partners/customers/marketing/translations) + branded emails live.
 
 ---
 
@@ -38,6 +30,9 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 - **Proven:** `partner.loggedin.spec.ts` now asserts the dashboard flips to German on switch (Active listings → Aktive Inserate). Logged-in suite 4/4 green (with creds).
 - **Developer menu** added to the admin/founder dashboard — first card opens the latest Playwright report (local server + CI-runs link).
 - **DEPLOY.md** written: Vercel + Hostpoint + git/gating runbook **and** the working-system section (per-domain docs, changelog-as-data, SESSION.md ritual, bootstrap instructions for new projects).
+- **DE/FR/IT to 100% (536/536 each):** filled the remaining pre-existing customer-key gaps (French was 464/536) via `scripts/i18n-fill.mjs --gaps`. **Fixed** the founder "AI-fill N missing/stale" button (was 502/422 on big batches): now chunks 20 + retry, saving per chunk, resumable. `scripts/i18n-fill.mjs` gained `--gaps` + paginated DB read.
+- **OPERATIONS.md #6** — customer prepaid credit balance (e.g. CHF 2000 → 2200 store credit); reuses `loyalty_ledger` + the authoritative checkout credit path; gating work is VAT/voucher accounting.
+- Tips this session: `48aa04e` (fleet) → `374b7b1` (tour/login) → `b82a836` (DEPLOY) → `074c650` (AI-fill + DE test) → `dd2bc15` (docs) → `7a72c71` (batch fix + gaps + OPERATIONS #6). A transient disk-IO stall mid-session (git/node timeouts) was cleared; nothing lost.
 - Note: the machine had a transient disk/IO stall mid-session (git/node timeouts); cleared a stale `.git/index.lock`. All work committed + pushed to `staging`.
 
 ### 2026-06-07 (cont.) — Test run archive + auto-run-on-push
