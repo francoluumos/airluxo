@@ -55,6 +55,16 @@ Tag loosely: 💎 high impact · ⚠️ watch-outs · 🧭 regulatory/strategic 
 - **⚠️ Watch-outs:** hospitality is **more regulated + operationally heavier** than car rental (cleaning, check-in / keys, damage, local lodging tax / Kurtaxe, cancellation policies, stay liability + insurance); curation is everything for a "top 5%" promise (hand-pick, no self-serve); recruit via **property managers directly** (don't scrape Airbnb / breach ToS); two-sided cold-start on the new supply.
 - **How to start:** hand-curate a shortlist of marquee properties in **St. Moritz / Gstaad / Verbier / Zermatt / Geneva–Zürich**, pilot **one PMS integration** (or manual onboarding for the first few), and sell a single **"car + chalet" bundle** to validate demand before building the full stays marketplace.
 
+## 6. Customer credit balance — prepaid credit packages 💎⚠️🧭
+**Idea:** Let customers **buy store-credit packages at a bonus** — e.g. pay **CHF 2000 → get CHF 2200** of AIRLUXO credit (a 10% bonus), spendable on future bookings. Sold as a membership/prepay perk, not a coupon.
+
+**Feedback — strong LTV + working-capital play that largely reuses the loyalty rails; the watch-outs are accounting/legal, not technical.**
+- **Why it's attractive:** **upfront cash** (interest-free working capital), **locks in future demand** and switching cost, lifts **retention + LTV**, and nudges larger basket sizes. The bonus is a margin-funded incentive that fits the brand framed as **credit / membership value** (on-brand vs loud discounts).
+- **Product shape (reuses what exists):** the **`loyalty_ledger`** is already an append-only ledger (balance = sum of deltas) — a purchased package is just a **Stripe payment → ledger credit** (the paid amount **+** the bonus as one or two `reason='credit_purchase'` entries). Redeem authoritatively in **`stripe-create-payment`** (the same place member-credit/points are clamped), **AIRLUXO-funded, never reducing the partner payout**. Surface a **balance + "Buy credit"** in the Membership/Account tab; reuse the points-redemption UI/credit line at checkout.
+- **⚠️ Accounting / legal (the real work):** prepaid credit is a **liability (deferred revenue)** until spent — book it as such; **Swiss VAT timing on vouchers** (single- vs multi-purpose voucher rules decide *when* VAT is due) needs the accountant/Treuhänder; set an **expiry policy** within consumer-law limits and a **refund policy**; decide **non-transferable + account-bound**.
+- **⚠️ Margin & abuse:** the bonus is a genuine cost — model **breakeven** (it's a volume discount AIRLUXO funds) and ensure credit **can't stack** with points/tier comps/promos beyond margin; **cap package sizes** + lean on licence-KYC for AML/fraud on large prepaid balances.
+- **How to start:** define a few package tiers (e.g. **500→550, 1000→1100, 2000→2200**) in a `loyalty.js`-style SSOT; Stripe Checkout to buy → webhook credits the `loyalty_ledger`; show balance + redeem via the existing authoritative member-credit path. Confirm the VAT/voucher treatment with the accountant **before** launch.
+
 ---
 
 ## Cross-cutting enablers
@@ -62,5 +72,6 @@ Tag loosely: 💎 high impact · ⚠️ watch-outs · 🧭 regulatory/strategic 
 - **Deposit / pre-auth hold in the booking flow** — extend the existing Stripe authorize→capture to place + release a separate hold; product work → candidate for BACKLOG.
 - **New add-on fields + partner compliance/KYC** — driver add-on (#1) and protection add-on (#2) reuse the add-on pattern; both need partner attestations (licensing, insurance certificates) collected at onboarding.
 - **Channel inventory sync** — an availability/rates feed for OTAs (#3) can build on the existing availability API + per-partner webhooks; channel commission must be baked into on-channel rates. → candidate for BACKLOG if we pursue distribution.
+- **Prepaid credit balance** (#6) — reuses the `loyalty_ledger` + the authoritative checkout credit path; the gating work is VAT/voucher accounting, not code. → candidate for BACKLOG.
 
-_Last updated: 2026-06-03._
+_Last updated: 2026-06-10._

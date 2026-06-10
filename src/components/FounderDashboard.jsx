@@ -1136,10 +1136,29 @@ function Translations() {
   async function fillPending() {
     if (!pending.length) return;
     setBusy('bulk'); setErr('');
+    // Translate in small chunks with retry — one big request makes the Gemini
+    // call time out / return non-JSON (the edge fn then 502/422s). Each chunk is
+    // saved as it succeeds, so progress persists and re-clicking resumes the rest.
+    const BATCH = 20;
+    const retry = async (items, tries = 3) => {
+      let last;
+      for (let a = 1; a <= tries; a++) {
+        try { return await aiTranslate(locale, items); }
+        catch (e) { last = e; await new Promise((r) => setTimeout(r, 1200 * a)); }
+      }
+      throw last;
+    };
     try {
-      const map = await aiTranslate(locale, pending.map((k) => ({ key: k, text: en[k] })));
-      await saveTranslationsBatch(locale, map);
+      let failed = 0;
+      for (let i = 0; i < pending.length; i += BATCH) {
+        const slice = pending.slice(i, i + BATCH);
+        let map;
+        try { map = await retry(slice.map((k) => ({ key: k, text: en[k] }))); }
+        catch { failed += slice.length; continue; }
+        if (Object.keys(map).length) await saveTranslationsBatch(locale, map);
+      }
       load(locale);
+      if (failed) setErr(`${failed} couldn’t be translated this pass — click AI-fill again to retry them.`);
     } catch (e) { setErr(e.message); } finally { setBusy(''); }
   }
 

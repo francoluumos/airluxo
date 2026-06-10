@@ -41,8 +41,7 @@ const ADMIN_PASSWORD = e2e.E2E_PARTNER_PASSWORD;
 const djb2 = (s) => { let h = 5381; const str = String(s || ''); for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) >>> 0; return String(h); };
 
 const test = process.argv.includes('--test');
-const allKeys = Object.keys(en).filter((k) => k.startsWith('partner.'));
-const keys = test ? allKeys.slice(0, 3) : allKeys;
+const gaps = process.argv.includes('--gaps'); // fill only missing/stale across ALL keys
 const locales = test ? ['de'] : ['de', 'fr', 'it'];
 const BATCH = 20;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -78,24 +77,49 @@ async function translateBatchRetry(locale, items, tries = 4) {
   return {};
 }
 
-// Resume: reuse any already-translated keys from a prior run so a re-run only
-// fills the gaps (failed batches) instead of re-translating everything.
+// Decide what to translate per locale.
+//  --test → 3 partner keys (DE). --gaps → only missing/stale across ALL en keys
+//  (same definition as the founder coverage table). Default → all partner.* keys.
+const todoByLocale = {};
+if (test) {
+  todoByLocale.de = Object.keys(en).filter((k) => k.startsWith('partner.')).slice(0, 3);
+} else if (gaps) {
+  // Paginate — Supabase caps a select at 1000 rows by default, and the catalog
+  // is larger across 3 locales, so a single fetch would falsely flag the tail as missing.
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('translations').select('locale,key,source_hash').range(from, from + 999);
+    if (error) { console.error(`fetch translations failed: ${error.message}`); process.exit(1); }
+    rows.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  const fresh = Object.fromEntries(locales.map((l) => [l, new Set()]));
+  for (const r of rows) { if (fresh[r.locale] && r.source_hash === djb2(en[r.key])) fresh[r.locale].add(r.key); }
+  for (const l of locales) todoByLocale[l] = Object.keys(en).filter((k) => !fresh[l].has(k));
+  console.error(`Gaps (missing/stale): ${JSON.stringify(Object.fromEntries(locales.map((l) => [l, todoByLocale[l].length])))}`);
+} else {
+  const partnerKeys = Object.keys(en).filter((k) => k.startsWith('partner.'));
+  for (const l of locales) todoByLocale[l] = partnerKeys;
+}
+
+// Resume: reuse already-translated keys from a prior run (skip in --gaps, which
+// derives its work from the live DB, not the local output file).
 const out = {};
-try { Object.assign(out, JSON.parse(readFileSync(new URL('scripts/i18n-fill-output.json', root), 'utf8'))); } catch { /* fresh */ }
+if (!gaps) { try { Object.assign(out, JSON.parse(readFileSync(new URL('scripts/i18n-fill-output.json', root), 'utf8'))); } catch { /* fresh */ } }
 
 const failed = {};
 for (const locale of locales) {
   out[locale] ||= {};
   failed[locale] = [];
-  const todo = keys.filter((k) => !(k in out[locale]));
-  if (!todo.length) { console.error(`  ${locale}: already complete (${Object.keys(out[locale]).length})`); continue; }
+  const todo = (todoByLocale[locale] || []).filter((k) => !(k in out[locale]));
+  if (!todo.length) { console.error(`  ${locale}: nothing to do`); continue; }
   for (let i = 0; i < todo.length; i += BATCH) {
     const slice = todo.slice(i, i + BATCH);
     const items = slice.map((k) => ({ key: k, text: en[k] }));
     const map = await translateBatchRetry(locale, items);
     Object.assign(out[locale], map);
     slice.forEach((k) => { if (!(k in map)) failed[locale].push(k); });
-    console.error(`  ${locale}: ${Object.keys(out[locale]).length}/${keys.length}`);
+    console.error(`  ${locale}: +${Object.keys(out[locale]).length} (todo ${todo.length})`);
   }
 }
 
@@ -133,7 +157,7 @@ if (!process.argv.includes('--no-save')) {
 }
 
 const counts = Object.fromEntries(Object.entries(out).map(([l, m]) => [l, Object.keys(m).length]));
-console.error(`\nDone. keys=${keys.length} locales=${locales.join(',')} → ${JSON.stringify(counts)}`);
+console.error(`\nDone. locales=${locales.join(',')} → translated this run ${JSON.stringify(counts)}`);
 const missTotal = Object.values(failed).reduce((a, b) => a + b.length, 0);
 if (missTotal) console.error(`Missing (failed batches): ${JSON.stringify(Object.fromEntries(Object.entries(failed).map(([l, a]) => [l, a.length])))}`);
 console.error('Wrote scripts/i18n-fill-output.json + scripts/i18n-fill.sql');
