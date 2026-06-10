@@ -1240,6 +1240,7 @@ function OpeningHoursEditor({ value, onChange }) {
 /* ---------------- Plans (subscription tiers) ---------------- */
 function Plans({ listings }) {
   const { partner } = useAuth();
+  const t = useT();
   const current = partner?.plan || 'free';
   const cur = planOf(current);
   const limit = carLimit(current);
@@ -1249,33 +1250,33 @@ function Plans({ listings }) {
   return (
     <div className="space-y-6">
       <div className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs ${full ? 'border-gold/40 bg-gold/10 text-ink' : 'border-mist bg-cloud text-stone'}`}>
-        You're on <span className="font-semibold text-ink">{cur.name}</span> · {carCount}{limit != null ? ` / ${limit}` : ''} car{carCount === 1 ? '' : 's'} · <span className="font-semibold text-ink">{cur.commission}%</span> commission{full ? ' — you’ve reached your car limit. Upgrade to list more.' : '.'}
+        {t('partner.plans.youreOn')} <span className="font-semibold text-ink">{cur.name}</span> · {carCount}{limit != null ? ` / ${limit}` : ''} {carCount === 1 ? t('partner.car') : t('partner.cars')} · <span className="font-semibold text-ink">{cur.commission}%</span> {t('partner.plans.commission')}{full ? t('partner.plans.reachedLimit') : '.'}
       </div>
       <div className="grid gap-5 lg:grid-cols-3">
         {PLAN_LIST.map((p) => {
           const isCurrent = p.id === current;
-          const carsLabel = p.carLimit ? `Up to ${p.carLimit} cars` : 'Unlimited cars';
+          const carsLabel = p.carLimit ? t('partner.plans.upToCars', { n: p.carLimit }) : t('partner.plans.unlimitedCars');
           return (
             <div key={p.id} className={`relative flex flex-col rounded-[var(--radius-card)] border p-6 ${p.popular ? 'border-ink shadow-[0_30px_60px_-40px_rgba(11,11,12,0.4)]' : 'border-mist'} bg-cloud`}>
-              {p.popular && <span className="absolute -top-2.5 left-6 rounded-full bg-gold px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-ink">Most popular</span>}
+              {p.popular && <span className="absolute -top-2.5 left-6 rounded-full bg-gold px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-ink">{t('partner.plans.mostPopular')}</span>}
               <div className="eyebrow text-stone">{p.tagline}</div>
               <h3 className="font-display mt-1 text-2xl">{p.name}</h3>
               <div className="mt-3 flex items-baseline gap-1">
                 <span className="font-display text-4xl tnum">{p.price === 0 ? 'CHF 0' : chf(p.price)}</span>
-                <span className="text-sm text-stone">/ month</span>
+                <span className="text-sm text-stone">{t('partner.plans.perMonth')}</span>
               </div>
-              <div className="mt-1 text-sm font-semibold text-gold">{p.commission}% commission · {carsLabel}</div>
+              <div className="mt-1 text-sm font-semibold text-gold">{t('partner.plans.commissionCars', { pct: p.commission, cars: carsLabel })}</div>
               <ul className="mt-5 mb-6 space-y-2.5">
                 {p.features.map((f) => (
                   <li key={f} className="flex items-center gap-2 text-sm text-ink"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-go/12 text-go"><Icon.Check width={13} height={13} /></span>{f}</li>
                 ))}
               </ul>
               <button
-                onClick={() => !isCurrent && setMsg(`To switch to ${p.name}, contact AIRLUXO — self-serve billing is coming soon. Your commission rate and car limit update as soon as we set your plan.`)}
+                onClick={() => !isCurrent && setMsg(t('partner.plans.contactMsg', { name: p.name }))}
                 disabled={isCurrent}
                 className={`ring-lux mt-auto w-full rounded-2xl py-3.5 text-sm font-bold transition-colors ${isCurrent ? 'cursor-default border border-mist text-stone' : p.popular ? 'bg-ink text-cloud hover:bg-void' : 'border border-ink text-ink hover:bg-ink hover:text-cloud'}`}
               >
-                {isCurrent ? 'Current plan' : `Switch to ${p.name}`}
+                {isCurrent ? t('partner.plans.currentPlan') : t('partner.plans.switchTo', { name: p.name })}
               </button>
             </div>
           );
@@ -1289,6 +1290,8 @@ function Plans({ listings }) {
 /* ---------------- Earnings (from real bookings) ---------------- */
 function Earnings({ bookings }) {
   const { partner } = useAuth();
+  const t = useT();
+  const { locale } = useI18n();
   const rate = commissionRate(partner?.plan);
   const rows = (bookings ?? []).filter((b) => b.status !== 'Declined' && b.status !== 'Cancelled');
   const gross = rows.reduce((a, b) => a + Number(b.base_amount) + Number(b.addons_amount || 0), 0);
@@ -1297,11 +1300,11 @@ function Earnings({ bookings }) {
   return (
     <div className="space-y-7">
       <div className="grid gap-4 sm:grid-cols-3">
-        <Kpi label="Gross bookings" value={chf(gross)} sub={`${rows.length} reservation${rows.length === 1 ? '' : 's'}`} icon={<Icon.Calendar2 />} />
-        <Kpi label={`AIRLUXO commission · ${Math.round(rate * 100)}%`} value={`– ${chf(fee)}`} sub={`${planOf(partner?.plan).name} plan`} icon={<Icon.Wallet />} />
-        <Kpi label="Net payout" value={chf(net)} sub="Settled to your IBAN" good icon={<Icon.ArrowUpRight />} />
+        <Kpi label={t('partner.earnings.gross')} value={chf(gross)} sub={t(rows.length === 1 ? 'partner.earnings.reservationsOne' : 'partner.earnings.reservationsMany', { n: rows.length })} icon={<Icon.Calendar2 />} />
+        <Kpi label={t('partner.earnings.commission', { pct: Math.round(rate * 100) })} value={`– ${chf(fee)}`} sub={t('partner.earnings.planSub', { plan: planOf(partner?.plan).name })} icon={<Icon.Wallet />} />
+        <Kpi label={t('partner.earnings.netPayout')} value={chf(net)} sub={t('partner.earnings.settledIban')} good icon={<Icon.ArrowUpRight />} />
       </div>
-      <Panel title="Net payouts · 6 months"><BarChart data={computeMetrics(bookings, [], rate).series} /></Panel>
+      <Panel title={t('partner.overview.netPayouts6mo')}><BarChart data={computeMetrics(bookings, [], rate, locale).series} /></Panel>
     </div>
   );
 }

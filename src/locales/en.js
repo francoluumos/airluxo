@@ -337,4 +337,26 @@ export const en = {
   'partner.cal.internalBlock': 'Internal block',
   'partner.cal.monthBookingsOne': '{month} · {n} booking',
   'partner.cal.monthBookingsMany': '{month} · {n} bookings',
+
+  // Earnings tab
+  'partner.earnings.gross': 'Gross bookings',
+  'partner.earnings.reservationsOne': '{n} reservation',
+  'partner.earnings.reservationsMany': '{n} reservations',
+  'partner.earnings.commission': 'AIRLUXO commission · {pct}%',
+  'partner.earnings.planSub': '{plan} plan',
+  'partner.earnings.netPayout': 'Net payout',
+  'partner.earnings.settledIban': 'Settled to your IBAN',
+
+  // Plans tab (plan names/taglines/features come from lib/plans.js)
+  'partner.plans.youreOn': "You're on",
+  'partner.plans.commission': 'commission',
+  'partner.plans.reachedLimit': ' — you’ve reached your car limit. Upgrade to list more.',
+  'partner.plans.mostPopular': 'Most popular',
+  'partner.plans.perMonth': '/ month',
+  'partner.plans.commissionCars': '{pct}% commission · {cars}',
+  'partner.plans.upToCars': 'Up to {n} cars',
+  'partner.plans.unlimitedCars': 'Unlimited cars',
+  'partner.plans.currentPlan': 'Current plan',
+  'partner.plans.switchTo': 'Switch to {name}',
+  'partner.plans.contactMsg': 'To switch to {name}, contact AIRLUXO — self-serve billing is coming soon. Your commission rate and car limit update as soon as we set your plan.',
 };
