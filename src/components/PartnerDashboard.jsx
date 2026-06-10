@@ -406,6 +406,7 @@ function Overview({ listings, bookings, onAdd, setView }) {
 
 function EmbedCard() {
   const { partner } = useAuth();
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const [theme, setTheme] = useState('light');
   if (!partner) return null;
@@ -415,22 +416,22 @@ function EmbedCard() {
     try { await navigator.clipboard.writeText(snippet); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* ignore */ }
   };
   return (
-    <Panel title="Embed on your website">
-      <p className="text-sm text-stone">Drop this snippet into your own site to show your AIRLUXO fleet and take bookings directly. Reservations still settle through AIRLUXO and land in this dashboard.</p>
+    <Panel title={t('partner.embed.title')}>
+      <p className="text-sm text-stone">{t('partner.embed.desc')}</p>
 
       <div className="mt-3 flex items-center gap-2">
-        <span className="text-[0.65rem] uppercase tracking-wider text-stone">Theme</span>
+        <span className="text-[0.65rem] uppercase tracking-wider text-stone">{t('partner.embed.theme')}</span>
         <div className="inline-flex rounded-full border border-mist bg-cloud p-1">
-          {['light', 'dark'].map((t) => (
-            <button key={t} onClick={() => setTheme(t)} className={`ring-lux rounded-full px-3 py-1 text-xs font-semibold capitalize transition-colors ${theme === t ? 'bg-ink text-cloud' : 'text-stone hover:text-ink'}`}>{t}</button>
+          {['light', 'dark'].map((mode) => (
+            <button key={mode} onClick={() => setTheme(mode)} className={`ring-lux rounded-full px-3 py-1 text-xs font-semibold capitalize transition-colors ${theme === mode ? 'bg-ink text-cloud' : 'text-stone hover:text-ink'}`}>{mode === 'dark' ? t('partner.embed.themeDark') : t('partner.embed.themeLight')}</button>
           ))}
         </div>
       </div>
 
       <code className="mt-3 block overflow-x-auto whitespace-pre rounded-xl border border-mist bg-paper px-3 py-2.5 text-xs text-stone">{snippet}</code>
       <div className="mt-3 flex items-center gap-3">
-        <button onClick={copy} className="ring-lux rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void">{copied ? 'Copied ✓' : 'Copy embed code'}</button>
-        <a href={url} target="_blank" rel="noreferrer" className="ring-lux text-sm font-semibold text-stone transition-colors hover:text-ink">Preview ↗</a>
+        <button onClick={copy} className="ring-lux rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void">{copied ? t('partner.common.copied') : t('partner.embed.copy')}</button>
+        <a href={url} target="_blank" rel="noreferrer" className="ring-lux text-sm font-semibold text-stone transition-colors hover:text-ink">{t('partner.embed.preview')}</a>
       </div>
     </Panel>
   );
@@ -438,19 +439,20 @@ function EmbedCard() {
 
 /* ---------------- Settings (integrations) ---------------- */
 function SettingsView({ onReplayTour }) {
+  const t = useT();
   return (
     <div className="max-w-5xl space-y-6">
       <ProfileCard />
       <div className="grid items-start gap-6 lg:grid-cols-2">
-        <Panel title="Guide & changelog">
-          <p className="text-sm text-stone">A full walkthrough of the partner dashboard, kept up to date as features ship — with a changelog of everything we've changed.</p>
+        <Panel title={t('partner.settings.guideTitle')}>
+          <p className="text-sm text-stone">{t('partner.settings.guideDesc')}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <a href="/?docs" target="_blank" rel="noreferrer" className="ring-lux inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void">
-              Open the partner guide <Icon.ArrowUpRight width={14} height={14} />
+              {t('partner.settings.openGuide')} <Icon.ArrowUpRight width={14} height={14} />
             </a>
             {onReplayTour && (
               <button onClick={onReplayTour} className="ring-lux inline-flex items-center gap-2 rounded-full border border-mist px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink">
-                Replay setup guide
+                {t('partner.settings.replayGuide')}
               </button>
             )}
           </div>
@@ -470,6 +472,7 @@ function SubLabel({ children }) {
 
 function ProfileCard() {
   const { partner, user, refreshPartner } = useAuth();
+  const t = useT();
   const [f, setF] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -495,10 +498,10 @@ function ProfileCard() {
   const since = partner.created_at || user?.created_at;
   const memberSince = since ? new Date(since).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : '—';
   const payout = partner.stripe_charges_enabled
-    ? { label: 'Connected', dot: 'bg-go', color: 'text-go' }
+    ? { label: t('partner.profile.payoutConnected'), dot: 'bg-go', color: 'text-go' }
     : partner.stripe_account_id
-      ? { label: 'Onboarding incomplete', dot: 'bg-gold', color: 'text-gold' }
-      : { label: 'Not connected', dot: 'bg-stone', color: 'text-stone' };
+      ? { label: t('partner.profile.payoutOnboarding'), dot: 'bg-gold', color: 'text-gold' }
+      : { label: t('partner.profile.payoutNotConnected'), dot: 'bg-stone', color: 'text-stone' };
   const initials = (f.company_name || 'A').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
   async function pickAvatar(e) {
@@ -509,7 +512,7 @@ function ProfileCard() {
       const url = await uploadListingPhoto(file);
       await updatePartner({ avatar_url: url });
       await refreshPartner();
-    } catch (err) { setMsg({ ok: false, text: err.message || 'Could not upload the picture.' }); }
+    } catch (err) { setMsg({ ok: false, text: err.message || t('partner.profile.errUpload') }); }
     finally { setBusy(false); }
   }
   async function removeAvatar() {
@@ -535,94 +538,94 @@ function ProfileCard() {
       };
       await updatePartner(patch);
       await refreshPartner();
-      setMsg({ ok: true, text: 'Profile saved.' }); setTimeout(() => setMsg(null), 2200);
-    } catch (e) { setMsg({ ok: false, text: e.message || 'Could not save.' }); }
+      setMsg({ ok: true, text: t('partner.profile.saved') }); setTimeout(() => setMsg(null), 2200);
+    } catch (e) { setMsg({ ok: false, text: e.message || t('partner.profile.errSave') }); }
     finally { setBusy(false); }
   }
 
   return (
-    <Panel title="Profile">
+    <Panel title={t('partner.profile.title')}>
       <div className="space-y-5">
         <div className="flex items-center gap-4">
           {partner.avatar_url
             ? <img src={partner.avatar_url} alt="" className="h-16 w-16 shrink-0 rounded-full border border-mist object-cover" />
             : <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-gold-soft font-display text-xl text-ink">{initials}</span>}
           <div>
-            <div className="text-sm font-semibold">Profile picture</div>
-            <p className="text-xs text-stone">Shown in your dashboard and on your profile. Square image, ≥ 200×200px.</p>
+            <div className="text-sm font-semibold">{t('partner.profile.picture')}</div>
+            <p className="text-xs text-stone">{t('partner.profile.pictureHint')}</p>
             <div className="mt-2 flex items-center gap-3">
               <input ref={avatarRef} type="file" accept="image/*" onChange={pickAvatar} className="hidden" />
-              <button onClick={() => avatarRef.current?.click()} disabled={busy} className="ring-lux rounded-full border border-mist bg-cloud px-3.5 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50">{partner.avatar_url ? 'Change' : 'Upload'}</button>
-              {partner.avatar_url && <button onClick={removeAvatar} disabled={busy} className="ring-lux text-xs font-semibold text-red-600 transition-colors hover:underline disabled:opacity-50">Remove</button>}
+              <button onClick={() => avatarRef.current?.click()} disabled={busy} className="ring-lux rounded-full border border-mist bg-cloud px-3.5 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50">{partner.avatar_url ? t('partner.profile.change') : t('partner.profile.upload')}</button>
+              {partner.avatar_url && <button onClick={removeAvatar} disabled={busy} className="ring-lux text-xs font-semibold text-red-600 transition-colors hover:underline disabled:opacity-50">{t('partner.profile.remove')}</button>}
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-xl border border-mist bg-cloud px-4 py-3">
           <div>
-            <div className="text-[0.62rem] font-semibold uppercase tracking-wider text-stone">Member since</div>
+            <div className="text-[0.62rem] font-semibold uppercase tracking-wider text-stone">{t('partner.profile.memberSince')}</div>
             <div className="text-sm font-semibold">{memberSince}</div>
           </div>
           <div>
-            <div className="text-[0.62rem] font-semibold uppercase tracking-wider text-stone">Payouts</div>
+            <div className="text-[0.62rem] font-semibold uppercase tracking-wider text-stone">{t('partner.profile.payouts')}</div>
             <div className={`flex items-center gap-1.5 text-sm font-semibold ${payout.color}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${payout.dot}`} /> {payout.label}
             </div>
           </div>
-          {!partner.stripe_charges_enabled && <span className="text-xs text-stone">Set up payouts in the <span className="font-semibold text-ink">Earnings</span> tab.</span>}
+          {!partner.stripe_charges_enabled && <span className="text-xs text-stone">{t('partner.profile.setupPayoutsPre')} <span className="font-semibold text-ink">{t('nav.earnings')}</span> {t('partner.profile.setupPayoutsPost')}</span>}
         </div>
 
         <div>
-          <SubLabel>Company</SubLabel>
+          <SubLabel>{t('partner.profile.company')}</SubLabel>
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormInput label="Company name" value={f.company_name} onChange={set('company_name')} />
-            <FormInput label="Contact person" value={f.contact_name} onChange={set('contact_name')} />
-            <FormInput label="Website" value={f.website} onChange={set('website')} placeholder="https://…" />
-            <FormInput label="Company phone" value={f.phone} onChange={set('phone')} placeholder="+41 …" />
-            <FormInput label="Login email" value={user?.email || ''} disabled />
+            <FormInput label={t('partner.profile.companyName')} value={f.company_name} onChange={set('company_name')} />
+            <FormInput label={t('partner.profile.contactPerson')} value={f.contact_name} onChange={set('contact_name')} />
+            <FormInput label={t('partner.profile.website')} value={f.website} onChange={set('website')} placeholder="https://…" />
+            <FormInput label={t('partner.profile.companyPhone')} value={f.phone} onChange={set('phone')} placeholder="+41 …" />
+            <FormInput label={t('partner.profile.loginEmail')} value={user?.email || ''} disabled />
           </div>
           <div className="mt-3 rounded-xl border border-mist bg-cloud p-3">
-            <SubLabel>Company address</SubLabel>
+            <SubLabel>{t('partner.profile.companyAddress')}</SubLabel>
             <AddressFields value={f.company_address} onChange={(v) => setF((p) => ({ ...p, company_address: v }))} />
           </div>
         </div>
 
         <div className="border-t border-mist pt-4">
-          <SubLabel>Support contact</SubLabel>
-          <p className="-mt-1 mb-2 text-xs text-stone">Who AIRLUXO and guests reach for support questions.</p>
+          <SubLabel>{t('partner.profile.supportContact')}</SubLabel>
+          <p className="-mt-1 mb-2 text-xs text-stone">{t('partner.profile.supportHint')}</p>
           <div className="grid gap-3 sm:grid-cols-3">
-            <FormInput label="Name" value={f.support_name} onChange={set('support_name')} />
-            <FormInput label="Email" type="email" value={f.support_email} onChange={set('support_email')} placeholder="support@…" />
-            <FormInput label="Phone" value={f.support_phone} onChange={set('support_phone')} placeholder="+41 …" />
+            <FormInput label={t('partner.profile.name')} value={f.support_name} onChange={set('support_name')} />
+            <FormInput label={t('partner.profile.email')} type="email" value={f.support_email} onChange={set('support_email')} placeholder="support@…" />
+            <FormInput label={t('partner.profile.phone')} value={f.support_phone} onChange={set('support_phone')} placeholder="+41 …" />
           </div>
         </div>
 
         <div className="border-t border-mist pt-4">
-          <SubLabel>Billing & invoicing</SubLabel>
-          <p className="-mt-1 mb-2 text-xs text-stone">Used for AIRLUXO's invoices and statements to you.</p>
+          <SubLabel>{t('partner.profile.billing')}</SubLabel>
+          <p className="-mt-1 mb-2 text-xs text-stone">{t('partner.profile.billingHint')}</p>
           <div className="grid gap-3 sm:grid-cols-3">
-            <FormInput label="Billing contact" value={f.billing_name} onChange={set('billing_name')} />
-            <FormInput label="Billing email" type="email" value={f.billing_email} onChange={set('billing_email')} placeholder="billing@…" />
-            <FormInput label="Billing phone" value={f.billing_phone} onChange={set('billing_phone')} placeholder="+41 …" />
+            <FormInput label={t('partner.profile.billingContact')} value={f.billing_name} onChange={set('billing_name')} />
+            <FormInput label={t('partner.profile.billingEmail')} type="email" value={f.billing_email} onChange={set('billing_email')} placeholder="billing@…" />
+            <FormInput label={t('partner.profile.billingPhone')} value={f.billing_phone} onChange={set('billing_phone')} placeholder="+41 …" />
           </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <FormInput label="Invoice-only email" type="email" value={f.invoice_email} onChange={set('invoice_email')} placeholder="invoices@… (optional)" />
-            <FormInput label="VAT / UID number" value={f.vat_number} onChange={set('vat_number')} placeholder="CHE-123.456.789" />
+            <FormInput label={t('partner.profile.invoiceOnlyEmail')} type="email" value={f.invoice_email} onChange={set('invoice_email')} placeholder={t('partner.profile.invoicePlaceholder')} />
+            <FormInput label={t('partner.profile.vatNumber')} value={f.vat_number} onChange={set('vat_number')} placeholder="CHE-123.456.789" />
           </div>
           <label className="mt-3 flex cursor-pointer items-center gap-2.5">
             <input type="checkbox" checked={f.billing_same_as_company} onChange={(e) => setF((p) => ({ ...p, billing_same_as_company: e.target.checked }))} className="ring-lux h-4 w-4 accent-ink" />
-            <span className="text-sm font-semibold">Billing address is the same as the company address</span>
+            <span className="text-sm font-semibold">{t('partner.profile.billingSameAsCompany')}</span>
           </label>
           {!f.billing_same_as_company && (
             <div className="mt-3 rounded-xl border border-mist bg-cloud p-3">
-              <SubLabel>Billing address</SubLabel>
+              <SubLabel>{t('partner.profile.billingAddress')}</SubLabel>
               <AddressFields value={f.billing_address} onChange={(v) => setF((p) => ({ ...p, billing_address: v }))} />
             </div>
           )}
         </div>
 
         <div className="flex items-center gap-3 border-t border-mist pt-4">
-          <button onClick={save} disabled={busy} className="ring-lux rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">{busy ? 'Saving…' : 'Save profile'}</button>
+          <button onClick={save} disabled={busy} className="ring-lux rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">{busy ? t('partner.profile.saving') : t('partner.profile.saveProfile')}</button>
           {msg && <span className={`text-xs font-semibold ${msg.ok ? 'text-go' : 'text-red-600'}`}>{msg.text}</span>}
         </div>
       </div>
@@ -632,6 +635,7 @@ function ProfileCard() {
 
 function ChangePasswordCard() {
   const { updatePassword } = useAuth();
+  const t = useT();
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [busy, setBusy] = useState(false);
@@ -639,24 +643,24 @@ function ChangePasswordCard() {
 
   async function save() {
     setMsg(null);
-    if (pw.length < 8) { setMsg({ ok: false, text: 'Use at least 8 characters.' }); return; }
-    if (pw !== pw2) { setMsg({ ok: false, text: 'The two passwords don’t match.' }); return; }
+    if (pw.length < 8) { setMsg({ ok: false, text: t('partner.pw.errLen') }); return; }
+    if (pw !== pw2) { setMsg({ ok: false, text: t('partner.pw.errMatch') }); return; }
     setBusy(true);
     const { error } = await updatePassword(pw);
     setBusy(false);
-    if (error) setMsg({ ok: false, text: error.message || 'Could not update password.' });
-    else { setMsg({ ok: true, text: 'Password updated.' }); setPw(''); setPw2(''); }
+    if (error) setMsg({ ok: false, text: error.message || t('partner.pw.errUpdate') });
+    else { setMsg({ ok: true, text: t('partner.pw.updated') }); setPw(''); setPw2(''); }
   }
 
   return (
-    <Panel title="Change password">
-      <p className="text-sm text-stone">Set a new password for your partner account.</p>
+    <Panel title={t('partner.pw.title')}>
+      <p className="text-sm text-stone">{t('partner.pw.desc')}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <FormInput label="New password" type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="At least 8 characters" />
-        <FormInput label="Confirm new password" type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Repeat password" />
+        <FormInput label={t('partner.pw.new')} type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={t('partner.pw.atLeast8')} />
+        <FormInput label={t('partner.pw.confirm')} type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder={t('partner.pw.repeat')} />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button onClick={save} disabled={busy || !pw} className="ring-lux rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">{busy ? 'Saving…' : 'Update password'}</button>
+        <button onClick={save} disabled={busy || !pw} className="ring-lux rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">{busy ? t('partner.profile.saving') : t('partner.pw.update')}</button>
         {msg && <span className={`text-xs font-semibold ${msg.ok ? 'text-go' : 'text-red-600'}`}>{msg.text}</span>}
       </div>
     </Panel>
@@ -665,6 +669,7 @@ function ChangePasswordCard() {
 
 function WebhookCard() {
   const { partner, refreshPartner } = useAuth();
+  const t = useT();
   const [url, setUrl] = useState('');
   const [enabled, setEnabled] = useState(false);
   const [secret, setSecret] = useState('');
@@ -700,37 +705,37 @@ function WebhookCard() {
   const copySecret = async () => { try { await navigator.clipboard.writeText(secret); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } };
 
   return (
-    <Panel title="Webhook">
-      <p className="text-sm text-stone">Push every new and updated booking to your own system in real time — sent as a JSON POST to a URL you control (PMS, CRM, a serverless endpoint…).</p>
+    <Panel title={t('partner.webhook.title')}>
+      <p className="text-sm text-stone">{t('partner.webhook.desc')}</p>
       <div className="mt-3 space-y-3">
-        <FormInput label="Endpoint URL" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://api.yoursite.com/airluxo/bookings" />
+        <FormInput label={t('partner.webhook.endpointUrl')} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://api.yoursite.com/airluxo/bookings" />
         <label className="flex cursor-pointer items-center justify-between rounded-xl border border-mist bg-cloud px-3.5 py-2.5">
-          <span className="text-sm font-semibold">Enabled</span>
+          <span className="text-sm font-semibold">{t('partner.webhook.enabled')}</span>
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="ring-lux h-4 w-4 accent-ink" />
         </label>
         {secret && (
           <div className="rounded-xl border border-mist bg-cloud p-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[0.65rem] uppercase tracking-wider text-stone">Signing secret</span>
+              <span className="text-[0.65rem] uppercase tracking-wider text-stone">{t('partner.webhook.signingSecret')}</span>
               <div className="flex items-center gap-3 text-xs font-semibold">
-                <button onClick={() => setShowSecret((s) => !s)} className="ring-lux text-stone transition-colors hover:text-ink">{showSecret ? 'Hide' : 'Reveal'}</button>
-                <button onClick={copySecret} className="ring-lux text-stone transition-colors hover:text-ink">{copied ? 'Copied ✓' : 'Copy'}</button>
-                <button onClick={() => setSecret(newWebhookSecret())} className="ring-lux text-stone transition-colors hover:text-ink">Regenerate</button>
+                <button onClick={() => setShowSecret((s) => !s)} className="ring-lux text-stone transition-colors hover:text-ink">{showSecret ? t('partner.webhook.hide') : t('partner.webhook.reveal')}</button>
+                <button onClick={copySecret} className="ring-lux text-stone transition-colors hover:text-ink">{copied ? t('partner.common.copied') : t('partner.webhook.copy')}</button>
+                <button onClick={() => setSecret(newWebhookSecret())} className="ring-lux text-stone transition-colors hover:text-ink">{t('partner.webhook.regenerate')}</button>
               </div>
             </div>
             <code className="mt-1.5 block truncate text-xs text-ink">{showSecret ? secret : '•'.repeat(32)}</code>
-            <p className="mt-1.5 text-[0.7rem] leading-relaxed text-stone">Each delivery carries <code>X-AIRLUXO-Signature: sha256=HMAC(secret, rawBody)</code>. Verify it to confirm the request is from AIRLUXO. Save after regenerating.</p>
+            <p className="mt-1.5 text-[0.7rem] leading-relaxed text-stone">{t('partner.webhook.signaturePre')} <code>X-AIRLUXO-Signature: sha256=HMAC(secret, rawBody)</code>. {t('partner.webhook.signaturePost')}</p>
           </div>
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button onClick={save} disabled={busy} className="ring-lux rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">{saved ? 'Saved ✓' : 'Save'}</button>
-        <button onClick={runTest} disabled={busy || !url} className="ring-lux rounded-full border border-mist px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50">Send test event</button>
+        <button onClick={save} disabled={busy} className="ring-lux rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">{saved ? t('partner.common.savedCheck') : t('partner.common.save')}</button>
+        <button onClick={runTest} disabled={busy || !url} className="ring-lux rounded-full border border-mist px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50">{t('partner.webhook.sendTest')}</button>
         {test && (
-          test.error ? <span className="text-xs font-semibold text-red-600">Test failed: {test.error}</span>
-          : test.skipped ? <span className="text-xs text-stone">Save an enabled URL first</span>
-          : test.delivered ? <span className="text-xs font-semibold text-go">Delivered · HTTP {test.status}</span>
-          : <span className="text-xs font-semibold text-red-600">Endpoint returned {test.status || 'an error'}</span>
+          test.error ? <span className="text-xs font-semibold text-red-600">{t('partner.webhook.testFailed', { error: test.error })}</span>
+          : test.skipped ? <span className="text-xs text-stone">{t('partner.webhook.saveEnabledFirst')}</span>
+          : test.delivered ? <span className="text-xs font-semibold text-go">{t('partner.webhook.delivered', { status: test.status })}</span>
+          : <span className="text-xs font-semibold text-red-600">{t('partner.webhook.endpointReturned', { status: test.status || t('partner.webhook.anError') })}</span>
         )}
       </div>
     </Panel>
@@ -739,6 +744,7 @@ function WebhookCard() {
 
 function CalendarCard() {
   const { partner, refreshPartner } = useAuth();
+  const t = useT();
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -752,19 +758,19 @@ function CalendarCard() {
   const copy = async () => { try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } };
 
   return (
-    <Panel title="Calendar subscription">
-      <p className="text-sm text-stone">Subscribe to a live, read-only calendar of your bookings and blocked dates in Google Calendar, Apple Calendar or Outlook. It refreshes automatically.</p>
+    <Panel title={t('partner.calsub.title')}>
+      <p className="text-sm text-stone">{t('partner.calsub.desc')}</p>
       {url ? (
         <>
           <code className="mt-3 block overflow-x-auto whitespace-pre rounded-xl border border-mist bg-paper px-3 py-2.5 text-xs text-stone">{url}</code>
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <button onClick={copy} className="ring-lux rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void">{copied ? 'Copied ✓' : 'Copy feed URL'}</button>
-            <a href={url} target="_blank" rel="noreferrer" className="ring-lux text-sm font-semibold text-stone transition-colors hover:text-ink">Open .ics ↗</a>
+            <button onClick={copy} className="ring-lux rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void">{copied ? t('partner.common.copied') : t('partner.calsub.copyUrl')}</button>
+            <a href={url} target="_blank" rel="noreferrer" className="ring-lux text-sm font-semibold text-stone transition-colors hover:text-ink">{t('partner.calsub.openIcs')}</a>
           </div>
-          <p className="mt-2 text-[0.7rem] text-stone">Paste it into “Subscribe to calendar” / “Add from URL”. Anyone with this link can see your booking times — treat it as private.</p>
+          <p className="mt-2 text-[0.7rem] text-stone">{t('partner.calsub.pasteNote')}</p>
         </>
       ) : (
-        <button onClick={enable} disabled={busy} className="ring-lux mt-3 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">{busy ? 'Generating…' : 'Generate calendar link'}</button>
+        <button onClick={enable} disabled={busy} className="ring-lux mt-3 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">{busy ? t('partner.calsub.generating') : t('partner.calsub.generate')}</button>
       )}
     </Panel>
   );
