@@ -15,7 +15,7 @@ import { fetchMyBlocks, createBlock, deleteBlock } from '../lib/blocks.js';
 import { startPayoutOnboarding, refreshPayoutStatus, partnerSettle } from '../lib/stripe.js';
 import { updatePartner, fetchLocations, createLocation, deleteLocation } from '../lib/partner.js';
 import { chf, num } from '../lib/format.js';
-import { useT } from '../lib/i18n.jsx';
+import { useT, useI18n } from '../lib/i18n.jsx';
 import Tour from './Tour.jsx';
 import LanguageSwitcher from './LanguageSwitcher.jsx';
 import LocationForm, { AddressFields } from './LocationForm.jsx';
@@ -297,12 +297,17 @@ function PayoutsBanner() {
 }
 
 /* ---------------- Overview ---------------- */
-const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// Dates are localised via Intl with Swiss locale tags (de-CH / fr-CH / it-CH).
+const LOCALE_TAG = { en: 'en-GB', de: 'de-CH', fr: 'fr-CH', it: 'it-CH' };
+const localeTag = (loc) => LOCALE_TAG[loc] || 'en-GB';
+const monthShort = (loc, monthIndex) => new Date(2021, monthIndex, 1).toLocaleDateString(localeTag(loc), { month: 'short' });
+// Monday-first short weekday names (Nov 1 2021 was a Monday).
+const weekdayShorts = (loc) => [1, 2, 3, 4, 5, 6, 7].map((d) => new Date(2021, 10, d).toLocaleDateString(localeTag(loc), { weekday: 'short' }));
 const netOf = (b, rate = FEES.hostCommission) => (Number(b.base_amount || 0) + Number(b.addons_amount || 0)) * (1 - rate);
 
 // Real partner metrics derived from bookings (+ listings for utilisation).
 // `rate` is the partner's plan commission (defaults to the base rate).
-function computeMetrics(bookings, listings, rate = FEES.hostCommission) {
+function computeMetrics(bookings, listings, rate = FEES.hostCommission, loc = 'en') {
   const active = (bookings ?? []).filter((b) => b.status !== 'Declined' && b.status !== 'Cancelled');
   const now = new Date(); now.setHours(0, 0, 0, 0);
 
@@ -310,7 +315,7 @@ function computeMetrics(bookings, listings, rate = FEES.hostCommission) {
   const buckets = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    buckets.push({ key: `${d.getFullYear()}-${d.getMonth()}`, m: MONTH_LABELS[d.getMonth()], v: 0 });
+    buckets.push({ key: `${d.getFullYear()}-${d.getMonth()}`, m: monthShort(loc, d.getMonth()), v: 0 });
   }
   const byKey = Object.fromEntries(buckets.map((b) => [b.key, b]));
   for (const b of active) {
@@ -342,18 +347,19 @@ function computeMetrics(bookings, listings, rate = FEES.hostCommission) {
   const capacity = cars * daysInMonth;
   const utilisation = capacity > 0 ? Math.min(100, Math.round((bookedDays / capacity) * 100)) : 0;
 
-  return { net, delta, series, utilisation, monthLabel: MONTH_LABELS[mo] };
+  return { net, delta, series, utilisation, monthLabel: monthShort(loc, mo) };
 }
 
 function Overview({ listings, bookings, onAdd, setView }) {
   const { partner } = useAuth();
   const t = useT();
+  const { locale } = useI18n();
   const loading = listings === null;
   const total = loading ? 0 : listings.length;
   const active = loading ? 0 : listings.filter((c) => c.status === 'Available' || c.status === 'Booked').length;
   const bk = bookings ?? [];
   const pending = bk.filter((b) => b.status === 'Pending').length;
-  const m = computeMetrics(bookings, listings, commissionRate(partner?.plan));
+  const m = computeMetrics(bookings, listings, commissionRate(partner?.plan), locale);
   const deltaTxt = m.delta == null ? t('partner.kpi.firstMonth') : t('partner.kpi.vsPrevMonth', { delta: `${m.delta >= 0 ? '+' : ''}${m.delta.toFixed(0)}` });
 
   return (
@@ -901,6 +907,7 @@ function SkeletonRows() {
 /* ---------------- Bookings (real) ---------------- */
 function Bookings({ bookings, blocks, reload }) {
   const t = useT();
+  const dl = localeTag(useI18n().locale);
   if (bookings === null) {
     return <div className="rounded-[var(--radius-card)] border border-mist bg-cloud p-5"><SkeletonRows /></div>;
   }
@@ -926,7 +933,7 @@ function Bookings({ bookings, blocks, reload }) {
               <div key={b.id} className="flex items-center justify-between">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold">{b.car_label || t('partner.bookings.car')} <span className="font-normal text-stone">· {b.reason || t('partner.bookings.blocked')}</span></div>
-                  <div className="text-xs text-stone tnum">{fmtDate(b.start_date)} → {fmtDate(b.end_date)}{b.blocked_by ? ` · ${t('partner.bookings.by', { who: b.blocked_by })}` : ''}</div>
+                  <div className="text-xs text-stone tnum">{fmtDate(b.start_date, dl)} → {fmtDate(b.end_date, dl)}{b.blocked_by ? ` · ${t('partner.bookings.by', { who: b.blocked_by })}` : ''}</div>
                 </div>
                 <span className="rounded-full bg-mist px-2.5 py-1 text-[0.7rem] font-bold text-stone">{t('partner.bookings.blocked')}</span>
               </div>
@@ -949,6 +956,9 @@ function CalPopover({ children }) {
 
 function Calendar({ bookings, blocks }) {
   const { partner } = useAuth();
+  const t = useT();
+  const { locale } = useI18n();
+  const dl = localeTag(locale);
   const [cursor, setCursor] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [copied, setCopied] = useState(false);
 
@@ -957,7 +967,7 @@ function Calendar({ bookings, blocks }) {
   const monthStart = new Date(cursor.y, cursor.m, 1);
   const daysInMonth = new Date(cursor.y, cursor.m + 1, 0).getDate();
   const leadBlanks = (monthStart.getDay() + 6) % 7; // Monday-first
-  const monthName = monthStart.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const monthName = monthStart.toLocaleDateString(dl, { month: 'long', year: 'numeric' });
   const monthPrefix = `${cursor.y}-${pad(cursor.m + 1)}`;
 
   const iso = (d) => `${monthPrefix}-${pad(d)}`;
@@ -995,13 +1005,13 @@ function Calendar({ bookings, blocks }) {
   return (
     <div className="space-y-6">
       <div className="rounded-[var(--radius-card)] border border-mist bg-cloud p-5">
-        <div className="flex items-center gap-2"><Icon.Calendar width={16} height={16} className="text-gold" /><h3 className="font-display text-base">Sync to your calendar</h3></div>
-        <p className="mt-1.5 text-sm text-stone">Add this private link to Google, Apple or Outlook Calendar — every AIRLUXO booking appears automatically and stays in sync.</p>
+        <div className="flex items-center gap-2"><Icon.Calendar width={16} height={16} className="text-gold" /><h3 className="font-display text-base">{t('partner.cal.syncTitle')}</h3></div>
+        <p className="mt-1.5 text-sm text-stone">{t('partner.cal.syncDesc')}</p>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <code className="flex-1 truncate rounded-xl border border-mist bg-paper px-3 py-2.5 text-xs text-stone">{feedUrl}</code>
-          <button onClick={copy} className="ring-lux shrink-0 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void">{copied ? 'Copied ✓' : 'Copy link'}</button>
+          <button onClick={copy} className="ring-lux shrink-0 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void">{copied ? t('partner.common.copied') : t('partner.cal.copyLink')}</button>
         </div>
-        <p className="mt-2 text-xs text-stone">Google Calendar → Other calendars → <span className="font-semibold text-ink">From URL</span>. Apple Calendar → File → <span className="font-semibold text-ink">New Calendar Subscription</span>.</p>
+        <p className="mt-2 text-xs text-stone">{t('partner.cal.syncHint1')} <span className="font-semibold text-ink">{t('partner.cal.fromUrl')}</span>{t('partner.cal.syncHint2')} <span className="font-semibold text-ink">{t('partner.cal.newSubscription')}</span>.</p>
       </div>
 
       <div className="rounded-[var(--radius-card)] border border-mist bg-cloud p-5">
@@ -1009,14 +1019,14 @@ function Calendar({ bookings, blocks }) {
           <h3 className="font-display text-lg">{monthName}</h3>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setCursor((c) => (c.m === 0 ? { y: c.y - 1, m: 11 } : { y: c.y, m: c.m - 1 }))} className="ring-lux grid h-8 w-8 place-items-center rounded-full border border-mist text-ink transition-colors hover:border-ink"><Icon.Arrow width={15} height={15} className="rotate-180" /></button>
-            <button onClick={() => { const d = new Date(); setCursor({ y: d.getFullYear(), m: d.getMonth() }); }} className="ring-lux rounded-full border border-mist px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-ink">Today</button>
+            <button onClick={() => { const d = new Date(); setCursor({ y: d.getFullYear(), m: d.getMonth() }); }} className="ring-lux rounded-full border border-mist px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-ink">{t('partner.cal.today')}</button>
             <button onClick={() => setCursor((c) => (c.m === 11 ? { y: c.y + 1, m: 0 } : { y: c.y, m: c.m + 1 }))} className="ring-lux grid h-8 w-8 place-items-center rounded-full border border-mist text-ink transition-colors hover:border-ink"><Icon.Arrow width={15} height={15} /></button>
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-7 gap-px rounded-xl border border-mist bg-mist">
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-            <div key={d} className="bg-paper py-2 text-center text-[0.65rem] font-bold uppercase tracking-wider text-stone">{d}</div>
+          {weekdayShorts(locale).map((d, i) => (
+            <div key={i} className="bg-paper py-2 text-center text-[0.65rem] font-bold uppercase tracking-wider text-stone">{d}</div>
           ))}
           {cells.map((d, i) => {
             if (d === null) return <div key={`b${i}`} className="min-h-[5rem] bg-cloud/40" />;
@@ -1033,28 +1043,28 @@ function Calendar({ bookings, blocks }) {
                         <div className="text-xs font-bold text-ink">{b.car_label}</div>
                         <div className="mt-1 space-y-0.5 text-[0.65rem] text-stone">
                           <div>{b.guest_name}</div>
-                          <div className="tnum">{fmtDate(b.start_date)}{b.end_date && b.end_date !== b.start_date ? ` → ${fmtDate(b.end_date)}` : ''}{b.pickup_time ? ` · ${b.pickup_time}` : ''}</div>
-                          <div><span className="font-semibold text-ink tnum">{chf(b.total_amount)}</span> · {b.status}</div>
+                          <div className="tnum">{fmtDate(b.start_date, dl)}{b.end_date && b.end_date !== b.start_date ? ` → ${fmtDate(b.end_date, dl)}` : ''}{b.pickup_time ? ` · ${b.pickup_time}` : ''}</div>
+                          <div><span className="font-semibold text-ink tnum">{chf(b.total_amount)}</span> · {statusLabel(t, b.status)}</div>
                         </div>
                       </CalPopover>
                     </div>
                   ))}
-                  {list.length > 2 && <div className="text-[0.6rem] font-semibold text-stone">+{list.length - 2} more</div>}
+                  {list.length > 2 && <div className="text-[0.6rem] font-semibold text-stone">{t('partner.cal.moreCount', { n: list.length - 2 })}</div>}
                   {blist.slice(0, 2).map((b) => (
                     <div key={b.id} className="group/ev relative">
-                      <div className="flex items-center gap-1 truncate rounded border border-dashed border-stone/40 bg-mist px-1.5 py-0.5 text-[0.6rem] font-semibold text-stone">⦸ <span className="truncate">{b.car_label || 'Blocked'}</span></div>
+                      <div className="flex items-center gap-1 truncate rounded border border-dashed border-stone/40 bg-mist px-1.5 py-0.5 text-[0.6rem] font-semibold text-stone">⦸ <span className="truncate">{b.car_label || t('partner.bookings.blocked')}</span></div>
                       <CalPopover>
-                        <div className="text-xs font-bold text-ink">{b.car_label || 'Car'}</div>
+                        <div className="text-xs font-bold text-ink">{b.car_label || t('partner.bookings.car')}</div>
                         <div className="mt-1 space-y-0.5 text-[0.65rem] text-stone">
-                          <div className="font-semibold text-stone">Internal block</div>
-                          <div>{b.reason || 'Blocked'}</div>
-                          <div className="tnum">{fmtDate(b.start_date)} → {fmtDate(b.end_date)}</div>
-                          {b.blocked_by && <div>by {b.blocked_by}</div>}
+                          <div className="font-semibold text-stone">{t('partner.cal.internalBlock')}</div>
+                          <div>{b.reason || t('partner.bookings.blocked')}</div>
+                          <div className="tnum">{fmtDate(b.start_date, dl)} → {fmtDate(b.end_date, dl)}</div>
+                          {b.blocked_by && <div>{t('partner.bookings.by', { who: b.blocked_by })}</div>}
                         </div>
                       </CalPopover>
                     </div>
                   ))}
-                  {blist.length > 2 && <div className="text-[0.6rem] font-semibold text-stone">+{blist.length - 2} blocked</div>}
+                  {blist.length > 2 && <div className="text-[0.6rem] font-semibold text-stone">{t('partner.cal.blockedCount', { n: blist.length - 2 })}</div>}
                 </div>
               </div>
             );
@@ -1065,13 +1075,13 @@ function Calendar({ bookings, blocks }) {
       {bookings === null ? (
         <div className="rounded-[var(--radius-card)] border border-mist bg-cloud p-5"><SkeletonRows /></div>
       ) : monthBookings.length > 0 && (
-        <Panel title={`${monthName} · ${monthBookings.length} booking${monthBookings.length === 1 ? '' : 's'}`}>
+        <Panel title={t(monthBookings.length === 1 ? 'partner.cal.monthBookingsOne' : 'partner.cal.monthBookingsMany', { month: monthName, n: monthBookings.length })}>
           <div className="space-y-3">
             {monthBookings.map((b) => (
               <div key={b.id} className="flex items-center justify-between">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold">{b.car_label} <span className="font-normal text-stone">· {b.guest_name}</span></div>
-                  <div className="text-xs text-stone tnum">{fmtDate(b.start_date)}{b.end_date && b.end_date !== b.start_date ? ` → ${fmtDate(b.end_date)}` : ''}</div>
+                  <div className="text-xs text-stone tnum">{fmtDate(b.start_date, dl)}{b.end_date && b.end_date !== b.start_date ? ` → ${fmtDate(b.end_date, dl)}` : ''}</div>
                 </div>
                 <StatusPill status={b.status} />
               </div>
@@ -1389,11 +1399,12 @@ function PaymentBadge({ status }) {
 }
 
 const BOOKING_STATUSES = ['Pending', 'Confirmed', 'On trip', 'Completed', 'Declined', 'Cancelled'];
-const fmtDate = (s) => (s ? new Date(`${s}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—');
+const fmtDate = (s, dl = 'en-GB') => (s ? new Date(`${s}T00:00:00`).toLocaleDateString(dl, { day: 'numeric', month: 'short' }) : '—');
 
 function BookingsTable({ rows, reload, compact }) {
   const { partner } = useAuth();
   const t = useT();
+  const dl = localeTag(useI18n().locale);
   const rate = commissionRate(partner?.plan);
   const [busyId, setBusyId] = useState(null);
   const [pending, setPending] = useState(null);
@@ -1433,7 +1444,7 @@ function BookingsTable({ rows, reload, compact }) {
           {rows.map((b) => {
             const gross = Number(b.base_amount) + Number(b.addons_amount || 0);
             const fee = Math.round(gross * rate);
-            const dates = b.end_date && b.end_date !== b.start_date ? `${fmtDate(b.start_date)} → ${fmtDate(b.end_date)}` : fmtDate(b.start_date);
+            const dates = b.end_date && b.end_date !== b.start_date ? `${fmtDate(b.start_date, dl)} → ${fmtDate(b.end_date, dl)}` : fmtDate(b.start_date, dl);
             return (
               <tr key={b.id} className="border-b border-mist/70 last:border-0 transition-colors hover:bg-paper/60">
                 <td className="px-5 py-3.5 font-semibold tnum">{b.id.slice(0, 8).toUpperCase()}</td>

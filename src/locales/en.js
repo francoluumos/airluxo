@@ -322,4 +322,19 @@ export const en = {
   'partner.statusModal.releaseHold': '{status} · release hold',
   'partner.statusModal.refundAnd': 'Refund {amount} & {status}',
   'partner.statusModal.noRefundStatus': '{status} · no refund',
+
+  // Calendar tab (month/weekday names are localised via Intl, not keys)
+  'partner.cal.syncTitle': 'Sync to your calendar',
+  'partner.cal.syncDesc': 'Add this private link to Google, Apple or Outlook Calendar — every AIRLUXO booking appears automatically and stays in sync.',
+  'partner.cal.copyLink': 'Copy link',
+  'partner.cal.syncHint1': 'Google Calendar → Other calendars →',
+  'partner.cal.fromUrl': 'From URL',
+  'partner.cal.syncHint2': '. Apple Calendar → File →',
+  'partner.cal.newSubscription': 'New Calendar Subscription',
+  'partner.cal.today': 'Today',
+  'partner.cal.moreCount': '+{n} more',
+  'partner.cal.blockedCount': '+{n} blocked',
+  'partner.cal.internalBlock': 'Internal block',
+  'partner.cal.monthBookingsOne': '{month} · {n} booking',
+  'partner.cal.monthBookingsMany': '{month} · {n} bookings',
 };
