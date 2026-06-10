@@ -785,6 +785,7 @@ function CalendarCard() {
 
 /* ---------------- Fleet (real CRUD) ---------------- */
 function Fleet({ listings, blocks, onAdd, reload }) {
+  const t = useT();
   const [busyId, setBusyId] = useState(null);
   const [editing, setEditing] = useState(null);
   const [blocking, setBlocking] = useState(null);
@@ -809,12 +810,12 @@ function Fleet({ listings, blocks, onAdd, reload }) {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <p className="text-sm text-stone">
-          {listings.length === 0 ? 'No cars listed yet.' : `${listings.length} ${listings.length === 1 ? 'car' : 'cars'} listed — stored in your Supabase database.`}
+          {listings.length === 0 ? t('partner.fleet.none') : t(listings.length === 1 ? 'partner.fleet.countOne' : 'partner.fleet.countMany', { n: listings.length })}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => setImportOpen(true)} className="ring-lux flex items-center gap-1.5 rounded-full border border-mist bg-cloud px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink"><Icon.ArrowUpRight width={14} height={14} className="rotate-180" /> Import</button>
-          <button onClick={() => exportFleet(listings, 'csv')} disabled={!listings?.length} className="ring-lux flex items-center gap-1.5 rounded-full border border-mist bg-cloud px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50"><Icon.ArrowUpRight width={14} height={14} /> Export</button>
-          <button onClick={onAdd} className="ring-lux flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void"><Icon.Plus width={15} height={15} /> List a car</button>
+          <button onClick={() => setImportOpen(true)} className="ring-lux flex items-center gap-1.5 rounded-full border border-mist bg-cloud px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink"><Icon.ArrowUpRight width={14} height={14} className="rotate-180" /> {t('partner.fleet.import')}</button>
+          <button onClick={() => exportFleet(listings, 'csv')} disabled={!listings?.length} className="ring-lux flex items-center gap-1.5 rounded-full border border-mist bg-cloud px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50"><Icon.ArrowUpRight width={14} height={14} /> {t('partner.fleet.export')}</button>
+          <button onClick={onAdd} className="ring-lux flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void"><Icon.Plus width={15} height={15} /> {t('partner.listCar')}</button>
         </div>
       </div>
 
@@ -834,7 +835,7 @@ function Fleet({ listings, blocks, onAdd, reload }) {
                     <span className="font-display text-2xl text-cloud/85">{c.make} {c.model}</span>
                   </div>
                 )}
-                <button onClick={() => setEditing(c)} title="Edit details" className="ring-lux absolute left-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-cloud/90 text-ink shadow-md backdrop-blur transition-colors hover:bg-cloud"><Icon.Gear width={16} height={16} /></button>
+                <button onClick={() => setEditing(c)} title={t('partner.fleet.editDetails')} className="ring-lux absolute left-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-cloud/90 text-ink shadow-md backdrop-blur transition-colors hover:bg-cloud"><Icon.Gear width={16} height={16} /></button>
                 <div className="absolute right-3 top-3"><StatusPill status={c.status} /></div>
               </div>
 
@@ -849,23 +850,23 @@ function Fleet({ listings, blocks, onAdd, reload }) {
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {c.fuel && <span className="rounded-full border border-mist px-2 py-0.5 text-[0.65rem] font-semibold text-stone">{c.fuel}</span>}
                         {c.exterior_color && <span className="rounded-full border border-mist px-2 py-0.5 text-[0.65rem] font-semibold text-stone">{c.exterior_color}</span>}
-                        {c.interior_color && <span className="rounded-full border border-mist px-2 py-0.5 text-[0.65rem] font-semibold text-stone">{c.interior_color} interior</span>}
-                        {c.cross_border_allowed && <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[0.65rem] font-semibold text-gold">Cross-border</span>}
-                        {carBlocks.length > 0 && <span className="rounded-full border border-stone/30 bg-mist px-2 py-0.5 text-[0.65rem] font-semibold text-stone">{carBlocks.length} blocked period{carBlocks.length > 1 ? 's' : ''}</span>}
+                        {c.interior_color && <span className="rounded-full border border-mist px-2 py-0.5 text-[0.65rem] font-semibold text-stone">{t('partner.fleet.interiorSuffix', { color: c.interior_color })}</span>}
+                        {c.cross_border_allowed && <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[0.65rem] font-semibold text-gold">{t('partner.fleet.crossBorder')}</span>}
+                        {carBlocks.length > 0 && <span className="rounded-full border border-stone/30 bg-mist px-2 py-0.5 text-[0.65rem] font-semibold text-stone">{t(carBlocks.length === 1 ? 'partner.fleet.blockedPeriodsOne' : 'partner.fleet.blockedPeriodsMany', { n: carBlocks.length })}</span>}
                       </div>
                     )}
                     </div>
                   </div>
                   <div className="shrink-0 pl-3 text-right">
                     <div className="font-display text-lg tnum">{chf(c.price_per_day)}</div>
-                    <div className="text-[0.7rem] uppercase tracking-wider text-stone">/ day</div>
+                    <div className="text-[0.7rem] uppercase tracking-wider text-stone">{t('partner.fleet.day')}</div>
                   </div>
                 </div>
 
                 <div className="mt-5 flex gap-2 border-t border-mist pt-4">
-                  <button onClick={() => setBlocking(c)} className="ring-lux flex-1 rounded-lg border border-mist py-2 text-xs font-semibold text-ink transition-colors hover:border-ink">Block</button>
-                  <button onClick={() => cycleStatus(c)} disabled={busyId === c.id} className="ring-lux flex-1 rounded-lg border border-mist py-2 text-xs font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50">Status</button>
-                  <button onClick={() => remove(c.id)} disabled={busyId === c.id} className="ring-lux flex-1 rounded-lg border border-mist py-2 text-xs font-semibold text-red-600 transition-colors hover:border-red-400 hover:bg-red-50 disabled:opacity-50">{busyId === c.id ? '…' : 'Delete'}</button>
+                  <button onClick={() => setBlocking(c)} className="ring-lux flex-1 rounded-lg border border-mist py-2 text-xs font-semibold text-ink transition-colors hover:border-ink">{t('partner.fleet.block')}</button>
+                  <button onClick={() => cycleStatus(c)} disabled={busyId === c.id} className="ring-lux flex-1 rounded-lg border border-mist py-2 text-xs font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50">{t('partner.fleet.status')}</button>
+                  <button onClick={() => remove(c.id)} disabled={busyId === c.id} className="ring-lux flex-1 rounded-lg border border-mist py-2 text-xs font-semibold text-red-600 transition-colors hover:border-red-400 hover:bg-red-50 disabled:opacity-50">{busyId === c.id ? '…' : t('partner.fleet.delete')}</button>
                 </div>
               </div>
             </div>
@@ -874,7 +875,7 @@ function Fleet({ listings, blocks, onAdd, reload }) {
 
           <button onClick={onAdd} className="ring-lux flex min-h-[210px] flex-col items-center justify-center gap-3 rounded-[var(--radius-card)] border border-dashed border-mist text-stone transition-colors hover:border-ink hover:text-ink">
             <span className="grid h-12 w-12 place-items-center rounded-full bg-mist/60"><Icon.Plus /></span>
-            <span className="text-sm font-semibold">List another car</span>
+            <span className="text-sm font-semibold">{t('partner.fleet.listAnother')}</span>
           </button>
         </div>
       )}
@@ -889,13 +890,14 @@ function Fleet({ listings, blocks, onAdd, reload }) {
 }
 
 function EmptyFleet({ onAdd, compact }) {
+  const t = useT();
   return (
     <div className={`flex flex-col items-center justify-center rounded-2xl border border-dashed border-mist text-center ${compact ? 'py-8' : 'py-20'}`}>
       <span className="grid h-14 w-14 place-items-center rounded-full bg-paper text-stone"><Icon.Car width={24} height={24} /></span>
-      <h3 className="font-display mt-4 text-lg">Your fleet is empty</h3>
-      <p className="mt-1 max-w-xs px-4 text-sm text-stone">Add your first car and it'll be saved to your database and ready to earn.</p>
+      <h3 className="font-display mt-4 text-lg">{t('partner.fleet.emptyTitle')}</h3>
+      <p className="mt-1 max-w-xs px-4 text-sm text-stone">{t('partner.fleet.emptyDesc')}</p>
       <button onClick={onAdd} className="ring-lux mt-5 flex items-center gap-1.5 rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-cloud transition-colors hover:bg-void">
-        <Icon.Plus width={15} height={15} /> List a car
+        <Icon.Plus width={15} height={15} /> {t('partner.listCar')}
       </button>
     </div>
   );
@@ -1605,9 +1607,10 @@ function BarChart({ data }) {
 const CATS = ['Sport', 'Exotic', 'GT', 'SUV'];
 const CITIES = ['Geneva', 'Zürich', 'Lugano', 'Lausanne', 'Basel', 'Bern', 'St. Moritz', 'Zermatt', 'Gstaad'];
 const FUELS = ['Petrol', 'Diesel', 'Mild hybrid', 'Plug-in hybrid', 'Electric', 'Hydrogen'];
-const STEP_LABELS = { 1: 'Photo', 2: 'Identity', 3: 'Specs', 4: 'Pricing & terms' };
+const STEP_LABEL_KEYS = { 1: 'partner.addcar.step1', 2: 'partner.addcar.step2', 3: 'partner.addcar.step3', 4: 'partner.addcar.step4' };
 
 function AddCar({ onClose, onCreated }) {
+  const t = useT();
   const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -1644,14 +1647,14 @@ function AddCar({ onClose, onCreated }) {
   useEffect(() => { fetchLocations().then(setLocs).catch(() => {}); }, []);
 
   async function saveNewLoc() {
-    if (!newLoc.address?.trim() && !newLoc.label?.trim()) { setError('Add a label or find an address for the location.'); return; }
+    if (!newLoc.address?.trim() && !newLoc.label?.trim()) { setError(t('partner.addcar.errLabelOrAddress')); return; }
     setLocBusy(true); setError('');
     try {
       const created = await createLocation(cleanLoc(newLoc));
       setLocs(await fetchLocations());
       setF((p) => ({ ...p, location_id: created.id, city: created.city || p.city }));
       setNewLoc(null);
-    } catch (e) { setError(e.message || 'Could not create location.'); }
+    } catch (e) { setError(e.message || t('partner.addcar.errCreateLocation')); }
     finally { setLocBusy(false); }
   }
 
@@ -1668,7 +1671,7 @@ function AddCar({ onClose, onCreated }) {
     const picked = e.target.files?.[0];
     if (!picked) return;
     setVideoErr('');
-    if (picked.size > 25 * 1024 * 1024) { setVideoErr('Video is over 25 MB — please use a shorter / smaller clip.'); return; }
+    if (picked.size > 25 * 1024 * 1024) { setVideoErr(t('partner.addcar.errVideoSize')); return; }
     setVideoFile(picked);
     setVideoPreview(URL.createObjectURL(picked));
   }
@@ -1692,7 +1695,7 @@ function AddCar({ onClose, onCreated }) {
         setThumbBlob(thumb);
         setThumbPreview(URL.createObjectURL(thumb));
       } else {
-        setProcError('Could not auto-generate the studio thumbnail — your original photo will be used.');
+        setProcError(t('partner.addcar.errThumbnail'));
       }
       if (details && (details.make || details.model || details.exterior_color || details.category)) {
         setF((p) => ({
@@ -1714,7 +1717,7 @@ function AddCar({ onClose, onCreated }) {
     setError('');
     if (step === 1) { setStep(2); return; } // photo (optional)
     if (step === 2) {
-      if (!f.make.trim() || !f.model.trim()) { setError('Make and model are required.'); return; }
+      if (!f.make.trim() || !f.model.trim()) { setError(t('partner.addcar.errMakeModel')); return; }
       // prefill specs from the curated library (partner can override on the specs step)
       const m = lookupSpecs(f.make, f.model);
       setMatched(m);
@@ -1731,7 +1734,7 @@ function AddCar({ onClose, onCreated }) {
     }
     if (step === 3) { setStep(4); return; }
 
-    if (!f.price_per_day || Number(f.price_per_day) <= 0) { setError('Enter a valid daily rate.'); return; }
+    if (!f.price_per_day || Number(f.price_per_day) <= 0) { setError(t('partner.addcar.errRate')); return; }
 
     setBusy(true);
     try {
@@ -1745,8 +1748,8 @@ function AddCar({ onClose, onCreated }) {
       }
       if (videoFile) video_url = await uploadListingVideo(videoFile);
       const rate_tiers = tiers
-        .filter((t) => t.label.trim() && Number(t.price) > 0)
-        .map((t) => ({ label: t.label.trim(), price: Number(t.price) }));
+        .filter((row) => row.label.trim() && Number(row.price) > 0)
+        .map((row) => ({ label: row.label.trim(), price: Number(row.price) }));
 
       await createListing({
         make: f.make.trim(),
@@ -1785,8 +1788,8 @@ function AddCar({ onClose, onCreated }) {
     } catch (err) {
       const m = err.message || '';
       setError(/CAR_LIMIT/.test(m)
-        ? 'You’ve reached your plan’s car limit. Upgrade your plan (Plans tab) to list more cars.'
-        : (m || 'Could not save the listing.'));
+        ? t('partner.addcar.errCarLimit')
+        : (m || t('partner.addcar.errSave')));
     } finally {
       setBusy(false);
     }
@@ -1797,8 +1800,8 @@ function AddCar({ onClose, onCreated }) {
       <motion.div initial={{ opacity: 0, y: 28, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.98 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} onClick={(e) => e.stopPropagation()} className="my-auto w-full max-w-lg overflow-hidden rounded-[24px] border border-mist bg-paper shadow-2xl">
         <div className="flex items-center justify-between border-b border-mist bg-cloud px-6 py-4">
           <div>
-            <div className="eyebrow text-gold">{done ? 'Saved' : `Step ${step} of 4 · ${STEP_LABELS[step]}`}</div>
-            <h3 className="font-display text-lg">{done ? 'Listing created' : 'List a car'}</h3>
+            <div className="eyebrow text-gold">{done ? t('partner.addcar.saved') : t('partner.addcar.stepOf', { n: step, label: t(STEP_LABEL_KEYS[step]) })}</div>
+            <h3 className="font-display text-lg">{done ? t('partner.addcar.listingCreated') : t('partner.listCar')}</h3>
           </div>
           <button onClick={onClose} className="ring-lux grid h-9 w-9 place-items-center rounded-full border border-mist text-stone transition-colors hover:bg-mist/50"><Icon.X width={16} height={16} /></button>
         </div>
@@ -1806,31 +1809,31 @@ function AddCar({ onClose, onCreated }) {
         {done ? (
           <div className="px-6 py-12 text-center">
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 16 }} className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-go text-cloud"><Icon.Check width={30} height={30} /></motion.div>
-            <h4 className="font-display mt-5 text-xl">{f.make} {f.model} is live.</h4>
-            <p className="mx-auto mt-2 max-w-xs text-sm text-stone">Saved to your Supabase database and visible in your fleet.</p>
-            <button onClick={onClose} className="ring-lux mt-6 rounded-full bg-ink px-6 py-3 text-sm font-bold text-cloud transition-colors hover:bg-void">Back to dashboard</button>
+            <h4 className="font-display mt-5 text-xl">{t('partner.addcar.liveTitle', { make: f.make, model: f.model })}</h4>
+            <p className="mx-auto mt-2 max-w-xs text-sm text-stone">{t('partner.addcar.liveDesc')}</p>
+            <button onClick={onClose} className="ring-lux mt-6 rounded-full bg-ink px-6 py-3 text-sm font-bold text-cloud transition-colors hover:bg-void">{t('partner.addcar.backToDashboard')}</button>
           </div>
         ) : (
           <form onSubmit={submit} className="max-h-[70vh] space-y-4 overflow-y-auto p-6">
             {step === 1 && (
               <>
-                <span className="block text-sm font-semibold">Photo <span className="font-normal text-stone">· we generate a studio thumbnail and read the make, model &amp; colour</span></span>
+                <span className="block text-sm font-semibold">{t('partner.addcar.photoLabel')} <span className="font-normal text-stone">{t('partner.addcar.photoHint')}</span></span>
                 <button type="button" onClick={() => fileRef.current?.click()} className="ring-lux relative block w-full overflow-hidden rounded-2xl border border-dashed border-mist bg-cloud text-center transition-colors hover:border-ink">
                   {thumbPreview || preview ? (
                     <img src={thumbPreview || preview} alt="preview" className="h-44 w-full object-cover" />
                   ) : (
-                    <div className="grid h-32 place-items-center text-sm text-stone"><div><Icon.Plus className="mx-auto mb-1" /> Click to upload a photo (optional)</div></div>
+                    <div className="grid h-32 place-items-center text-sm text-stone"><div><Icon.Plus className="mx-auto mb-1" /> {t('partner.addcar.uploadPhoto')}</div></div>
                   )}
                   {processing && (
                     <div className="absolute inset-0 grid place-items-center rounded-2xl bg-paper/82 backdrop-blur-sm">
                       <div className="flex flex-col items-center gap-2 text-xs font-semibold text-ink">
                         <span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" />
-                        Reading your car · generating studio thumbnail…
+                        {t('partner.addcar.processing')}
                       </div>
                     </div>
                   )}
                   {thumbPreview && !processing && (
-                    <span className="absolute left-3 top-3 rounded-full bg-ink/85 px-2.5 py-1 text-[0.65rem] font-bold text-cloud backdrop-blur">Studio thumbnail</span>
+                    <span className="absolute left-3 top-3 rounded-full bg-ink/85 px-2.5 py-1 text-[0.65rem] font-bold text-cloud backdrop-blur">{t('partner.addcar.studioThumbnail')}</span>
                   )}
                 </button>
                 <input ref={fileRef} type="file" accept="image/*" onChange={pickFile} className="hidden" />
@@ -1838,25 +1841,25 @@ function AddCar({ onClose, onCreated }) {
                 {prefilledFromPhoto && !processing && (
                   <div className="flex items-start gap-2 rounded-xl border border-gold/30 bg-gold/10 px-3.5 py-2.5 text-xs text-ink">
                     <span className="text-gold">✦</span>
-                    <span>We prefilled the make, model &amp; colour from your photo — check them on the next step.</span>
+                    <span>{t('partner.addcar.prefilled')}</span>
                   </div>
                 )}
-                <p className="text-xs text-stone">No photo? Skip and enter the details manually.</p>
+                <p className="text-xs text-stone">{t('partner.addcar.noPhoto')}</p>
 
                 {/* optional short video — plays on hover in the marketplace + in the booking view */}
                 <div className="pt-1">
-                  <span className="block text-sm font-semibold">Video <span className="font-normal text-stone">· optional, muted · plays on hover &amp; in booking</span></span>
+                  <span className="block text-sm font-semibold">{t('partner.addcar.videoLabel')} <span className="font-normal text-stone">{t('partner.addcar.videoHint')}</span></span>
                   <button type="button" onClick={() => videoRef.current?.click()} className="ring-lux relative mt-2 block w-full overflow-hidden rounded-2xl border border-dashed border-mist bg-cloud text-center transition-colors hover:border-ink">
                     {videoPreview ? (
                       <video src={videoPreview} className="h-36 w-full object-cover" muted autoPlay loop playsInline />
                     ) : (
-                      <div className="grid h-20 place-items-center text-sm text-stone"><div><Icon.Plus className="mx-auto mb-1" width={16} height={16} /> Add a short clip (≤ 25 MB)</div></div>
+                      <div className="grid h-20 place-items-center text-sm text-stone"><div><Icon.Plus className="mx-auto mb-1" width={16} height={16} /> {t('partner.addcar.addClip')}</div></div>
                     )}
-                    {videoPreview && <span className="absolute left-3 top-3 rounded-full bg-ink/85 px-2.5 py-1 text-[0.65rem] font-bold text-cloud backdrop-blur">Video</span>}
+                    {videoPreview && <span className="absolute left-3 top-3 rounded-full bg-ink/85 px-2.5 py-1 text-[0.65rem] font-bold text-cloud backdrop-blur">{t('partner.addcar.video')}</span>}
                   </button>
                   <input ref={videoRef} type="file" accept="video/*" onChange={pickVideo} className="hidden" />
                   {videoErr && <p className="mt-1 text-xs text-amber-600">{videoErr}</p>}
-                  {videoPreview && <button type="button" onClick={() => { setVideoFile(null); setVideoPreview(null); }} className="ring-lux mt-1 text-xs font-semibold text-red-600 hover:underline">Remove video</button>}
+                  {videoPreview && <button type="button" onClick={() => { setVideoFile(null); setVideoPreview(null); }} className="ring-lux mt-1 text-xs font-semibold text-red-600 hover:underline">{t('partner.addcar.removeVideo')}</button>}
                 </div>
               </>
             )}
@@ -1870,16 +1873,16 @@ function AddCar({ onClose, onCreated }) {
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
-                  <FormInput label="Make" placeholder="Porsche" value={f.make} onChange={set('make')} />
-                  <FormInput label="Model" placeholder="911 Turbo S" value={f.model} onChange={set('model')} />
+                  <FormInput label={t('partner.addcar.make')} placeholder="Porsche" value={f.make} onChange={set('make')} />
+                  <FormInput label={t('partner.addcar.model')} placeholder="911 Turbo S" value={f.model} onChange={set('model')} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <FormInput label="Year" type="number" placeholder="2024" value={f.year} onChange={set('year')} />
-                  <FormSelect label="Category" value={f.category} onChange={set('category')} options={CATS} />
+                  <FormInput label={t('partner.addcar.year')} type="number" placeholder="2024" value={f.year} onChange={set('year')} />
+                  <FormSelect label={t('partner.addcar.category')} value={f.category} onChange={set('category')} options={CATS} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <FormInput label="Exterior colour" placeholder="GT Silver Metallic" value={f.exterior_color} onChange={set('exterior_color')} />
-                  <FormInput label="Interior colour" placeholder="Black leather" value={f.interior_color} onChange={set('interior_color')} />
+                  <FormInput label={t('partner.addcar.exteriorColour')} placeholder="GT Silver Metallic" value={f.exterior_color} onChange={set('exterior_color')} />
+                  <FormInput label={t('partner.addcar.interiorColour')} placeholder="Black leather" value={f.interior_color} onChange={set('interior_color')} />
                 </div>
               </>
             )}
@@ -1889,16 +1892,16 @@ function AddCar({ onClose, onCreated }) {
                 {matched && (
                   <div className="flex items-start gap-2 rounded-xl border border-gold/30 bg-gold/10 px-3.5 py-2.5 text-xs text-ink">
                     <span className="text-gold">✦</span>
-                    <span>Specs prefilled from <span className="font-semibold">{matched.name}</span>. Edit anything that doesn’t match your car.</span>
+                    <span>{t('partner.addcar.specsPrefilledPre')} <span className="font-semibold">{matched.name}</span>{t('partner.addcar.specsPrefilledPost')}</span>
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
-                  <FormInput label="Power (hp)" type="number" placeholder="640" value={f.power} onChange={set('power')} />
-                  <FormInput label="Seats" type="number" placeholder="2" value={f.seats} onChange={set('seats')} />
+                  <FormInput label={t('partner.addcar.power')} type="number" placeholder="640" value={f.power} onChange={set('power')} />
+                  <FormInput label={t('partner.addcar.seats')} type="number" placeholder="2" value={f.seats} onChange={set('seats')} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <FormSelect label="Gearbox" value={f.gearbox} onChange={set('gearbox')} options={['Auto', 'PDK', 'DCT', 'Manual']} />
-                  <FormSelect label="Fuel" value={f.fuel} onChange={set('fuel')} options={FUELS} />
+                  <FormSelect label={t('partner.addcar.gearbox')} value={f.gearbox} onChange={set('gearbox')} options={['Auto', 'PDK', 'DCT', 'Manual']} />
+                  <FormSelect label={t('partner.addcar.fuel')} value={f.fuel} onChange={set('fuel')} options={FUELS} />
                 </div>
                 <DescriptionField value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))}
                   carFields={{ make: f.make, model: f.model, year: f.year, category: f.category, power: f.power, gearbox: f.gearbox, fuel: f.fuel, exterior_color: f.exterior_color, interior_color: f.interior_color, location: f.city }} />
@@ -1908,7 +1911,7 @@ function AddCar({ onClose, onCreated }) {
             {step === 4 && (
               <>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone">Pick-up location</label>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone">{t('partner.addcar.pickupLocation')}</label>
                   {locs.length > 0 ? (
                     <select
                       value={f.location_id}
@@ -1920,47 +1923,47 @@ function AddCar({ onClose, onCreated }) {
                       }}
                       className="ring-lux w-full rounded-xl border border-mist bg-paper px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink"
                     >
-                      <option value="">Select a location…</option>
-                      {locs.map((l) => <option key={l.id} value={l.id}>{(l.label || l.city || 'Location') + (locLine(l) ? ` — ${locLine(l)}` : '')}</option>)}
-                      <option value="__new">+ New location…</option>
+                      <option value="">{t('partner.addcar.selectLocation')}</option>
+                      {locs.map((l) => <option key={l.id} value={l.id}>{(l.label || l.city || t('partner.location.locationFallback')) + (locLine(l) ? ` — ${locLine(l)}` : '')}</option>)}
+                      <option value="__new">{t('partner.addcar.newLocation')}</option>
                     </select>
                   ) : (
                     <div className="flex items-center justify-between rounded-xl border border-dashed border-mist bg-cloud px-3.5 py-2.5 text-sm text-stone">
-                      <span>No saved locations yet</span>
-                      <button type="button" onClick={() => setNewLoc({ ...EMPTY_LOC })} className="ring-lux font-semibold text-gold transition-colors hover:text-ink">+ Add one</button>
+                      <span>{t('partner.addcar.noSavedLocations')}</span>
+                      <button type="button" onClick={() => setNewLoc({ ...EMPTY_LOC })} className="ring-lux font-semibold text-gold transition-colors hover:text-ink">{t('partner.addcar.addOne')}</button>
                     </div>
                   )}
                   {newLoc && (
                     <div className="mt-2 rounded-xl border border-mist bg-cloud p-3">
                       <LocationForm value={newLoc} onChange={setNewLoc} />
                       <div className="mt-3 flex gap-2">
-                        <button type="button" disabled={locBusy} onClick={saveNewLoc} className="ring-lux rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">{locBusy ? 'Saving…' : 'Save location'}</button>
-                        <button type="button" onClick={() => setNewLoc(null)} className="ring-lux rounded-lg border border-mist px-3 py-2 text-sm transition-colors hover:border-ink">Cancel</button>
+                        <button type="button" disabled={locBusy} onClick={saveNewLoc} className="ring-lux rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">{locBusy ? t('partner.addcar.savingLocation') : t('partner.addcar.saveLocation')}</button>
+                        <button type="button" onClick={() => setNewLoc(null)} className="ring-lux rounded-lg border border-mist px-3 py-2 text-sm transition-colors hover:border-ink">{t('partner.addcar.cancelLocation')}</button>
                       </div>
                     </div>
                   )}
-                  <p className="mt-1.5 text-xs text-stone">Where guests collect this car. Manage all your sites under <span className="font-semibold">Location</span>.</p>
+                  <p className="mt-1.5 text-xs text-stone">{t('partner.addcar.pickupHintPre')} <span className="font-semibold">{t('nav.location')}</span>{t('partner.addcar.pickupHintPost')}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <FormInput label="Daily rate (CHF)" type="number" placeholder="690" value={f.price_per_day} onChange={set('price_per_day')} />
-                  <FormInput label="Mileage / day (km)" type="number" placeholder="250" value={f.mileage_per_day} onChange={set('mileage_per_day')} />
+                  <FormInput label={t('partner.addcar.dailyRate')} type="number" placeholder="690" value={f.price_per_day} onChange={set('price_per_day')} />
+                  <FormInput label={t('partner.addcar.mileagePerDay')} type="number" placeholder="250" value={f.mileage_per_day} onChange={set('mileage_per_day')} />
                 </div>
 
                 {/* custom time slots */}
                 <div className="rounded-2xl border border-mist bg-cloud p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">Custom time slots <span className="font-normal text-stone">· optional</span></span>
-                    <button type="button" onClick={addTier} className="ring-lux flex items-center gap-1 text-xs font-semibold text-gold hover:text-ink"><Icon.Plus width={13} height={13} /> Add slot</button>
+                    <span className="text-sm font-semibold">{t('partner.addcar.customSlots')} <span className="font-normal text-stone">{t('partner.addcar.optional')}</span></span>
+                    <button type="button" onClick={addTier} className="ring-lux flex items-center gap-1 text-xs font-semibold text-gold hover:text-ink"><Icon.Plus width={13} height={13} /> {t('partner.addcar.addSlot')}</button>
                   </div>
-                  <p className="mt-1 text-xs text-stone">Offer shorter or longer rentals than a day — e.g. “3 hours”, “Half day”, “Weekend”.</p>
+                  <p className="mt-1 text-xs text-stone">{t('partner.addcar.slotsHint')}</p>
                   {tiers.length > 0 && (
                     <div className="mt-3 space-y-2">
-                      {tiers.map((t, i) => (
+                      {tiers.map((row, i) => (
                         <div key={i} className="flex items-center gap-2">
-                          <input value={t.label} onChange={(e) => updTier(i, 'label', e.target.value)} placeholder="3 hours" className="ring-lux flex-1 rounded-xl border border-mist bg-paper px-3 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+                          <input value={row.label} onChange={(e) => updTier(i, 'label', e.target.value)} placeholder={t('partner.addcar.slotLabelPlaceholder')} className="ring-lux flex-1 rounded-xl border border-mist bg-paper px-3 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
                           <div className="flex items-center rounded-xl border border-mist bg-paper pl-3 transition-colors focus-within:border-ink">
                             <span className="text-xs text-stone">CHF</span>
-                            <input value={t.price} onChange={(e) => updTier(i, 'price', e.target.value)} type="number" placeholder="290" className="w-20 bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-stone" />
+                            <input value={row.price} onChange={(e) => updTier(i, 'price', e.target.value)} type="number" placeholder="290" className="w-20 bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-stone" />
                           </div>
                           <button type="button" onClick={() => delTier(i)} className="ring-lux grid h-9 w-9 shrink-0 place-items-center rounded-full border border-mist text-stone transition-colors hover:border-red-400 hover:text-red-600"><Icon.X width={14} height={14} /></button>
                         </div>
@@ -1972,15 +1975,15 @@ function AddCar({ onClose, onCreated }) {
                 {/* cross-border */}
                 <div className="rounded-2xl border border-mist bg-cloud p-4">
                   <label className="flex cursor-pointer items-center justify-between">
-                    <span className="text-sm font-semibold">Allow cross-border trips</span>
+                    <span className="text-sm font-semibold">{t('partner.addcar.allowCrossBorder')}</span>
                     <input type="checkbox" checked={f.cross_border_allowed} onChange={(e) => setF((p) => ({ ...p, cross_border_allowed: e.target.checked }))} className="ring-lux h-4 w-4 accent-ink" />
                   </label>
                   <AnimatePresence initial={false}>
                     {f.cross_border_allowed && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                         <div className="pt-3">
-                          <FormInput label="Cross-border surcharge (CHF)" type="number" placeholder="150" value={f.cross_border_fee} onChange={set('cross_border_fee')} />
-                          <p className="mt-1 text-xs text-stone">One-off fee added when the guest takes the car out of Switzerland.</p>
+                          <FormInput label={t('partner.addcar.crossBorderFee')} type="number" placeholder="150" value={f.cross_border_fee} onChange={set('cross_border_fee')} />
+                          <p className="mt-1 text-xs text-stone">{t('partner.addcar.crossBorderHint')}</p>
                         </div>
                       </motion.div>
                     )}
@@ -1990,16 +1993,16 @@ function AddCar({ onClose, onCreated }) {
                 {/* delivery */}
                 <div className="rounded-2xl border border-mist bg-cloud p-4">
                   <label className="flex cursor-pointer items-center justify-between">
-                    <span className="text-sm font-semibold">Bring &amp; collect (delivery)</span>
+                    <span className="text-sm font-semibold">{t('partner.addcar.delivery')}</span>
                     <input type="checkbox" checked={f.delivery_available} onChange={(e) => setF((p) => ({ ...p, delivery_available: e.target.checked }))} className="ring-lux h-4 w-4 accent-ink" />
                   </label>
                   <AnimatePresence initial={false}>
                     {f.delivery_available && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                         <div className="space-y-3 pt-3">
-                          <FormInput label="Delivery fee (CHF · round-trip)" type="number" placeholder="150" value={f.delivery_fee} onChange={set('delivery_fee')} />
-                          <FormInput label="Delivery note (optional)" placeholder="Free within Geneva · CHF 2/km beyond" value={f.delivery_note} onChange={set('delivery_note')} />
-                          <p className="text-xs text-stone">We deliver the car to the guest's chosen location and collect it after the trip.</p>
+                          <FormInput label={t('partner.addcar.deliveryFee')} type="number" placeholder="150" value={f.delivery_fee} onChange={set('delivery_fee')} />
+                          <FormInput label={t('partner.addcar.deliveryNote')} placeholder={t('partner.addcar.deliveryNotePlaceholder')} value={f.delivery_note} onChange={set('delivery_note')} />
+                          <p className="text-xs text-stone">{t('partner.addcar.deliveryHint')}</p>
                         </div>
                       </motion.div>
                     )}
@@ -2009,16 +2012,16 @@ function AddCar({ onClose, onCreated }) {
                 {/* damage protection (partner keeps 100%) */}
                 <div className="rounded-2xl border border-mist bg-cloud p-4">
                   <label className="flex cursor-pointer items-center justify-between">
-                    <span className="text-sm font-semibold">Offer damage protection (zero excess)</span>
+                    <span className="text-sm font-semibold">{t('partner.addcar.protection')}</span>
                     <input type="checkbox" checked={f.protection_available} onChange={(e) => setF((p) => ({ ...p, protection_available: e.target.checked }))} className="ring-lux h-4 w-4 accent-ink" />
                   </label>
                   <AnimatePresence initial={false}>
                     {f.protection_available && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                         <div className="space-y-3 pt-3">
-                          <FormInput label="Protection fee (CHF · per trip)" type="number" placeholder="250" value={f.protection_fee} onChange={set('protection_fee')} />
-                          <FormInput label="Security deposit this waives (CHF)" type="number" placeholder="5000" value={f.deposit_amount} onChange={set('deposit_amount')} />
-                          <p className="text-xs text-stone">Guests can pay this to drop their damage excess to CHF 0. You keep the full fee — AIRLUXO takes no commission on it.</p>
+                          <FormInput label={t('partner.addcar.protectionFee')} type="number" placeholder="250" value={f.protection_fee} onChange={set('protection_fee')} />
+                          <FormInput label={t('partner.addcar.depositAmount')} type="number" placeholder="5000" value={f.deposit_amount} onChange={set('deposit_amount')} />
+                          <p className="text-xs text-stone">{t('partner.addcar.protectionHint')}</p>
                         </div>
                       </motion.div>
                     )}
@@ -2030,9 +2033,9 @@ function AddCar({ onClose, onCreated }) {
             {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
             <div className="flex gap-3 pt-2">
-              {step > 1 && <button type="button" onClick={() => { setStep((s) => s - 1); setError(''); }} className="ring-lux rounded-xl border border-mist px-5 py-3 text-sm font-semibold text-ink transition-colors hover:border-ink">Back</button>}
+              {step > 1 && <button type="button" onClick={() => { setStep((s) => s - 1); setError(''); }} className="ring-lux rounded-xl border border-mist px-5 py-3 text-sm font-semibold text-ink transition-colors hover:border-ink">{t('partner.addcar.back')}</button>}
               <button type="submit" disabled={busy} className="ring-lux flex flex-1 items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
-                {busy ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-cloud/30 border-t-cloud" /> : step < 4 ? <>Continue <Icon.Arrow width={15} height={15} /></> : <>Save listing <Icon.Check width={15} height={15} /></>}
+                {busy ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-cloud/30 border-t-cloud" /> : step < 4 ? <>{t('partner.addcar.continue')} <Icon.Arrow width={15} height={15} /></> : <>{t('partner.addcar.saveListing')} <Icon.Check width={15} height={15} /></>}
               </button>
             </div>
           </form>
@@ -2044,6 +2047,7 @@ function AddCar({ onClose, onCreated }) {
 
 /* ---------------- Edit a car (full edit) ---------------- */
 function EditCar({ car, onClose, onSaved }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [file, setFile] = useState(null);
@@ -2061,7 +2065,7 @@ function EditCar({ car, onClose, onSaved }) {
     const picked = e.target.files?.[0];
     if (!picked) return;
     setVideoErr('');
-    if (picked.size > 25 * 1024 * 1024) { setVideoErr('Video is over 25 MB — please use a shorter / smaller clip.'); return; }
+    if (picked.size > 25 * 1024 * 1024) { setVideoErr(t('partner.editcar.errVideoSize')); return; }
     setRemoveVideo(false);
     setVideoFile(picked);
     setVideoPreview(URL.createObjectURL(picked));
@@ -2091,7 +2095,7 @@ function EditCar({ car, onClose, onSaved }) {
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   const [tiers, setTiers] = useState(
-    Array.isArray(car.rate_tiers) ? car.rate_tiers.map((t) => ({ label: t.label, price: String(t.price) })) : [],
+    Array.isArray(car.rate_tiers) ? car.rate_tiers.map((row) => ({ label: row.label, price: String(row.price) })) : [],
   );
   const addTier = () => setTiers((t) => [...t, { label: '', price: '' }]);
   const updTier = (i, k, v) => setTiers((t) => t.map((row, j) => (j === i ? { ...row, [k]: v } : row)));
@@ -2112,8 +2116,8 @@ function EditCar({ car, onClose, onSaved }) {
   async function submit(e) {
     e.preventDefault();
     setError('');
-    if (!f.make.trim() || !f.model.trim()) { setError('Make and model are required.'); return; }
-    if (!f.price_per_day || Number(f.price_per_day) <= 0) { setError('Enter a valid daily rate.'); return; }
+    if (!f.make.trim() || !f.model.trim()) { setError(t('partner.editcar.errMakeModel')); return; }
+    if (!f.price_per_day || Number(f.price_per_day) <= 0) { setError(t('partner.editcar.errRate')); return; }
     setBusy(true);
     try {
       const patch = {
@@ -2137,7 +2141,7 @@ function EditCar({ car, onClose, onSaved }) {
         protection_fee: f.protection_available && f.protection_fee ? Number(f.protection_fee) : null,
         deposit_amount: f.protection_available && f.deposit_amount ? Number(f.deposit_amount) : null,
         description: f.description.trim() || null,
-        rate_tiers: tiers.filter((t) => t.label.trim() && Number(t.price) > 0).map((t) => ({ label: t.label.trim(), price: Number(t.price) })),
+        rate_tiers: tiers.filter((row) => row.label.trim() && Number(row.price) > 0).map((row) => ({ label: row.label.trim(), price: Number(row.price) })),
       };
       if (file) {
         const original = await uploadListingPhoto(file);
@@ -2150,7 +2154,7 @@ function EditCar({ car, onClose, onSaved }) {
       await onSaved();
       onClose();
     } catch (err) {
-      setError(err.message || 'Could not save changes.');
+      setError(err.message || t('partner.editcar.errSave'));
     } finally { setBusy(false); }
   }
 
@@ -2161,7 +2165,7 @@ function EditCar({ car, onClose, onSaved }) {
       <motion.div initial={{ opacity: 0, y: 28, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.98 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} onClick={(e) => e.stopPropagation()} className="my-auto w-full max-w-lg overflow-hidden rounded-[24px] border border-mist bg-paper shadow-2xl">
         <div className="flex items-center justify-between border-b border-mist bg-cloud px-6 py-4">
           <div>
-            <div className="eyebrow text-gold">Edit listing</div>
+            <div className="eyebrow text-gold">{t('partner.editcar.title')}</div>
             <h3 className="font-display text-lg">{car.make} {car.model}</h3>
           </div>
           <button onClick={onClose} className="ring-lux grid h-9 w-9 place-items-center rounded-full border border-mist text-stone transition-colors hover:bg-mist/50"><Icon.X width={16} height={16} /></button>
@@ -2169,69 +2173,69 @@ function EditCar({ car, onClose, onSaved }) {
 
         <form onSubmit={submit} className="max-h-[72vh] space-y-4 overflow-y-auto p-6">
           <div className="grid grid-cols-2 gap-3">
-            <FormInput label="Make" value={f.make} onChange={set('make')} />
-            <FormInput label="Model" value={f.model} onChange={set('model')} />
+            <FormInput label={t('partner.addcar.make')} value={f.make} onChange={set('make')} />
+            <FormInput label={t('partner.addcar.model')} value={f.model} onChange={set('model')} />
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <FormInput label="Year" type="number" value={f.year} onChange={set('year')} />
-            <FormSelect label="Category" value={f.category} onChange={set('category')} options={CATS} />
-            <FormSelect label="Status" value={f.status} onChange={set('status')} options={['Available', 'Booked', 'Maintenance', 'Draft']} />
+            <FormInput label={t('partner.addcar.year')} type="number" value={f.year} onChange={set('year')} />
+            <FormSelect label={t('partner.addcar.category')} value={f.category} onChange={set('category')} options={CATS} />
+            <FormSelect label={t('partner.editcar.status')} value={f.status} onChange={set('status')} options={['Available', 'Booked', 'Maintenance', 'Draft']} />
           </div>
-          <FormSelect label="Pick-up city" value={f.city} onChange={set('city')} options={CITIES} />
+          <FormSelect label={t('partner.editcar.pickupCity')} value={f.city} onChange={set('city')} options={CITIES} />
           <div className="grid grid-cols-2 gap-3">
-            <FormInput label="Exterior colour" value={f.exterior_color} onChange={set('exterior_color')} />
-            <FormInput label="Interior colour" value={f.interior_color} onChange={set('interior_color')} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <FormInput label="Power (hp)" type="number" value={f.power} onChange={set('power')} />
-            <FormInput label="Seats" type="number" value={f.seats} onChange={set('seats')} />
+            <FormInput label={t('partner.addcar.exteriorColour')} value={f.exterior_color} onChange={set('exterior_color')} />
+            <FormInput label={t('partner.addcar.interiorColour')} value={f.interior_color} onChange={set('interior_color')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <FormSelect label="Gearbox" value={f.gearbox} onChange={set('gearbox')} options={['Auto', 'PDK', 'DCT', 'Manual']} />
-            <FormSelect label="Fuel" value={f.fuel} onChange={set('fuel')} options={FUELS} />
+            <FormInput label={t('partner.addcar.power')} type="number" value={f.power} onChange={set('power')} />
+            <FormInput label={t('partner.addcar.seats')} type="number" value={f.seats} onChange={set('seats')} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <FormSelect label={t('partner.addcar.gearbox')} value={f.gearbox} onChange={set('gearbox')} options={['Auto', 'PDK', 'DCT', 'Manual']} />
+            <FormSelect label={t('partner.addcar.fuel')} value={f.fuel} onChange={set('fuel')} options={FUELS} />
           </div>
           <DescriptionField value={f.description} onChange={(v) => setF((p) => ({ ...p, description: v }))}
             carFields={{ make: f.make, model: f.model, year: f.year, category: f.category, power: f.power, gearbox: f.gearbox, fuel: f.fuel, exterior_color: f.exterior_color, interior_color: f.interior_color, location: f.city }} />
           <div className="grid grid-cols-2 gap-3">
-            <FormInput label="Daily rate (CHF)" type="number" value={f.price_per_day} onChange={set('price_per_day')} />
-            <FormInput label="Mileage / day (km)" type="number" value={f.mileage_per_day} onChange={set('mileage_per_day')} />
+            <FormInput label={t('partner.addcar.dailyRate')} type="number" value={f.price_per_day} onChange={set('price_per_day')} />
+            <FormInput label={t('partner.addcar.mileagePerDay')} type="number" value={f.mileage_per_day} onChange={set('mileage_per_day')} />
           </div>
 
           <div>
-            <span className="mb-1.5 block text-sm font-semibold">Photo</span>
+            <span className="mb-1.5 block text-sm font-semibold">{t('partner.editcar.photo')}</span>
             <button type="button" onClick={() => fileRef.current?.click()} className="ring-lux relative block w-full overflow-hidden rounded-2xl border border-dashed border-mist bg-cloud text-center transition-colors hover:border-ink">
-              {currentPhoto ? <img src={currentPhoto} alt="preview" className="h-40 w-full object-cover" /> : <div className="grid h-28 place-items-center text-sm text-stone"><div><Icon.Plus className="mx-auto mb-1" /> Click to upload</div></div>}
-              {processing && <div className="absolute inset-0 grid place-items-center rounded-2xl bg-paper/82 backdrop-blur-sm"><div className="flex flex-col items-center gap-2 text-xs font-semibold text-ink"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" />Generating studio thumbnail…</div></div>}
+              {currentPhoto ? <img src={currentPhoto} alt="preview" className="h-40 w-full object-cover" /> : <div className="grid h-28 place-items-center text-sm text-stone"><div><Icon.Plus className="mx-auto mb-1" /> {t('partner.editcar.uploadPhoto')}</div></div>}
+              {processing && <div className="absolute inset-0 grid place-items-center rounded-2xl bg-paper/82 backdrop-blur-sm"><div className="flex flex-col items-center gap-2 text-xs font-semibold text-ink"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" />{t('partner.editcar.processing')}</div></div>}
             </button>
             <input ref={fileRef} type="file" accept="image/*" onChange={pickFile} className="hidden" />
-            <p className="mt-1.5 text-xs text-stone">Upload a new photo to replace it, or leave as is.</p>
+            <p className="mt-1.5 text-xs text-stone">{t('partner.editcar.photoHint')}</p>
           </div>
 
           <div>
-            <span className="mb-1.5 block text-sm font-semibold">Video <span className="font-normal text-stone">· optional, muted · plays on hover &amp; in booking</span></span>
+            <span className="mb-1.5 block text-sm font-semibold">{t('partner.addcar.video')} <span className="font-normal text-stone">{t('partner.addcar.videoHint')}</span></span>
             {(() => { const currentVideo = videoPreview || (!removeVideo ? car.video : null); return (
               <>
                 <button type="button" onClick={() => videoRef.current?.click()} className="ring-lux relative block w-full overflow-hidden rounded-2xl border border-dashed border-mist bg-cloud text-center transition-colors hover:border-ink">
-                  {currentVideo ? <video src={currentVideo} className="h-36 w-full object-cover" muted autoPlay loop playsInline /> : <div className="grid h-20 place-items-center text-sm text-stone"><div><Icon.Plus className="mx-auto mb-1" width={16} height={16} /> Add a short clip (≤ 25 MB)</div></div>}
+                  {currentVideo ? <video src={currentVideo} className="h-36 w-full object-cover" muted autoPlay loop playsInline /> : <div className="grid h-20 place-items-center text-sm text-stone"><div><Icon.Plus className="mx-auto mb-1" width={16} height={16} /> {t('partner.addcar.addClip')}</div></div>}
                 </button>
                 <input ref={videoRef} type="file" accept="video/*" onChange={pickVideo} className="hidden" />
                 {videoErr && <p className="mt-1 text-xs text-amber-600">{videoErr}</p>}
-                {currentVideo && <button type="button" onClick={() => { setVideoFile(null); setVideoPreview(null); setRemoveVideo(true); }} className="ring-lux mt-1 text-xs font-semibold text-red-600 hover:underline">Remove video</button>}
+                {currentVideo && <button type="button" onClick={() => { setVideoFile(null); setVideoPreview(null); setRemoveVideo(true); }} className="ring-lux mt-1 text-xs font-semibold text-red-600 hover:underline">{t('partner.addcar.removeVideo')}</button>}
               </>
             ); })()}
           </div>
 
           <div className="rounded-2xl border border-mist bg-cloud p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold">Custom time slots</span>
-              <button type="button" onClick={addTier} className="ring-lux flex items-center gap-1 text-xs font-semibold text-gold hover:text-ink"><Icon.Plus width={13} height={13} /> Add slot</button>
+              <span className="text-sm font-semibold">{t('partner.addcar.customSlots')}</span>
+              <button type="button" onClick={addTier} className="ring-lux flex items-center gap-1 text-xs font-semibold text-gold hover:text-ink"><Icon.Plus width={13} height={13} /> {t('partner.addcar.addSlot')}</button>
             </div>
             {tiers.length > 0 && (
               <div className="mt-3 space-y-2">
-                {tiers.map((t, i) => (
+                {tiers.map((row, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <input value={t.label} onChange={(e) => updTier(i, 'label', e.target.value)} placeholder="3 hours" className="ring-lux flex-1 rounded-xl border border-mist bg-paper px-3 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
-                    <div className="flex items-center rounded-xl border border-mist bg-paper pl-3 transition-colors focus-within:border-ink"><span className="text-xs text-stone">CHF</span><input value={t.price} onChange={(e) => updTier(i, 'price', e.target.value)} type="number" placeholder="290" className="w-20 bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-stone" /></div>
+                    <input value={row.label} onChange={(e) => updTier(i, 'label', e.target.value)} placeholder={t('partner.addcar.slotLabelPlaceholder')} className="ring-lux flex-1 rounded-xl border border-mist bg-paper px-3 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+                    <div className="flex items-center rounded-xl border border-mist bg-paper pl-3 transition-colors focus-within:border-ink"><span className="text-xs text-stone">CHF</span><input value={row.price} onChange={(e) => updTier(i, 'price', e.target.value)} type="number" placeholder="290" className="w-20 bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-stone" /></div>
                     <button type="button" onClick={() => delTier(i)} className="ring-lux grid h-9 w-9 shrink-0 place-items-center rounded-full border border-mist text-stone transition-colors hover:border-red-400 hover:text-red-600"><Icon.X width={14} height={14} /></button>
                   </div>
                 ))}
@@ -2241,39 +2245,39 @@ function EditCar({ car, onClose, onSaved }) {
 
           <div className="rounded-2xl border border-mist bg-cloud p-4">
             <label className="flex cursor-pointer items-center justify-between">
-              <span className="text-sm font-semibold">Allow cross-border trips</span>
+              <span className="text-sm font-semibold">{t('partner.addcar.allowCrossBorder')}</span>
               <input type="checkbox" checked={f.cross_border_allowed} onChange={(e) => setF((p) => ({ ...p, cross_border_allowed: e.target.checked }))} className="ring-lux h-4 w-4 accent-ink" />
             </label>
             {f.cross_border_allowed && (
               <div className="pt-3">
-                <FormInput label="Cross-border surcharge (CHF)" type="number" value={f.cross_border_fee} onChange={set('cross_border_fee')} />
+                <FormInput label={t('partner.addcar.crossBorderFee')} type="number" value={f.cross_border_fee} onChange={set('cross_border_fee')} />
               </div>
             )}
           </div>
 
           <div className="rounded-2xl border border-mist bg-cloud p-4">
             <label className="flex cursor-pointer items-center justify-between">
-              <span className="text-sm font-semibold">Bring &amp; collect (delivery)</span>
+              <span className="text-sm font-semibold">{t('partner.addcar.delivery')}</span>
               <input type="checkbox" checked={f.delivery_available} onChange={(e) => setF((p) => ({ ...p, delivery_available: e.target.checked }))} className="ring-lux h-4 w-4 accent-ink" />
             </label>
             {f.delivery_available && (
               <div className="space-y-3 pt-3">
-                <FormInput label="Delivery fee (CHF · round-trip)" type="number" value={f.delivery_fee} onChange={set('delivery_fee')} />
-                <FormInput label="Delivery note (optional)" value={f.delivery_note} onChange={set('delivery_note')} />
+                <FormInput label={t('partner.addcar.deliveryFee')} type="number" value={f.delivery_fee} onChange={set('delivery_fee')} />
+                <FormInput label={t('partner.addcar.deliveryNote')} value={f.delivery_note} onChange={set('delivery_note')} />
               </div>
             )}
           </div>
 
           <div className="rounded-2xl border border-mist bg-cloud p-4">
             <label className="flex cursor-pointer items-center justify-between">
-              <span className="text-sm font-semibold">Offer damage protection (zero excess)</span>
+              <span className="text-sm font-semibold">{t('partner.addcar.protection')}</span>
               <input type="checkbox" checked={f.protection_available} onChange={(e) => setF((p) => ({ ...p, protection_available: e.target.checked }))} className="ring-lux h-4 w-4 accent-ink" />
             </label>
             {f.protection_available && (
               <div className="space-y-3 pt-3">
-                <FormInput label="Protection fee (CHF · per trip)" type="number" value={f.protection_fee} onChange={set('protection_fee')} />
-                <FormInput label="Security deposit this waives (CHF)" type="number" value={f.deposit_amount} onChange={set('deposit_amount')} />
-                <p className="text-xs text-stone">Guests pay this to drop their damage excess to CHF 0. You keep the full fee — no AIRLUXO commission.</p>
+                <FormInput label={t('partner.addcar.protectionFee')} type="number" value={f.protection_fee} onChange={set('protection_fee')} />
+                <FormInput label={t('partner.addcar.depositAmount')} type="number" value={f.deposit_amount} onChange={set('deposit_amount')} />
+                <p className="text-xs text-stone">{t('partner.editcar.protectionHint')}</p>
               </div>
             )}
           </div>
@@ -2281,9 +2285,9 @@ function EditCar({ car, onClose, onSaved }) {
           {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="ring-lux rounded-xl border border-mist px-5 py-3 text-sm font-semibold text-ink transition-colors hover:border-ink">Cancel</button>
+            <button type="button" onClick={onClose} className="ring-lux rounded-xl border border-mist px-5 py-3 text-sm font-semibold text-ink transition-colors hover:border-ink">{t('partner.common.cancel')}</button>
             <button type="submit" disabled={busy} className="ring-lux flex flex-1 items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
-              {busy ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-cloud/30 border-t-cloud" /> : <>Save changes <Icon.Check width={15} height={15} /></>}
+              {busy ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-cloud/30 border-t-cloud" /> : <>{t('partner.editcar.saveChanges')} <Icon.Check width={15} height={15} /></>}
             </button>
           </div>
         </form>
@@ -2295,6 +2299,8 @@ function EditCar({ car, onClose, onSaved }) {
 /* ---------------- Block dates (internal hold) ---------------- */
 function BlockModal({ car, blocks, onClose, onSaved }) {
   const { partner } = useAuth();
+  const t = useT();
+  const dl = localeTag(useI18n().locale);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [f, setF] = useState({ start_date: '', end_date: '', blocked_by: partner?.contact_name || partner?.company_name || '', reason: '' });
@@ -2303,8 +2309,8 @@ function BlockModal({ car, blocks, onClose, onSaved }) {
   async function save(e) {
     e.preventDefault();
     setErr('');
-    if (!f.start_date || !f.end_date) { setErr('Pick a start and end date.'); return; }
-    if (f.end_date < f.start_date) { setErr('The end date must be on or after the start date.'); return; }
+    if (!f.start_date || !f.end_date) { setErr(t('partner.block.errDates')); return; }
+    if (f.end_date < f.start_date) { setErr(t('partner.block.errOrder')); return; }
     setBusy(true);
     try {
       await createBlock({
@@ -2316,7 +2322,7 @@ function BlockModal({ car, blocks, onClose, onSaved }) {
       });
       await onSaved();
       setF((p) => ({ ...p, start_date: '', end_date: '', reason: '' }));
-    } catch (e2) { setErr(e2.message || 'Could not save the block.'); }
+    } catch (e2) { setErr(e2.message || t('partner.block.errSave')); }
     finally { setBusy(false); }
   }
   async function remove(id) {
@@ -2329,38 +2335,38 @@ function BlockModal({ car, blocks, onClose, onSaved }) {
       <motion.div initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.98 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }} onClick={(e) => e.stopPropagation()} className="my-auto w-full max-w-md overflow-hidden rounded-[24px] border border-mist bg-paper shadow-2xl">
         <div className="flex items-center justify-between border-b border-mist bg-cloud px-6 py-4">
           <div>
-            <div className="eyebrow text-gold">Block dates</div>
+            <div className="eyebrow text-gold">{t('partner.block.eyebrow')}</div>
             <h3 className="font-display text-lg">{car.make} {car.model}</h3>
           </div>
           <button onClick={onClose} className="ring-lux grid h-9 w-9 place-items-center rounded-full border border-mist text-stone transition-colors hover:bg-mist/50"><Icon.X width={16} height={16} /></button>
         </div>
 
         <div className="space-y-4 p-6">
-          <p className="text-sm text-stone">Make this car unavailable for a period (maintenance, owner use, servicing). It shows as an internal hold in your calendar and bookings.</p>
+          <p className="text-sm text-stone">{t('partner.block.desc')}</p>
           <form onSubmit={save} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <FormInput label="From" type="date" value={f.start_date} onChange={set('start_date')} />
-              <FormInput label="To" type="date" value={f.end_date} onChange={set('end_date')} />
+              <FormInput label={t('partner.block.from')} type="date" value={f.start_date} onChange={set('start_date')} />
+              <FormInput label={t('partner.block.to')} type="date" value={f.end_date} onChange={set('end_date')} />
             </div>
-            <FormInput label="Blocked by" value={f.blocked_by} onChange={set('blocked_by')} placeholder="Your name" />
-            <FormInput label="Reason" value={f.reason} onChange={set('reason')} placeholder="Maintenance, owner use…" />
+            <FormInput label={t('partner.block.blockedBy')} value={f.blocked_by} onChange={set('blocked_by')} placeholder={t('partner.block.blockedByPlaceholder')} />
+            <FormInput label={t('partner.block.reason')} value={f.reason} onChange={set('reason')} placeholder={t('partner.block.reasonPlaceholder')} />
             {err && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>}
             <button type="submit" disabled={busy} className="ring-lux flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
-              {busy ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-cloud/30 border-t-cloud" /> : <>Add block <Icon.Plus width={15} height={15} /></>}
+              {busy ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-cloud/30 border-t-cloud" /> : <>{t('partner.block.addBlock')} <Icon.Plus width={15} height={15} /></>}
             </button>
           </form>
 
           {blocks.length > 0 && (
             <div className="border-t border-mist pt-4">
-              <div className="text-[0.65rem] uppercase tracking-wider text-stone">Existing holds</div>
+              <div className="text-[0.65rem] uppercase tracking-wider text-stone">{t('partner.block.existingHolds')}</div>
               <div className="mt-2 space-y-2">
                 {blocks.map((b) => (
                   <div key={b.id} className="flex items-center justify-between rounded-xl border border-mist bg-cloud px-3 py-2.5">
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold tnum">{fmtDate(b.start_date)} → {fmtDate(b.end_date)}</div>
-                      <div className="text-xs text-stone">{b.reason || 'Blocked'}{b.blocked_by ? ` · ${b.blocked_by}` : ''}</div>
+                      <div className="text-sm font-semibold tnum">{fmtDate(b.start_date, dl)} → {fmtDate(b.end_date, dl)}</div>
+                      <div className="text-xs text-stone">{b.reason || t('partner.block.blocked')}{b.blocked_by ? ` · ${b.blocked_by}` : ''}</div>
                     </div>
-                    <button onClick={() => remove(b.id)} disabled={busy} className="ring-lux shrink-0 text-xs font-semibold text-red-600 transition-colors hover:underline disabled:opacity-50">Remove</button>
+                    <button onClick={() => remove(b.id)} disabled={busy} className="ring-lux shrink-0 text-xs font-semibold text-red-600 transition-colors hover:underline disabled:opacity-50">{t('partner.common.remove')}</button>
                   </div>
                 ))}
               </div>
@@ -2374,6 +2380,7 @@ function BlockModal({ car, blocks, onClose, onSaved }) {
 
 /* ---------------- Bulk import (CSV / Excel) ---------------- */
 function ImportModal({ onClose, onDone }) {
+  const t = useT();
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -2385,7 +2392,7 @@ function ImportModal({ onClose, onDone }) {
     if (!file) return;
     setErr(''); setBusy(true);
     try { setRows(await parseFleetFile(file)); }
-    catch (e2) { setErr(e2.message || 'Could not read the file.'); }
+    catch (e2) { setErr(e2.message || t('partner.import.errRead')); }
     finally { setBusy(false); }
   }
   const valid = (rows || []).filter((r) => r.errors.length === 0);
@@ -2397,7 +2404,7 @@ function ImportModal({ onClose, onDone }) {
     if (!valid.length) return;
     setBusy(true); setErr('');
     try { const res = await importListings(valid.map((r) => r.data)); await onDone(); setResult(res); }
-    catch (e2) { setErr(e2.message || 'Import failed.'); }
+    catch (e2) { setErr(e2.message || t('partner.import.errFailed')); }
     finally { setBusy(false); }
   }
 
@@ -2406,8 +2413,8 @@ function ImportModal({ onClose, onDone }) {
       <motion.div initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.98 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }} onClick={(e) => e.stopPropagation()} className="my-auto w-full max-w-lg overflow-hidden rounded-[24px] border border-mist bg-paper shadow-2xl">
         <div className="flex items-center justify-between border-b border-mist bg-cloud px-6 py-4">
           <div>
-            <div className="eyebrow text-gold">{result ? 'Imported' : 'Bulk import'}</div>
-            <h3 className="font-display text-lg">Import cars</h3>
+            <div className="eyebrow text-gold">{result ? t('partner.import.imported') : t('partner.import.bulkImport')}</div>
+            <h3 className="font-display text-lg">{t('partner.import.title')}</h3>
           </div>
           <button onClick={onClose} className="ring-lux grid h-9 w-9 place-items-center rounded-full border border-mist text-stone transition-colors hover:bg-mist/50"><Icon.X width={16} height={16} /></button>
         </div>
@@ -2415,41 +2422,41 @@ function ImportModal({ onClose, onDone }) {
         {result ? (
           <div className="px-6 py-12 text-center">
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-go text-cloud"><Icon.Check width={30} height={30} /></div>
-            <h4 className="font-display mt-5 text-xl">{result.inserted + result.updated} car{(result.inserted + result.updated) === 1 ? '' : 's'} saved.</h4>
-            <p className="mx-auto mt-2 max-w-xs text-sm text-stone">{result.inserted} new · {result.updated} updated. Live in your fleet now.</p>
-            <button onClick={onClose} className="ring-lux mt-6 rounded-full bg-ink px-6 py-3 text-sm font-bold text-cloud transition-colors hover:bg-void">Done</button>
+            <h4 className="font-display mt-5 text-xl">{t((result.inserted + result.updated) === 1 ? 'partner.import.savedOne' : 'partner.import.savedMany', { n: result.inserted + result.updated })}</h4>
+            <p className="mx-auto mt-2 max-w-xs text-sm text-stone">{t('partner.import.savedDesc', { inserted: result.inserted, updated: result.updated })}</p>
+            <button onClick={onClose} className="ring-lux mt-6 rounded-full bg-ink px-6 py-3 text-sm font-bold text-cloud transition-colors hover:bg-void">{t('partner.import.done')}</button>
           </div>
         ) : (
           <div className="space-y-4 p-6">
             <div className="rounded-2xl border border-mist bg-cloud p-4">
-              <div className="text-sm font-semibold">Need the format?</div>
-              <p className="mt-1 text-xs text-stone">Download a template, fill in your cars, then upload it below. Required: make, model, price_per_day. <span className="font-semibold text-ink">Keep the id column from an export to update existing cars; leave it blank to add new ones.</span></p>
+              <div className="text-sm font-semibold">{t('partner.import.needFormat')}</div>
+              <p className="mt-1 text-xs text-stone">{t('partner.import.formatHintPre')} <span className="font-semibold text-ink">{t('partner.import.formatHintBold')}</span></p>
               <div className="mt-3 flex gap-2">
-                <button onClick={() => downloadTemplate('csv')} className="ring-lux rounded-full border border-mist px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink">CSV template</button>
-                <button onClick={() => downloadTemplate('xlsx')} className="ring-lux rounded-full border border-mist px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink">Excel template</button>
+                <button onClick={() => downloadTemplate('csv')} className="ring-lux rounded-full border border-mist px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink">{t('partner.import.csvTemplate')}</button>
+                <button onClick={() => downloadTemplate('xlsx')} className="ring-lux rounded-full border border-mist px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink">{t('partner.import.excelTemplate')}</button>
               </div>
             </div>
 
             <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className="ring-lux flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-mist bg-cloud py-4 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-60">
-              {busy && !rows ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-mist border-t-ink" /> : <><Icon.Plus width={16} height={16} /> Choose CSV / Excel file</>}
+              {busy && !rows ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-mist border-t-ink" /> : <><Icon.Plus width={16} height={16} /> {t('partner.import.chooseFile')}</>}
             </button>
             <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={pick} className="hidden" />
 
             {rows && (
               <div>
                 <div className="flex flex-wrap items-center gap-3 text-xs">
-                  <span className="font-semibold text-go">{valid.length} ready</span>
-                  {newCount > 0 && <span className="text-stone">{newCount} new</span>}
-                  {updCount > 0 && <span className="text-stone">{updCount} update{updCount === 1 ? '' : 's'}</span>}
-                  {invalid.length > 0 && <span className="font-semibold text-red-600">{invalid.length} with errors</span>}
+                  <span className="font-semibold text-go">{t('partner.import.ready', { n: valid.length })}</span>
+                  {newCount > 0 && <span className="text-stone">{t('partner.import.new', { n: newCount })}</span>}
+                  {updCount > 0 && <span className="text-stone">{t(updCount === 1 ? 'partner.import.updateOne' : 'partner.import.updateMany', { n: updCount })}</span>}
+                  {invalid.length > 0 && <span className="font-semibold text-red-600">{t('partner.import.withErrors', { n: invalid.length })}</span>}
                 </div>
                 <div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-xl border border-mist bg-cloud p-2">
                   {rows.map((r) => (
                     <div key={r.row} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs">
                       <span className="truncate font-semibold text-ink">{r.data.make || '—'} {r.data.model || ''}</span>
                       {r.errors.length === 0
-                        ? <span className="flex shrink-0 items-center gap-1 text-go"><Icon.Check width={12} height={12} /> {r.data.id ? 'update' : 'new'}</span>
-                        : <span className="shrink-0 text-right text-red-600">row {r.row}: {r.errors.join(', ')}</span>}
+                        ? <span className="flex shrink-0 items-center gap-1 text-go"><Icon.Check width={12} height={12} /> {r.data.id ? t('partner.import.rowUpdate') : t('partner.import.rowNew')}</span>
+                        : <span className="shrink-0 text-right text-red-600">{t('partner.import.rowError', { row: r.row, errors: r.errors.join(', ') })}</span>}
                     </div>
                   ))}
                 </div>
@@ -2459,7 +2466,7 @@ function ImportModal({ onClose, onDone }) {
             {err && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>}
 
             <button onClick={importAll} disabled={busy || !valid.length} className="ring-lux flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
-              {busy && rows ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-cloud/30 border-t-cloud" /> : <>Import {valid.length || ''} car{valid.length === 1 ? '' : 's'} <Icon.Arrow width={15} height={15} /></>}
+              {busy && rows ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-cloud/30 border-t-cloud" /> : <>{t(valid.length === 1 ? 'partner.import.importBtnOne' : 'partner.import.importBtnMany', { n: valid.length || '' })} <Icon.Arrow width={15} height={15} /></>}
             </button>
           </div>
         )}
@@ -2471,29 +2478,30 @@ function ImportModal({ onClose, onDone }) {
 // Car description with a small "Generate with AI" button. Shared by Add/Edit.
 // `carFields` are the facts sent to the generator (make/model/specs/city).
 function DescriptionField({ value, onChange, carFields }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   async function gen() {
-    if (!carFields.make?.trim() || !carFields.model?.trim()) { setErr('Add the make and model first.'); return; }
+    if (!carFields.make?.trim() || !carFields.model?.trim()) { setErr(t('partner.desc.errMakeModel')); return; }
     setBusy(true); setErr('');
     try { onChange(await generateCarDescription(carFields)); }
-    catch (e) { setErr(e.message || 'Could not generate a description.'); }
+    catch (e) { setErr(e.message || t('partner.desc.errGenerate')); }
     finally { setBusy(false); }
   }
   return (
     <label className="block">
       <span className="mb-1.5 flex items-center justify-between">
-        <span className="text-sm font-semibold">Description <span className="font-normal text-stone">· shown on the booking page</span></span>
+        <span className="text-sm font-semibold">{t('partner.desc.label')} <span className="font-normal text-stone">{t('partner.desc.hint')}</span></span>
         <button type="button" onClick={gen} disabled={busy}
           className="ring-lux inline-flex items-center gap-1 rounded-full border border-mist px-2.5 py-1 text-[0.7rem] font-semibold text-gold transition-colors hover:border-gold disabled:opacity-50">
-          <span aria-hidden>✦</span> {busy ? 'Writing…' : 'Generate with AI'}
+          <span aria-hidden>✦</span> {busy ? t('partner.desc.writing') : t('partner.desc.generate')}
         </button>
       </span>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={4}
-        placeholder="A few evocative lines about the car and the experience of driving it."
+        placeholder={t('partner.desc.placeholder')}
         className="ring-lux w-full resize-y rounded-xl border border-mist bg-cloud px-4 py-3 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone"
       />
       {err && <p className="mt-1 text-xs text-red-600">{err}</p>}
