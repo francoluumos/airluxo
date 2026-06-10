@@ -900,34 +900,35 @@ function SkeletonRows() {
 
 /* ---------------- Bookings (real) ---------------- */
 function Bookings({ bookings, blocks, reload }) {
+  const t = useT();
   if (bookings === null) {
     return <div className="rounded-[var(--radius-card)] border border-mist bg-cloud p-5"><SkeletonRows /></div>;
   }
   return (
     <div className="space-y-5">
       <p className="text-sm text-stone">
-        {bookings.length === 0 ? 'No reservations yet.' : `${bookings.length} reservation${bookings.length === 1 ? '' : 's'} — change a status to confirm or decline.`}
+        {bookings.length === 0 ? t('partner.bookings.none') : t(bookings.length === 1 ? 'partner.bookings.countOne' : 'partner.bookings.countMany', { n: bookings.length })}
       </p>
       {bookings.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-mist py-20 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-full bg-paper text-stone"><Icon.Calendar2 width={24} height={24} /></span>
-          <h3 className="font-display mt-4 text-lg">No bookings yet</h3>
-          <p className="mt-1 max-w-xs px-4 text-sm text-stone">When a guest reserves one of your cars, it shows up here instantly.</p>
+          <h3 className="font-display mt-4 text-lg">{t('partner.bookings.emptyTitle')}</h3>
+          <p className="mt-1 max-w-xs px-4 text-sm text-stone">{t('partner.bookings.emptyDesc')}</p>
         </div>
       ) : (
         <Panel noPad><BookingsTable rows={bookings} reload={reload} /></Panel>
       )}
 
       {blocks && blocks.length > 0 && (
-        <Panel title="Internal blocks">
+        <Panel title={t('partner.bookings.internalBlocks')}>
           <div className="space-y-3">
             {blocks.map((b) => (
               <div key={b.id} className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold">{b.car_label || 'Car'} <span className="font-normal text-stone">· {b.reason || 'Blocked'}</span></div>
-                  <div className="text-xs text-stone tnum">{fmtDate(b.start_date)} → {fmtDate(b.end_date)}{b.blocked_by ? ` · by ${b.blocked_by}` : ''}</div>
+                  <div className="truncate text-sm font-semibold">{b.car_label || t('partner.bookings.car')} <span className="font-normal text-stone">· {b.reason || t('partner.bookings.blocked')}</span></div>
+                  <div className="text-xs text-stone tnum">{fmtDate(b.start_date)} → {fmtDate(b.end_date)}{b.blocked_by ? ` · ${t('partner.bookings.by', { who: b.blocked_by })}` : ''}</div>
                 </div>
-                <span className="rounded-full bg-mist px-2.5 py-1 text-[0.7rem] font-bold text-stone">Blocked</span>
+                <span className="rounded-full bg-mist px-2.5 py-1 text-[0.7rem] font-bold text-stone">{t('partner.bookings.blocked')}</span>
               </div>
             ))}
           </div>
@@ -1355,26 +1356,36 @@ function BrandLogo({ make }) {
   return <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-ink font-display text-xs text-cloud">{initials}</span>;
 }
 
+// Status values are stored/sent in English; these map them to a display label key.
+const STATUS_KEYS = {
+  Booked: 'booked', Available: 'available', Maintenance: 'maintenance', Draft: 'draft',
+  Confirmed: 'confirmed', 'On trip': 'onTrip', Completed: 'completed',
+  Pending: 'pending', Declined: 'declined', Cancelled: 'cancelled',
+};
+const statusLabel = (t, s) => (STATUS_KEYS[s] ? t(`partner.status.${STATUS_KEYS[s]}`) : s);
+
 function StatusPill({ status }) {
+  const t = useT();
   const map = {
     Booked: 'bg-ink text-cloud', Available: 'bg-go/12 text-go', Maintenance: 'bg-mist text-stone', Draft: 'bg-mist text-stone',
     Confirmed: 'bg-go/12 text-go', 'On trip': 'bg-ink text-cloud', Completed: 'bg-mist text-stone',
   };
-  return <span className={`rounded-full px-2.5 py-1 text-[0.7rem] font-bold ${map[status] || 'bg-mist text-stone'}`}>{status}</span>;
+  return <span className={`rounded-full px-2.5 py-1 text-[0.7rem] font-bold ${map[status] || 'bg-mist text-stone'}`}>{statusLabel(t, status)}</span>;
 }
 
 function PaymentBadge({ status }) {
+  const t = useT();
   const map = {
-    authorized: { label: 'Authorized', cls: 'bg-gold/15 text-gold' },
-    captured: { label: 'Paid', cls: 'bg-go/15 text-go' },
-    canceled: { label: 'Released', cls: 'bg-mist text-stone' },
-    failed: { label: 'Failed', cls: 'bg-red-100 text-red-600' },
-    refunded: { label: 'Refunded', cls: 'bg-mist text-stone' },
-    partially_refunded: { label: 'Partial', cls: 'bg-gold/15 text-gold' },
+    authorized: { key: 'partner.payment.authorized', cls: 'bg-gold/15 text-gold' },
+    captured: { key: 'partner.payment.captured', cls: 'bg-go/15 text-go' },
+    canceled: { key: 'partner.payment.canceled', cls: 'bg-mist text-stone' },
+    failed: { key: 'partner.payment.failed', cls: 'bg-red-100 text-red-600' },
+    refunded: { key: 'partner.payment.refunded', cls: 'bg-mist text-stone' },
+    partially_refunded: { key: 'partner.payment.partial', cls: 'bg-gold/15 text-gold' },
   };
   const m = map[status];
   if (!m) return null; // 'none' or unknown → no badge
-  return <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-[0.7rem] font-bold ${m.cls}`}>{m.label}</span>;
+  return <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-[0.7rem] font-bold ${m.cls}`}>{t(m.key)}</span>;
 }
 
 const BOOKING_STATUSES = ['Pending', 'Confirmed', 'On trip', 'Completed', 'Declined', 'Cancelled'];
@@ -1382,6 +1393,7 @@ const fmtDate = (s) => (s ? new Date(`${s}T00:00:00`).toLocaleDateString('en-GB'
 
 function BookingsTable({ rows, reload, compact }) {
   const { partner } = useAuth();
+  const t = useT();
   const rate = commissionRate(partner?.plan);
   const [busyId, setBusyId] = useState(null);
   const [pending, setPending] = useState(null);
@@ -1407,14 +1419,14 @@ function BookingsTable({ rows, reload, compact }) {
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-mist text-[0.7rem] uppercase tracking-wider text-stone">
-            <th className="px-5 py-3 font-semibold">Booking</th>
-            <th className="px-5 py-3 font-semibold">Car · Guest</th>
-            {!compact && <th className="px-5 py-3 font-semibold">Dates</th>}
-            <th className="px-5 py-3 text-right font-semibold">Gross</th>
-            {!compact && <th className="px-5 py-3 text-right font-semibold">Fee</th>}
-            <th className="px-5 py-3 text-right font-semibold">Net</th>
-            <th className="px-5 py-3 text-center font-semibold">Payment</th>
-            <th className="px-5 py-3 text-right font-semibold">Status</th>
+            <th className="px-5 py-3 font-semibold">{t('partner.bookings.colBooking')}</th>
+            <th className="px-5 py-3 font-semibold">{t('partner.bookings.colCarGuest')}</th>
+            {!compact && <th className="px-5 py-3 font-semibold">{t('partner.bookings.colDates')}</th>}
+            <th className="px-5 py-3 text-right font-semibold">{t('partner.bookings.colGross')}</th>
+            {!compact && <th className="px-5 py-3 text-right font-semibold">{t('partner.bookings.colFee')}</th>}
+            <th className="px-5 py-3 text-right font-semibold">{t('partner.bookings.colNet')}</th>
+            <th className="px-5 py-3 text-center font-semibold">{t('partner.bookings.colPayment')}</th>
+            <th className="px-5 py-3 text-right font-semibold">{t('partner.bookings.colStatus')}</th>
           </tr>
         </thead>
         <tbody>
@@ -1430,7 +1442,7 @@ function BookingsTable({ rows, reload, compact }) {
                   <div className="text-xs text-stone">{b.guest_name}{compact ? '' : ` · ${b.rate_label} ×${b.quantity}`}</div>
                   {!compact && b.licence_verified && (
                     <div className="mt-0.5 flex items-center gap-1 text-[0.65rem] font-semibold text-go">
-                      <Icon.Shield width={11} height={11} /> Licence{b.licence?.number ? ` · ${b.licence.number}` : ''}{b.licence?.categories?.length ? ` · ${b.licence.categories.join('/')}` : ''}
+                      <Icon.Shield width={11} height={11} /> {t('partner.bookings.licence')}{b.licence?.number ? ` · ${b.licence.number}` : ''}{b.licence?.categories?.length ? ` · ${b.licence.categories.join('/')}` : ''}
                     </div>
                   )}
                 </td>
@@ -1444,7 +1456,7 @@ function BookingsTable({ rows, reload, compact }) {
                     <StatusPill status={b.status} />
                   ) : (
                     <select value={b.status} disabled={busyId === b.id} onChange={(e) => requestChange(b, e.target.value)} className="ring-lux rounded-full border border-mist bg-cloud px-2.5 py-1 text-[0.7rem] font-bold text-ink outline-none transition-colors focus:border-ink disabled:opacity-50">
-                      {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                      {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{statusLabel(t, s)}</option>)}
                     </select>
                   )}
                 </td>
@@ -1462,7 +1474,9 @@ function BookingsTable({ rows, reload, compact }) {
 }
 
 function StatusChangeModal({ pending, onClose, onDone }) {
+  const t = useT();
   const { booking: b, status } = pending;
+  const sLabel = statusLabel(t, status);
   const pay = b.payment_status;
   const total = Number(b.total_amount);
   const isCapture = status === 'Confirmed' && pay === 'authorized';
@@ -1484,7 +1498,7 @@ function StatusChangeModal({ pending, onClose, onDone }) {
       fireBookingWebhook(b.id, 'booking.updated');
       await onDone();
       onClose();
-    } catch (e) { setErr(e.message || 'Something went wrong.'); setBusy(false); }
+    } catch (e) { setErr(e.message || t('partner.statusModal.errGeneric')); setBusy(false); }
   }
 
   const Opt = ({ id, label, hint }) => (
@@ -1499,44 +1513,44 @@ function StatusChangeModal({ pending, onClose, onDone }) {
       <motion.div initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.98 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }} onClick={(e) => e.stopPropagation()} className="my-auto w-full max-w-md overflow-hidden rounded-[24px] border border-mist bg-paper shadow-2xl">
         <div className="flex items-center justify-between border-b border-mist bg-cloud px-6 py-4">
           <div>
-            <div className="eyebrow text-gold">Confirm change</div>
-            <h3 className="font-display text-lg">{b.car_label} → {status}</h3>
+            <div className="eyebrow text-gold">{t('partner.statusModal.confirmChange')}</div>
+            <h3 className="font-display text-lg">{b.car_label} → {sLabel}</h3>
           </div>
           <button onClick={onClose} className="ring-lux grid h-9 w-9 place-items-center rounded-full border border-mist text-stone transition-colors hover:bg-mist/50"><Icon.X width={16} height={16} /></button>
         </div>
 
         <div className="space-y-4 p-6">
           {isCapture && (
-            <p className="text-sm text-stone">This <span className="font-semibold text-ink">charges the guest's card {chf(total)}</span> now and confirms the booking. Your payout (minus AIRLUXO commission) settles after the trip.</p>
+            <p className="text-sm text-stone">{t('partner.statusModal.capturePre')} <span className="font-semibold text-ink">{t('partner.statusModal.captureMid', { amount: chf(total) })}</span> {t('partner.statusModal.capturePost')}</p>
           )}
           {isRelease && (
-            <p className="text-sm text-stone">This releases the authorisation hold — <span className="font-semibold text-ink">the guest is not charged</span>. The booking is marked {status}.</p>
+            <p className="text-sm text-stone">{t('partner.statusModal.releasePre')} <span className="font-semibold text-ink">{t('partner.statusModal.releaseMid')}</span>. {t('partner.statusModal.releasePost', { status: sLabel })}</p>
           )}
           {isRefund && (
             <>
-              <p className="text-sm text-stone">This booking is <span className="font-semibold text-ink">already paid ({chf(total)})</span>. Choose how much to refund — the partner payout and our commission are reversed proportionally.</p>
+              <p className="text-sm text-stone">{t('partner.statusModal.refundPre')} <span className="font-semibold text-ink">{t('partner.statusModal.refundMid', { amount: chf(total) })}</span>. {t('partner.statusModal.refundPost')}</p>
               <div className="space-y-2">
-                <Opt id="full" label="Full refund" hint={chf(total)} />
-                <Opt id="fee" label="Keep a cancellation fee" hint={`refund ${chf(refundAmount)}`} />
+                <Opt id="full" label={t('partner.statusModal.fullRefund')} hint={chf(total)} />
+                <Opt id="fee" label={t('partner.statusModal.keepFee')} hint={t('partner.statusModal.refundHint', { amount: chf(refundAmount) })} />
                 {mode === 'fee' && (
-                  <div className="pl-1"><FormInput label="Fee to keep (CHF)" type="number" placeholder="e.g. 200" value={fee} onChange={(e) => setFee(e.target.value)} /></div>
+                  <div className="pl-1"><FormInput label={t('partner.statusModal.feeToKeep')} type="number" placeholder="e.g. 200" value={fee} onChange={(e) => setFee(e.target.value)} /></div>
                 )}
-                <Opt id="none" label="No refund" hint="guest keeps nothing" />
+                <Opt id="none" label={t('partner.statusModal.noRefund')} hint={t('partner.statusModal.guestKeepsNothing')} />
               </div>
-              <p className="text-xs text-stone">If your payout already settled, Stripe pulls the refunded amount back from your balance.</p>
+              <p className="text-xs text-stone">{t('partner.statusModal.settledNote')}</p>
             </>
           )}
 
           {err && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>}
 
           <div className="flex gap-3">
-            <button onClick={onClose} className="ring-lux rounded-xl border border-mist px-5 py-3 text-sm font-semibold text-ink transition-colors hover:border-ink">Back</button>
+            <button onClick={onClose} className="ring-lux rounded-xl border border-mist px-5 py-3 text-sm font-semibold text-ink transition-colors hover:border-ink">{t('partner.statusModal.back')}</button>
             <button onClick={confirm} disabled={busy} className="ring-lux flex flex-1 items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
               {busy ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-cloud/30 border-t-cloud" />
-                : isCapture ? `Charge ${chf(total)} & confirm`
-                : isRelease ? `${status} · release hold`
-                : refundAmount > 0 ? `Refund ${chf(refundAmount)} & ${status}`
-                : `${status} · no refund`}
+                : isCapture ? t('partner.statusModal.chargeConfirm', { amount: chf(total) })
+                : isRelease ? t('partner.statusModal.releaseHold', { status: sLabel })
+                : refundAmount > 0 ? t('partner.statusModal.refundAnd', { amount: chf(refundAmount), status: sLabel })
+                : t('partner.statusModal.noRefundStatus', { status: sLabel })}
             </button>
           </div>
         </div>
