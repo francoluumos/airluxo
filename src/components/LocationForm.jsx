@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { searchSwissAddress } from '../lib/geocode.js';
+import { useT } from '../lib/i18n.jsx';
 
 const COUNTRIES = ['Switzerland', 'Liechtenstein', 'France', 'Germany', 'Italy', 'Austria'];
 const inputCls = 'ring-lux w-full rounded-lg border border-mist bg-paper px-3 py-2 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone';
@@ -16,10 +17,11 @@ function Field({ label, children }) {
 // Reusable structured address block with Swiss address autocomplete (geo.admin.ch).
 // `value` carries { street, street_number, zip, city, country, lat, lng, address }.
 export function AddressFields({ value, onChange }) {
+  const t = useT();
   const set = (patch) => onChange({ ...value, ...patch });
   return (
     <div className="space-y-2.5">
-      <Field label="Find address">
+      <Field label={t('partner.addr.find')}>
         <AddressAutocomplete
           onSelect={(p) => set({
             address: p.address, street: p.street, street_number: p.street_number,
@@ -28,14 +30,14 @@ export function AddressFields({ value, onChange }) {
         />
       </Field>
       <div className="grid grid-cols-[1fr_5rem] gap-2">
-        <Field label="Street"><input value={value.street || ''} onChange={(e) => set({ street: e.target.value })} className={inputCls} /></Field>
-        <Field label="No."><input value={value.street_number || ''} onChange={(e) => set({ street_number: e.target.value })} className={inputCls} /></Field>
+        <Field label={t('partner.addr.street')}><input value={value.street || ''} onChange={(e) => set({ street: e.target.value })} className={inputCls} /></Field>
+        <Field label={t('partner.addr.no')}><input value={value.street_number || ''} onChange={(e) => set({ street_number: e.target.value })} className={inputCls} /></Field>
       </div>
       <div className="grid grid-cols-[5rem_1fr] gap-2">
-        <Field label="ZIP"><input value={value.zip || ''} onChange={(e) => set({ zip: e.target.value })} className={inputCls} /></Field>
-        <Field label="City"><input value={value.city || ''} onChange={(e) => set({ city: e.target.value })} className={inputCls} /></Field>
+        <Field label={t('partner.addr.zip')}><input value={value.zip || ''} onChange={(e) => set({ zip: e.target.value })} className={inputCls} /></Field>
+        <Field label={t('partner.addr.city')}><input value={value.city || ''} onChange={(e) => set({ city: e.target.value })} className={inputCls} /></Field>
       </div>
-      <Field label="Country">
+      <Field label={t('partner.addr.country')}>
         <select value={value.country || 'Switzerland'} onChange={(e) => set({ country: e.target.value })} className={inputCls}>
           {COUNTRIES.map((c) => <option key={c}>{c}</option>)}
         </select>
@@ -47,24 +49,26 @@ export function AddressFields({ value, onChange }) {
 // Pick-up location editor: a labelled site with address + contact details.
 // `value` is the location object; `onChange` receives the whole updated object.
 export default function LocationForm({ value, onChange }) {
+  const t = useT();
   const set = (patch) => onChange({ ...value, ...patch });
   return (
     <div className="space-y-2.5">
-      <Field label="Label">
-        <input value={value.label || ''} onChange={(e) => set({ label: e.target.value })} placeholder="e.g. Geneva HQ" className={inputCls} />
+      <Field label={t('partner.locform.label')}>
+        <input value={value.label || ''} onChange={(e) => set({ label: e.target.value })} placeholder={t('partner.locform.labelPlaceholder')} className={inputCls} />
       </Field>
 
       <AddressFields value={value} onChange={onChange} />
 
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Phone"><input type="tel" value={value.phone || ''} onChange={(e) => set({ phone: e.target.value })} placeholder="+41 …" className={inputCls} /></Field>
-        <Field label="Email"><input type="email" value={value.email || ''} onChange={(e) => set({ email: e.target.value })} placeholder="site@…" className={inputCls} /></Field>
+        <Field label={t('partner.profile.phone')}><input type="tel" value={value.phone || ''} onChange={(e) => set({ phone: e.target.value })} placeholder="+41 …" className={inputCls} /></Field>
+        <Field label={t('partner.profile.email')}><input type="email" value={value.email || ''} onChange={(e) => set({ email: e.target.value })} placeholder={t('partner.locform.emailPlaceholder')} className={inputCls} /></Field>
       </div>
     </div>
   );
 }
 
 function AddressAutocomplete({ onSelect }) {
+  const t = useT();
   const [q, setQ] = useState('');
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
@@ -90,7 +94,7 @@ function AddressAutocomplete({ onSelect }) {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => results.length && setOpen(true)}
-        placeholder="Start typing a Swiss address…"
+        placeholder={t('partner.addr.autocompletePlaceholder')}
         className={inputCls}
         autoComplete="off"
       />

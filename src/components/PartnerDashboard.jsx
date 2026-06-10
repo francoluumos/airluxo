@@ -303,6 +303,7 @@ const localeTag = (loc) => LOCALE_TAG[loc] || 'en-GB';
 const monthShort = (loc, monthIndex) => new Date(2021, monthIndex, 1).toLocaleDateString(localeTag(loc), { month: 'short' });
 // Monday-first short weekday names (Nov 1 2021 was a Monday).
 const weekdayShorts = (loc) => [1, 2, 3, 4, 5, 6, 7].map((d) => new Date(2021, 10, d).toLocaleDateString(localeTag(loc), { weekday: 'short' }));
+const weekdayLongs = (loc) => [1, 2, 3, 4, 5, 6, 7].map((d) => new Date(2021, 10, d).toLocaleDateString(localeTag(loc), { weekday: 'long' }));
 const netOf = (b, rate = FEES.hostCommission) => (Number(b.base_amount || 0) + Number(b.addons_amount || 0)) * (1 - rate);
 
 // Real partner metrics derived from bookings (+ listings for utilisation).
@@ -1097,14 +1098,15 @@ function Calendar({ bookings, blocks }) {
 const DAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']];
 const DEFAULT_HOURS = DAYS.reduce((o, [k]) => { o[k] = { closed: k === 'sun', open: '08:00', close: '18:00' }; return o; }, {});
 
-function hoursSummary(l) {
-  if (!l.opening_hours) return 'Open any time';
+function hoursSummary(l, t) {
+  if (!l.opening_hours) return t('partner.location.openAnyTime');
   const open = DAYS.filter(([k]) => l.opening_hours[k] && !l.opening_hours[k].closed).length;
-  const after = l.allow_after_hours ? ` · after-hours OK${l.after_hours_fee ? ` (${chf(l.after_hours_fee)})` : ''}` : '';
-  return `${open} day${open === 1 ? '' : 's'}/week${after}`;
+  const after = l.allow_after_hours ? `${t('partner.location.afterHoursOk')}${l.after_hours_fee ? ` (${chf(l.after_hours_fee)})` : ''}` : '';
+  return `${t(open === 1 ? 'partner.location.daysPerWeekOne' : 'partner.location.daysPerWeekMany', { n: open })}${after}`;
 }
 
 function LocationView() {
+  const t = useT();
   const [locations, setLocations] = useState([]);
   const [editing, setEditing] = useState(null); // 'new' | location id | null
   const [draft, setDraft] = useState(EMPTY_LOC);
@@ -1118,7 +1120,7 @@ function LocationView() {
   const cancel = () => { setEditing(null); setDraft(EMPTY_LOC); setErr(''); };
 
   async function save() {
-    if (!draft.address?.trim() && !draft.label?.trim()) { setErr('Add a label or find an address.'); return; }
+    if (!draft.address?.trim() && !draft.label?.trim()) { setErr(t('partner.location.errLabelOrAddress')); return; }
     setLocBusy(true); setErr('');
     try {
       const payload = buildLocPayload(draft);
@@ -1126,7 +1128,7 @@ function LocationView() {
       else await updateLocation(editing, payload);
       await reloadLocs();
       cancel();
-    } catch (e) { setErr(e.message || 'Could not save the location.'); }
+    } catch (e) { setErr(e.message || t('partner.location.errSave')); }
     finally { setLocBusy(false); }
   }
   async function removeLocation(id) {
@@ -1136,24 +1138,24 @@ function LocationView() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <Panel title="Pick-up / return locations">
+      <Panel title={t('partner.location.title')}>
         {locations.length > 0 && (
           <div className="mb-4 space-y-2">
             {locations.map((l) => (
               <div key={l.id}>
                 {editing === l.id ? (
-                  <LocationEditor draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} busy={locBusy} err={err} title="Edit location" />
+                  <LocationEditor draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} busy={locBusy} err={err} title={t('partner.location.editTitle')} />
                 ) : (
                   <div className="flex items-start justify-between gap-3 rounded-xl border border-mist bg-cloud px-3.5 py-2.5">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold">{l.label || l.city || 'Location'}</div>
+                      <div className="truncate text-sm font-semibold">{l.label || l.city || t('partner.location.locationFallback')}</div>
                       <div className="truncate text-xs text-stone">{[locLine(l), l.zip && l.city ? `${l.zip} ${l.city}` : l.city, l.country && l.country !== 'Switzerland' ? l.country : null].filter(Boolean).join(' · ') || '—'}</div>
                       {(l.phone || l.email) && <div className="truncate text-xs text-stone">{[l.phone, l.email].filter(Boolean).join(' · ')}</div>}
-                      <div className="mt-0.5 text-[0.7rem] text-stone">{hoursSummary(l)}</div>
+                      <div className="mt-0.5 text-[0.7rem] text-stone">{hoursSummary(l, t)}</div>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
-                      <button onClick={() => startEdit(l)} disabled={locBusy} className="ring-lux text-xs font-semibold text-ink transition-colors hover:text-gold disabled:opacity-50">Edit</button>
-                      <button onClick={() => removeLocation(l.id)} disabled={locBusy} className="ring-lux text-xs font-semibold text-red-600 transition-colors hover:underline disabled:opacity-50">Remove</button>
+                      <button onClick={() => startEdit(l)} disabled={locBusy} className="ring-lux text-xs font-semibold text-ink transition-colors hover:text-gold disabled:opacity-50">{t('partner.common.edit')}</button>
+                      <button onClick={() => removeLocation(l.id)} disabled={locBusy} className="ring-lux text-xs font-semibold text-red-600 transition-colors hover:underline disabled:opacity-50">{t('partner.common.remove')}</button>
                     </div>
                   </div>
                 )}
@@ -1163,17 +1165,18 @@ function LocationView() {
         )}
 
         {editing === 'new' ? (
-          <LocationEditor draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} busy={locBusy} err={err} title="New location" />
+          <LocationEditor draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} busy={locBusy} err={err} title={t('partner.location.newTitle')} />
         ) : editing === null ? (
-          <button onClick={startAdd} className="ring-lux flex items-center gap-1.5 rounded-full border border-mist bg-cloud px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink"><Icon.Plus width={14} height={14} /> Add location</button>
+          <button onClick={startAdd} className="ring-lux flex items-center gap-1.5 rounded-full border border-mist bg-cloud px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink"><Icon.Plus width={14} height={14} /> {t('partner.location.addLocation')}</button>
         ) : null}
-        <p className="mt-2 text-xs text-stone">Add the sites where guests collect / return cars, each with its own opening hours. Start typing to autofill a Swiss address. You'll pick one when listing each car.</p>
+        <p className="mt-2 text-xs text-stone">{t('partner.location.hint')}</p>
       </Panel>
     </div>
   );
 }
 
 function LocationEditor({ draft, setDraft, onSave, onCancel, busy, err, title }) {
+  const t = useT();
   return (
     <div className="rounded-xl border border-mist bg-cloud p-3.5">
       <div className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-stone">{title}</div>
@@ -1183,14 +1186,17 @@ function LocationEditor({ draft, setDraft, onSave, onCancel, busy, err, title })
       </div>
       {err && <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{err}</div>}
       <div className="mt-3 flex items-center gap-2">
-        <button onClick={onSave} disabled={busy} className="ring-lux flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">{busy ? 'Saving…' : 'Save location'}</button>
-        <button onClick={onCancel} className="ring-lux rounded-full border border-mist px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink">Cancel</button>
+        <button onClick={onSave} disabled={busy} className="ring-lux flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">{busy ? t('partner.profile.saving') : t('partner.location.saveLocation')}</button>
+        <button onClick={onCancel} className="ring-lux rounded-full border border-mist px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink">{t('partner.common.cancel')}</button>
       </div>
     </div>
   );
 }
 
 function OpeningHoursEditor({ value, onChange }) {
+  const t = useT();
+  const { locale } = useI18n();
+  const dayNames = weekdayLongs(locale);
   const hours = value.opening_hours;
   const enabled = !!hours;
   const setHours = (h) => onChange({ ...value, opening_hours: h });
@@ -1198,20 +1204,20 @@ function OpeningHoursEditor({ value, onChange }) {
   return (
     <div className="rounded-xl border border-mist bg-paper p-3.5">
       <label className="flex cursor-pointer items-center justify-between">
-        <span className="text-sm font-semibold">Set opening hours for this site</span>
+        <span className="text-sm font-semibold">{t('partner.location.setHours')}</span>
         <input type="checkbox" checked={enabled} onChange={(e) => onChange({ ...value, opening_hours: e.target.checked ? { ...DEFAULT_HOURS } : null })} className="ring-lux h-4 w-4 accent-ink" />
       </label>
-      {!enabled && <p className="mt-1 text-xs text-stone">No hours set — guests can collect any time. Toggle on to restrict pick-up to opening hours.</p>}
+      {!enabled && <p className="mt-1 text-xs text-stone">{t('partner.location.noHours')}</p>}
       {enabled && (
         <>
           <div className="mt-3 space-y-2">
-            {DAYS.map(([k, label]) => {
+            {DAYS.map(([k], i) => {
               const d = hours[k] || { closed: false, open: '08:00', close: '18:00' };
               return (
                 <div key={k} className="flex flex-wrap items-center gap-3">
-                  <span className="w-20 text-sm font-semibold">{label}</span>
+                  <span className="w-20 text-sm font-semibold capitalize">{dayNames[i]}</span>
                   <label className="flex items-center gap-1.5 text-xs text-stone">
-                    <input type="checkbox" checked={!!d.closed} onChange={(e) => setDay(k, 'closed', e.target.checked)} className="ring-lux h-4 w-4 accent-ink" /> Closed
+                    <input type="checkbox" checked={!!d.closed} onChange={(e) => setDay(k, 'closed', e.target.checked)} className="ring-lux h-4 w-4 accent-ink" /> {t('partner.location.closed')}
                   </label>
                   {!d.closed && (
                     <div className="flex items-center gap-2">
@@ -1225,11 +1231,11 @@ function OpeningHoursEditor({ value, onChange }) {
             })}
           </div>
           <label className="mt-3 flex cursor-pointer items-center justify-between border-t border-mist pt-3">
-            <span className="text-sm font-semibold">Allow pick-up / drop-off outside hours</span>
+            <span className="text-sm font-semibold">{t('partner.location.allowAfterHours')}</span>
             <input type="checkbox" checked={!!value.allow_after_hours} onChange={(e) => onChange({ ...value, allow_after_hours: e.target.checked })} className="ring-lux h-4 w-4 accent-ink" />
           </label>
           {value.allow_after_hours && (
-            <div className="mt-2"><FormInput label="After-hours fee (CHF · optional)" type="number" value={value.after_hours_fee ?? ''} onChange={(e) => onChange({ ...value, after_hours_fee: e.target.value })} placeholder="e.g. 80" /></div>
+            <div className="mt-2"><FormInput label={t('partner.location.afterHoursFee')} type="number" value={value.after_hours_fee ?? ''} onChange={(e) => onChange({ ...value, after_hours_fee: e.target.value })} placeholder="e.g. 80" /></div>
           )}
         </>
       )}
