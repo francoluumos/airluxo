@@ -91,12 +91,12 @@ export default function PartnerDashboard({ onExit }) {
       setBookings(bs);
       setBlocks(bk);
     } catch (e) {
-      setErr(e.message || 'Could not load your data.');
+      setErr(e.message || t('partner.errLoad'));
       setListings([]);
       setBookings([]);
       setBlocks([]);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -197,16 +197,16 @@ export default function PartnerDashboard({ onExit }) {
           <div className="flex items-center gap-3">
             <button onClick={() => setNavOpen(true)} className="ring-lux text-ink lg:hidden"><Icon.Menu /></button>
             <div>
-              <div className="eyebrow text-stone">Partner portal</div>
-              <h1 className="font-display text-xl leading-none">{NAV.find((n) => n.id === view)?.label}</h1>
+              <div className="eyebrow text-stone">{t('partner.portal')}</div>
+              <h1 className="font-display text-xl leading-none">{t(`nav.${view}`)}</h1>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden items-center gap-1.5 rounded-full border border-mist bg-cloud px-3 py-1.5 text-xs font-semibold text-ink sm:flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-go" /> Live · Supabase
+              <span className="h-1.5 w-1.5 rounded-full bg-go" /> {t('partner.liveStatus')}
             </span>
             <button onClick={openAdd} className="ring-lux flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void">
-              <Icon.Plus width={15} height={15} /> <span className="hidden sm:inline">List a car</span>
+              <Icon.Plus width={15} height={15} /> <span className="hidden sm:inline">{t('partner.listCar')}</span>
             </button>
           </div>
         </div>
@@ -251,6 +251,7 @@ export default function PartnerDashboard({ onExit }) {
 /* ---------------- Payouts (Stripe Connect) banner ---------------- */
 function PayoutsBanner() {
   const { partner, refreshPartner } = useAuth();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   if (!partner || partner.stripe_charges_enabled) return null;
@@ -261,8 +262,8 @@ function PayoutsBanner() {
     try {
       const url = await startPayoutOnboarding();
       window.open(url, '_blank', 'noopener');
-      setMsg('Complete the steps in the new Stripe tab, then click Refresh.');
-    } catch (e) { setMsg(e.message || 'Could not start onboarding.'); }
+      setMsg(t('partner.payouts.openedTab'));
+    } catch (e) { setMsg(e.message || t('partner.payouts.errStart')); }
     finally { setBusy(false); }
   }
   async function refresh() {
@@ -270,8 +271,8 @@ function PayoutsBanner() {
     try {
       const s = await refreshPayoutStatus();
       await refreshPartner();
-      if (!s.charges_enabled) setMsg('Not active yet — finish every Stripe step, then refresh again.');
-    } catch (e) { setMsg(e.message || 'Could not refresh status.'); }
+      if (!s.charges_enabled) setMsg(t('partner.payouts.notActive'));
+    } catch (e) { setMsg(e.message || t('partner.payouts.errRefresh')); }
     finally { setBusy(false); }
   }
 
@@ -281,14 +282,14 @@ function PayoutsBanner() {
         <div className="flex items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gold/30 bg-gold/15 text-gold"><Icon.Wallet width={20} height={20} /></span>
           <div>
-            <div className="font-display text-base">Set up payouts</div>
-            <p className="mt-0.5 max-w-md text-sm text-stone">Connect a Stripe account to receive your earnings. AIRLUXO settles each booking to you automatically, minus the {Math.round(commissionRate(partner?.plan) * 100)}% commission.</p>
+            <div className="font-display text-base">{t('partner.payouts.title')}</div>
+            <p className="mt-0.5 max-w-md text-sm text-stone">{t('partner.payouts.desc', { pct: Math.round(commissionRate(partner?.plan) * 100) })}</p>
             {msg && <p className="mt-2 text-xs font-medium text-ink">{msg}</p>}
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
-          <button onClick={onboard} disabled={busy} className="ring-lux rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">{busy ? '…' : connected ? 'Continue setup' : 'Connect with Stripe'}</button>
-          {connected && <button onClick={refresh} disabled={busy} className="ring-lux rounded-full border border-ink/25 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-60">Refresh</button>}
+          <button onClick={onboard} disabled={busy} className="ring-lux rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">{busy ? '…' : connected ? t('partner.payouts.continue') : t('partner.payouts.connect')}</button>
+          {connected && <button onClick={refresh} disabled={busy} className="ring-lux rounded-full border border-ink/25 px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-60">{t('partner.common.refresh')}</button>}
         </div>
       </div>
     </div>
@@ -346,29 +347,30 @@ function computeMetrics(bookings, listings, rate = FEES.hostCommission) {
 
 function Overview({ listings, bookings, onAdd, setView }) {
   const { partner } = useAuth();
+  const t = useT();
   const loading = listings === null;
   const total = loading ? 0 : listings.length;
   const active = loading ? 0 : listings.filter((c) => c.status === 'Available' || c.status === 'Booked').length;
   const bk = bookings ?? [];
   const pending = bk.filter((b) => b.status === 'Pending').length;
   const m = computeMetrics(bookings, listings, commissionRate(partner?.plan));
-  const deltaTxt = m.delta == null ? 'first month of trips' : `${m.delta >= 0 ? '+' : ''}${m.delta.toFixed(0)}% vs prev. month`;
+  const deltaTxt = m.delta == null ? t('partner.kpi.firstMonth') : t('partner.kpi.vsPrevMonth', { delta: `${m.delta >= 0 ? '+' : ''}${m.delta.toFixed(0)}` });
 
   return (
     <div className="space-y-7">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Active listings" value={loading ? '—' : `${active} / ${total}`} sub={total === 0 ? 'List your first car' : 'Live on the marketplace'} good={total > 0} icon={<Icon.Car />} />
-        <Kpi label="Bookings" value={bookings === null ? '—' : num(bk.length)} sub={pending > 0 ? `${pending} awaiting your reply` : 'All caught up'} good={pending > 0} icon={<Icon.Calendar2 />} />
-        <Kpi label={`Net earnings · ${m.monthLabel}`} value={chf(m.net)} sub={deltaTxt} good={m.net > 0} icon={<Icon.Wallet />} />
-        <Kpi label="Fleet utilisation" value={`${m.utilisation}%`} sub={`this month · ${total} car${total === 1 ? '' : 's'}`} good={m.utilisation > 0} icon={<Icon.Gauge />} />
+        <Kpi label={t('partner.kpi.activeListings')} value={loading ? '—' : `${active} / ${total}`} sub={total === 0 ? t('partner.kpi.listFirstCar') : t('partner.kpi.liveOnMarket')} good={total > 0} icon={<Icon.Car />} />
+        <Kpi label={t('partner.kpi.bookings')} value={bookings === null ? '—' : num(bk.length)} sub={pending > 0 ? t('partner.kpi.awaitingReply', { n: pending }) : t('partner.kpi.allCaughtUp')} good={pending > 0} icon={<Icon.Calendar2 />} />
+        <Kpi label={t('partner.kpi.netEarnings', { month: m.monthLabel })} value={chf(m.net)} sub={deltaTxt} good={m.net > 0} icon={<Icon.Wallet />} />
+        <Kpi label={t('partner.kpi.fleetUtilisation')} value={`${m.utilisation}%`} sub={`${t('partner.kpi.thisMonth')} · ${total} ${total === 1 ? t('partner.car') : t('partner.cars')}`} good={m.utilisation > 0} icon={<Icon.Gauge />} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-        <Panel title="Net payouts · 6 months" action={<button onClick={() => setView('earnings')} className="ring-lux text-xs font-semibold text-stone hover:text-ink">Details →</button>}>
+        <Panel title={t('partner.overview.netPayouts6mo')} action={<button onClick={() => setView('earnings')} className="ring-lux text-xs font-semibold text-stone hover:text-ink">{t('partner.common.details')}</button>}>
           <BarChart data={m.series} />
         </Panel>
 
-        <Panel title="My fleet" action={<button onClick={onAdd} className="ring-lux text-xs font-semibold text-gold hover:text-ink">+ Add</button>}>
+        <Panel title={t('nav.fleet')} action={<button onClick={onAdd} className="ring-lux text-xs font-semibold text-gold hover:text-ink">{t('partner.common.add')}</button>}>
           {loading ? (
             <SkeletonRows />
           ) : total === 0 ? (
@@ -379,7 +381,7 @@ function Overview({ listings, bookings, onAdd, setView }) {
                 <div key={c.id} className="flex items-center justify-between">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold">{c.make} {c.model}</div>
-                    <div className="text-xs text-stone tnum">{c.city || '—'} · {chf(c.price_per_day)}/day</div>
+                    <div className="text-xs text-stone tnum">{c.city || '—'} · {chf(c.price_per_day)}{t('partner.perDay')}</div>
                   </div>
                   <StatusPill status={c.status} />
                 </div>
@@ -389,11 +391,11 @@ function Overview({ listings, bookings, onAdd, setView }) {
         </Panel>
       </div>
 
-      <Panel title="Recent bookings" action={<button onClick={() => setView('bookings')} className="ring-lux text-xs font-semibold text-stone hover:text-ink">View all →</button>}>
+      <Panel title={t('partner.overview.recentBookings')} action={<button onClick={() => setView('bookings')} className="ring-lux text-xs font-semibold text-stone hover:text-ink">{t('partner.common.viewAll')}</button>}>
         {bookings === null ? (
           <SkeletonRows />
         ) : bk.length === 0 ? (
-          <div className="py-6 text-center text-sm text-stone">No bookings yet — they'll appear here the moment a guest reserves.</div>
+          <div className="py-6 text-center text-sm text-stone">{t('partner.overview.noBookings')}</div>
         ) : (
           <BookingsTable rows={bk.slice(0, 4)} compact />
         )}

@@ -118,4 +118,45 @@ export const en = {
   'footer.privacy': 'Privacy',
   'footer.terms': 'Terms',
   'footer.cookies': 'Cookies',
+
+  // ===== Partner dashboard =====
+  // Chrome (header / sidebar — always visible)
+  'partner.portal': 'Partner portal',
+  'partner.liveStatus': 'Live · Supabase',
+  'partner.car': 'car',
+  'partner.cars': 'cars',
+  'partner.perDay': '/day',
+  'partner.common.refresh': 'Refresh',
+  'partner.common.add': '+ Add',
+  'partner.common.details': 'Details →',
+  'partner.common.viewAll': 'View all →',
+  'partner.common.save': 'Save',
+  'partner.common.cancel': 'Cancel',
+
+  // Payouts (Stripe Connect) banner
+  'partner.payouts.title': 'Set up payouts',
+  'partner.payouts.desc': 'Connect a Stripe account to receive your earnings. AIRLUXO settles each booking to you automatically, minus the {pct}% commission.',
+  'partner.payouts.openedTab': 'Complete the steps in the new Stripe tab, then click Refresh.',
+  'partner.payouts.notActive': 'Not active yet — finish every Stripe step, then refresh again.',
+  'partner.payouts.errStart': 'Could not start onboarding.',
+  'partner.payouts.errRefresh': 'Could not refresh status.',
+  'partner.payouts.continue': 'Continue setup',
+  'partner.payouts.connect': 'Connect with Stripe',
+
+  // Overview tab
+  'partner.errLoad': 'Could not load your data.',
+  'partner.kpi.activeListings': 'Active listings',
+  'partner.kpi.bookings': 'Bookings',
+  'partner.kpi.netEarnings': 'Net earnings · {month}',
+  'partner.kpi.fleetUtilisation': 'Fleet utilisation',
+  'partner.kpi.listFirstCar': 'List your first car',
+  'partner.kpi.liveOnMarket': 'Live on the marketplace',
+  'partner.kpi.awaitingReply': '{n} awaiting your reply',
+  'partner.kpi.allCaughtUp': 'All caught up',
+  'partner.kpi.firstMonth': 'first month of trips',
+  'partner.kpi.vsPrevMonth': '{delta}% vs prev. month',
+  'partner.kpi.thisMonth': 'this month',
+  'partner.overview.netPayouts6mo': 'Net payouts · 6 months',
+  'partner.overview.recentBookings': 'Recent bookings',
+  'partner.overview.noBookings': "No bookings yet — they'll appear here the moment a guest reserves.",
 };
