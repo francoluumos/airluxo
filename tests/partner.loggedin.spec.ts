@@ -23,6 +23,24 @@ test('language switch updates the locale', async ({ page }) => {
   await lang.selectOption('en');
 });
 
+test('dashboard body content renders in German after switching', async ({ page }) => {
+  // A newly-extracted Overview KPI label — English baseline.
+  await expect(page.getByText('Active listings')).toBeVisible();
+
+  await page.getByLabel('Language').selectOption('de');
+  await expect(page.getByLabel('Language')).toHaveValue('de');
+
+  // The dashboard body is now translated, not falling back to English. This is
+  // the guard against silently regressing to an English-only dashboard: the
+  // English label is gone and its German translation (from Supabase) renders.
+  await expect(page.getByText('Active listings')).toHaveCount(0);
+  await expect(page.getByText('Aktive Inserate')).toBeVisible();
+
+  // Reset so the test is idempotent.
+  await page.getByLabel('Language').selectOption('en');
+  await expect(page.getByText('Active listings')).toBeVisible();
+});
+
 test('setup guide can be replayed from Settings', async ({ page }) => {
   // Dismiss the auto-tour if a new partner sees it on load.
   const skip = page.getByText('Skip the guide');

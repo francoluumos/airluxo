@@ -19,7 +19,7 @@ for the gated staging).
 - `tests/pages/` — `HomePage` + `BookingModal` page objects. Stable hooks: `data-testid="car-card"`, `data-testid="calendar"`.
 
 **Logged-in flows** (`*.loggedin.spec.ts`, run under the `logged-in` project):
-- `partner.loggedin.spec.ts` — partner **language switch** updates the locale; **setup guide replay** from Settings opens the tour.
+- `partner.loggedin.spec.ts` — partner **language switch** updates the locale; **dashboard body content renders in German** after switching (asserts a newly-extracted KPI label flips from "Active listings" to "Aktive Inserate" — the guard against silently regressing to an English-only dashboard); **setup guide replay** from Settings opens the tour.
 - **Auth fixture:** `auth.setup.ts` logs in once as a partner and saves the session to `tests/.auth/partner.json` (gitignored); the `logged-in` project reuses it. Set `E2E_PARTNER_EMAIL` / `E2E_PARTNER_PASSWORD` (a partner test account) — locally as env vars, in CI as repo secrets. Without them the setup + logged-in specs skip; public flows still run.
 
 **To add a flow:** public → `tests/<flow>.spec.ts`; logged-in → `tests/<flow>.loggedin.spec.ts` (auto-runs the auth setup first). Reuse/extend `tests/pages/`.

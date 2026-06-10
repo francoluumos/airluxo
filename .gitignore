@@ -37,3 +37,7 @@ supabase/.temp/
 /tests/.auth/
 /test-archive/
 .e2e.env
+
+# i18n AI-fill generated artifacts (regenerate with scripts/i18n-fill.mjs)
+/scripts/i18n-fill-output.json
+/scripts/i18n-fill.sql
