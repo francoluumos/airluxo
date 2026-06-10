@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Icon } from './Icons.jsx';
+import { useT } from './../lib/i18n.jsx';
 
 // Lightweight on-brand product tour. Spotlights a target element (the box-shadow
 // trick: one fixed div over the target whose huge spread-shadow dims everything
@@ -58,6 +59,7 @@ function cardPosition(rect, placement, size) {
 }
 
 export default function Tour({ steps, onClose, onFinish, onNavigate }) {
+  const t = useT();
   const [i, setI] = useState(0);
   const [rect, setRect] = useState(null);
   const [size, setSize] = useState({ w: Math.min(360, (typeof window !== 'undefined' ? window.innerWidth : 360) - 24), h: 200 });
@@ -158,8 +160,8 @@ export default function Tour({ steps, onClose, onFinish, onNavigate }) {
           style={{ left: pos.left, top: pos.top, width: pos.width }}
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="eyebrow text-gold">Setup guide · {i + 1}/{steps.length}</div>
-            <button onClick={onClose} className="ring-lux -mr-1 -mt-1 grid h-7 w-7 place-items-center rounded-full text-stone transition-colors hover:bg-mist/60" aria-label="Leave guide">
+            <div className="eyebrow text-gold">{t('partner.tour.step', { n: i + 1, total: steps.length })}</div>
+            <button onClick={onClose} className="ring-lux -mr-1 -mt-1 grid h-7 w-7 place-items-center rounded-full text-stone transition-colors hover:bg-mist/60" aria-label={t('partner.tour.leaveGuide')}>
               <Icon.X width={14} height={14} />
             </button>
           </div>
@@ -174,16 +176,16 @@ export default function Tour({ steps, onClose, onFinish, onNavigate }) {
             </div>
             <div className="flex items-center gap-2">
               {i > 0 && (
-                <button onClick={back} className="ring-lux rounded-full px-3 py-1.5 text-xs font-semibold text-stone transition-colors hover:text-ink">Back</button>
+                <button onClick={back} className="ring-lux rounded-full px-3 py-1.5 text-xs font-semibold text-stone transition-colors hover:text-ink">{t('partner.tour.back')}</button>
               )}
               <button onClick={next} className="ring-lux rounded-full bg-ink px-4 py-1.5 text-xs font-bold text-cloud transition-colors hover:bg-void">
-                {last ? 'Finish' : 'Next'}
+                {last ? t('partner.tour.finish') : t('partner.tour.next')}
               </button>
             </div>
           </div>
 
           <button onClick={onClose} className="ring-lux mt-3 block w-full text-center text-[0.7rem] font-semibold text-stone transition-colors hover:text-ink">
-            Skip the guide
+            {t('partner.tour.skip')}
           </button>
         </motion.div>
       )}

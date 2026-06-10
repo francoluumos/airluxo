@@ -42,14 +42,14 @@ const toLocDraft = (l) => ({ ...EMPTY_LOC, ...l, after_hours_fee: l.after_hours_
 // First-run setup guide. Each step optionally switches `section` (the dashboard
 // view) and spotlights a `target` (data-tour attribute). Target-less steps centre.
 const PARTNER_TOUR = [
-  { title: 'Welcome to AIRLUXO', body: 'A quick tour of your partner dashboard. You can leave anytime, and replay it later from Settings.' },
-  { target: '[data-tour="add-car"]', section: 'overview', placement: 'right', title: 'List your cars', body: 'Add each car with photos, specs and pricing — our AI cleans up the photo into a studio shot and even drafts the description.' },
-  { target: '[data-tour="location"]', section: 'location', placement: 'right', title: 'Pick-up locations', body: 'Set your sites, addresses and opening hours. Guests pick up from here, and booking times respect your hours.' },
-  { target: '[data-tour="bookings"]', section: 'bookings', placement: 'right', title: 'Bookings', body: 'Incoming reservations land here. Confirm to charge the guest, or decline to release the hold — no charge.' },
-  { target: '[data-tour="calendar"]', section: 'calendar', placement: 'right', title: 'Calendar', body: 'See availability at a glance, and block dates for maintenance or personal use.' },
-  { target: '[data-tour="earnings"]', section: 'earnings', placement: 'right', title: 'Earnings & payouts', body: 'Track net earnings and your payout history. Connect Stripe in Settings to actually get paid.' },
-  { target: '[data-tour="settings"]', section: 'settings', placement: 'right', title: 'Settings', body: 'Connect Stripe payouts, embed your fleet on your own site, add a webhook or calendar feed — and replay this guide anytime.' },
-  { title: "You're all set", body: 'That’s the tour. The best first step is to list your first car. You can replay this guide from Settings whenever you like.' },
+  { titleKey: 'partner.tour.s1title', bodyKey: 'partner.tour.s1body' },
+  { target: '[data-tour="add-car"]', section: 'overview', placement: 'right', titleKey: 'partner.tour.s2title', bodyKey: 'partner.tour.s2body' },
+  { target: '[data-tour="location"]', section: 'location', placement: 'right', titleKey: 'partner.tour.s3title', bodyKey: 'partner.tour.s3body' },
+  { target: '[data-tour="bookings"]', section: 'bookings', placement: 'right', titleKey: 'partner.tour.s4title', bodyKey: 'partner.tour.s4body' },
+  { target: '[data-tour="calendar"]', section: 'calendar', placement: 'right', titleKey: 'partner.tour.s5title', bodyKey: 'partner.tour.s5body' },
+  { target: '[data-tour="earnings"]', section: 'earnings', placement: 'right', titleKey: 'partner.tour.s6title', bodyKey: 'partner.tour.s6body' },
+  { target: '[data-tour="settings"]', section: 'settings', placement: 'right', titleKey: 'partner.tour.s7title', bodyKey: 'partner.tour.s7body' },
+  { titleKey: 'partner.tour.s8title', bodyKey: 'partner.tour.s8body' },
 ];
 
 const NAV = [
@@ -242,7 +242,7 @@ export default function PartnerDashboard({ onExit }) {
       </AnimatePresence>
 
       {tourOpen && (
-        <Tour steps={PARTNER_TOUR} onNavigate={tourNavigate} onClose={endTour} onFinish={endTour} />
+        <Tour steps={PARTNER_TOUR.map((s) => ({ ...s, title: t(s.titleKey), body: t(s.bodyKey) }))} onNavigate={tourNavigate} onClose={endTour} onFinish={endTour} />
       )}
     </div>
   );

@@ -4,9 +4,11 @@ import { Icon } from './Icons.jsx';
 import CarImage from './CarImage.jsx';
 import { CARS } from '../lib/data.js';
 import { useAuth } from '../lib/auth.jsx';
+import { useT } from '../lib/i18n.jsx';
 
 export default function PartnerLogin({ onBack, onAuthed }) {
   const { signIn, signUp, resetPassword } = useAuth();
+  const t = useT();
   const [mode, setMode] = useState('signin'); // signin | signup | forgot
   const [form, setForm] = useState({ company: '', contact: '', city: 'Geneva', email: '', password: '' });
   const [busy, setBusy] = useState(false);
@@ -42,7 +44,7 @@ export default function PartnerLogin({ onBack, onAuthed }) {
         else setCheckEmail(true);
       }
     } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.');
+      setError(err.message || t('partner.login.errGeneric'));
     } finally {
       setBusy(false);
     }
@@ -57,7 +59,7 @@ export default function PartnerLogin({ onBack, onAuthed }) {
             <span className="wordmark text-[1.35rem]">AIR<span className="text-gold">LUXO</span></span>
           </button>
           <button onClick={onBack} className="ring-lux flex items-center gap-1.5 text-sm font-semibold text-stone transition-colors hover:text-ink">
-            <Icon.Arrow width={15} height={15} className="rotate-180" /> Back to site
+            <Icon.Arrow width={15} height={15} className="rotate-180" /> {t('account.backToSite')}
           </button>
         </div>
 
@@ -74,23 +76,23 @@ export default function PartnerLogin({ onBack, onAuthed }) {
               <ResetSent email={form.email} onBack={() => { setResetSent(false); setMode('signin'); }} />
             ) : (
               <>
-                <div className="eyebrow text-gold">Partner portal</div>
+                <div className="eyebrow text-gold">{t('partner.portal')}</div>
                 <h1 className="font-display mt-3 text-[clamp(2rem,4vw,2.8rem)] leading-[1.0]">
-                  {mode === 'signin' ? 'Welcome back.' : mode === 'signup' ? 'List with AIRLUXO.' : 'Reset your password.'}
+                  {mode === 'signin' ? t('partner.login.titleSignin') : mode === 'signup' ? t('partner.login.titleSignup') : t('partner.login.titleForgot')}
                 </h1>
                 <p className="mt-3 text-stone">
                   {mode === 'signin'
-                    ? 'Sign in to manage your fleet, bookings and payouts.'
+                    ? t('partner.login.subSignin')
                     : mode === 'signup'
-                      ? 'Create a partner account and put your cars in front of vetted drivers.'
-                      : 'Enter your work email and we’ll send you a link to set a new password.'}
+                      ? t('partner.login.subSignup')
+                      : t('partner.login.subForgot')}
                 </p>
 
                 {/* tabs */}
                 {mode !== 'forgot' && (
                   <div className="mt-7 inline-flex rounded-full border border-mist bg-cloud p-1">
-                    <Tab active={mode === 'signin'} onClick={() => { setMode('signin'); setError(''); }}>Sign in</Tab>
-                    <Tab active={mode === 'signup'} onClick={() => { setMode('signup'); setError(''); }}>Create account</Tab>
+                    <Tab active={mode === 'signin'} onClick={() => { setMode('signin'); setError(''); }}>{t('partner.login.tabSignin')}</Tab>
+                    <Tab active={mode === 'signup'} onClick={() => { setMode('signup'); setError(''); }}>{t('partner.login.tabSignup')}</Tab>
                   </div>
                 )}
 
@@ -103,22 +105,22 @@ export default function PartnerLogin({ onBack, onAuthed }) {
                         exit={{ opacity: 0, height: 0 }}
                         className="space-y-4 overflow-hidden"
                       >
-                        <Input label="Rental company" icon={<Icon.Car />} placeholder="Léman Motors" value={form.company} onChange={set('company')} required />
+                        <Input label={t('partner.login.company')} icon={<Icon.Car />} placeholder={t('partner.login.companyPlaceholder')} value={form.company} onChange={set('company')} required />
                         <div className="grid grid-cols-2 gap-3">
-                          <Input label="Your name" icon={<Icon.Seat />} placeholder="Florian" value={form.contact} onChange={set('contact')} />
-                          <Select label="City" value={form.city} onChange={set('city')} options={['Geneva', 'Zürich', 'Lugano', 'Lausanne', 'Basel', 'Bern', 'St. Moritz', 'Zermatt', 'Gstaad']} />
+                          <Input label={t('partner.login.yourName')} icon={<Icon.Seat />} placeholder={t('partner.login.yourNamePlaceholder')} value={form.contact} onChange={set('contact')} />
+                          <Select label={t('partner.login.city')} value={form.city} onChange={set('city')} options={['Geneva', 'Zürich', 'Lugano', 'Lausanne', 'Basel', 'Bern', 'St. Moritz', 'Zermatt', 'Gstaad']} />
                         </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
 
-                  <Input label="Work email" type="email" icon={<Icon.ArrowUpRight />} placeholder="florian@leman-motors.ch" value={form.email} onChange={set('email')} required />
+                  <Input label={t('partner.login.workEmail')} type="email" icon={<Icon.ArrowUpRight />} placeholder={t('partner.login.workEmailPlaceholder')} value={form.email} onChange={set('email')} required />
                   {mode !== 'forgot' && (
                     <div>
-                      <Input label="Password" type="password" icon={<Icon.Lock />} placeholder="At least 6 characters" value={form.password} onChange={set('password')} required minLength={6} />
+                      <Input label={t('partner.login.password')} type="password" icon={<Icon.Lock />} placeholder={t('partner.login.passwordPlaceholder')} value={form.password} onChange={set('password')} required minLength={6} />
                       {mode === 'signin' && (
                         <button type="button" onClick={() => { setMode('forgot'); setError(''); }} className="ring-lux mt-2 text-sm font-semibold text-stone transition-colors hover:text-ink">
-                          Forgot password?
+                          {t('partner.login.forgotPassword')}
                         </button>
                       )}
                     </div>
@@ -137,7 +139,7 @@ export default function PartnerLogin({ onBack, onAuthed }) {
                   >
                     {busy ? <Spinner /> : (
                       <>
-                        {mode === 'signin' ? 'Enter dashboard' : mode === 'signup' ? 'Create account' : 'Send reset link'}
+                        {mode === 'signin' ? t('partner.login.enterDashboard') : mode === 'signup' ? t('partner.login.tabSignup') : t('partner.login.sendResetLink')}
                         <Icon.Arrow width={16} height={16} className="transition-transform group-hover:translate-x-1" />
                       </>
                     )}
@@ -146,16 +148,16 @@ export default function PartnerLogin({ onBack, onAuthed }) {
 
                 <p className="mt-7 text-sm text-stone">
                   {mode === 'signin' ? (
-                    <>New rental company?{' '}
-                      <button onClick={() => { setMode('signup'); setError(''); }} className="ring-lux font-semibold text-ink underline-offset-4 hover:underline">Create a partner account</button>
+                    <>{t('partner.login.newCompanyPre')}{' '}
+                      <button onClick={() => { setMode('signup'); setError(''); }} className="ring-lux font-semibold text-ink underline-offset-4 hover:underline">{t('partner.login.createPartnerAccount')}</button>
                     </>
                   ) : mode === 'forgot' ? (
-                    <>Remembered it?{' '}
-                      <button onClick={() => { setMode('signin'); setError(''); }} className="ring-lux font-semibold text-ink underline-offset-4 hover:underline">Back to sign in</button>
+                    <>{t('partner.login.rememberedPre')}{' '}
+                      <button onClick={() => { setMode('signin'); setError(''); }} className="ring-lux font-semibold text-ink underline-offset-4 hover:underline">{t('partner.login.backToSignin')}</button>
                     </>
                   ) : (
-                    <>Already onboard?{' '}
-                      <button onClick={() => { setMode('signin'); setError(''); }} className="ring-lux font-semibold text-ink underline-offset-4 hover:underline">Sign in</button>
+                    <>{t('partner.login.alreadyOnboardPre')}{' '}
+                      <button onClick={() => { setMode('signin'); setError(''); }} className="ring-lux font-semibold text-ink underline-offset-4 hover:underline">{t('partner.login.tabSignin')}</button>
                     </>
                   )}
                 </p>
@@ -172,14 +174,14 @@ export default function PartnerLogin({ onBack, onAuthed }) {
         <div className="spotlight absolute inset-0" />
         <div className="relative flex h-full flex-col justify-between p-12">
           <div className="self-end rounded-2xl border border-graphite bg-void/55 px-5 py-4 text-cloud backdrop-blur">
-            <div className="text-[0.7rem] uppercase tracking-wider text-ash">Live on AIRLUXO</div>
-            <div className="font-display mt-1 text-3xl tnum">36 rental companies</div>
-            <div className="mt-1 flex items-center gap-1.5 text-xs text-go"><Icon.ArrowUpRight width={13} height={13} /> 240+ cars earning</div>
+            <div className="text-[0.7rem] uppercase tracking-wider text-ash">{t('partner.login.liveOnAirluxo')}</div>
+            <div className="font-display mt-1 text-3xl tnum">{t('partner.login.companiesCount')}</div>
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-go"><Icon.ArrowUpRight width={13} height={13} /> {t('partner.login.carsEarning')}</div>
           </div>
           <div className="text-cloud">
-            <div className="eyebrow text-gold-soft">Partner since day one</div>
+            <div className="eyebrow text-gold-soft">{t('partner.login.partnerSinceDayOne')}</div>
             <blockquote className="font-display mt-4 max-w-md text-[1.8rem] leading-[1.15]">
-              "Our cars used to sit idle midweek. Now AIRLUXO keeps the whole fleet earning."
+              {t('partner.login.quote')}
             </blockquote>
             <div className="mt-5 flex items-center gap-3 text-sm text-ash">
               <span className="grid h-9 w-9 place-items-center rounded-full bg-cloud font-display text-ink">FM</span>
@@ -193,36 +195,37 @@ export default function PartnerLogin({ onBack, onAuthed }) {
 }
 
 function ConfirmEmail({ email, onBack }) {
+  const t = useT();
   return (
     <div className="text-center sm:text-left">
       <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-go/12 text-go sm:mx-0">
         <Icon.Check width={30} height={30} />
       </div>
-      <h1 className="font-display mt-6 text-[clamp(1.8rem,3.6vw,2.4rem)] leading-tight">Confirm your email.</h1>
+      <h1 className="font-display mt-6 text-[clamp(1.8rem,3.6vw,2.4rem)] leading-tight">{t('partner.login.confirmEmailTitle')}</h1>
       <p className="mt-3 text-stone">
-        We sent a confirmation link to <span className="font-semibold text-ink">{email}</span>.
-        Click it, then come back to sign in.
+        {t('partner.login.confirmEmailPre')} <span className="font-semibold text-ink">{email}</span>.
+        {' '}{t('partner.login.confirmEmailPost')}
       </p>
       <button onClick={onBack} className="ring-lux mt-7 rounded-full bg-ink px-6 py-3 text-sm font-bold text-cloud transition-colors hover:bg-void">
-        Back to sign in
+        {t('partner.login.backToSignin')}
       </button>
     </div>
   );
 }
 
 function ResetSent({ email, onBack }) {
+  const t = useT();
   return (
     <div className="text-center sm:text-left">
       <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-go/12 text-go sm:mx-0">
         <Icon.ArrowUpRight width={30} height={30} />
       </div>
-      <h1 className="font-display mt-6 text-[clamp(1.8rem,3.6vw,2.4rem)] leading-tight">Check your email.</h1>
+      <h1 className="font-display mt-6 text-[clamp(1.8rem,3.6vw,2.4rem)] leading-tight">{t('partner.login.checkEmailTitle')}</h1>
       <p className="mt-3 text-stone">
-        If <span className="font-semibold text-ink">{email}</span> has an account, we’ve sent a link to reset your password.
-        Open it to set a new one. The link expires shortly.
+        {t('partner.login.resetSentPre')} <span className="font-semibold text-ink">{email}</span> {t('partner.login.resetSentPost')}
       </p>
       <button onClick={onBack} className="ring-lux mt-7 rounded-full bg-ink px-6 py-3 text-sm font-bold text-cloud transition-colors hover:bg-void">
-        Back to sign in
+        {t('partner.login.backToSignin')}
       </button>
     </div>
   );
