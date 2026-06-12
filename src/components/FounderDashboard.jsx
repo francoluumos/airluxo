@@ -30,9 +30,12 @@ const NAV = [
 ];
 
 // Local Playwright HTML report server (started by `npm run test:report` or
-// automatically after a push via the pre-push hook). Override at build time
-// with VITE_PLAYWRIGHT_REPORT_URL if you host the report somewhere reachable.
-const REPORT_URL = import.meta.env.VITE_PLAYWRIGHT_REPORT_URL || 'http://localhost:9323';
+// automatically after a push via the pre-push hook). Port 9380 is AIRLUXO's
+// pinned report port (distinct from Playwright's shared 9323 default, so this
+// button always shows AIRLUXO's report even when another project's report
+// server is running — see the port registry in TESTING.md). Override at build
+// time with VITE_PLAYWRIGHT_REPORT_URL if you host the report somewhere reachable.
+const REPORT_URL = import.meta.env.VITE_PLAYWRIGHT_REPORT_URL || 'http://localhost:9380';
 const CI_RUNS_URL = 'https://github.com/francoluumos/airluxo/actions/workflows/e2e.yml';
 
 export default function FounderApp() {

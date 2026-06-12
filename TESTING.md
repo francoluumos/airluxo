@@ -38,15 +38,15 @@ The HTML report (`playwright-report/`) is **overwritten every run** — it's the
 
 ### Port registry — one preview port per project
 
-Each project's E2E preview server binds a **distinct, pinned port** so two suites can run at the same time without one silently attaching to the other's server (the `webServer.reuseExistingServer` trap). The port is pinned in `vite.config.js` with `strictPort: true`, so a clash fails loudly instead of drifting to a random port.
+Each project pins **two** distinct ports — one for the **preview server** (so two suites can run at once without one silently attaching to the other's server — the `webServer.reuseExistingServer` trap) and one for the **HTML report server** (so the founder-dashboard "Open latest report" button always shows *this* project's report, never another project's). Both are pinned away from Playwright/vite's shared defaults (preview 4173, report 9323); the preview port uses `strictPort: true` so a clash fails loudly instead of drifting.
 
-| Project | Preview port | Pinned in |
-| --- | ---: | --- |
-| AIRLUXO | **4180** | `vite.config.js` → `preview.port`, mirrored in `playwright.config.ts` |
-| _(next project)_ | 4181 | _claim the next free port here_ |
-| _(next project)_ | 4182 | |
+| Project | Preview port | Report port | Pinned in |
+| --- | ---: | ---: | --- |
+| AIRLUXO | **4180** | **9380** | preview: `vite.config.js` + `playwright.config.ts` · report: `package.json` `test:report`, `scripts/test-archive.mjs`, `FounderDashboard.jsx` `REPORT_URL` |
+| _(next project)_ | 4181 | 9381 | _claim the next free pair here_ |
+| _(next project)_ | 4182 | 9382 | |
 
-Reports never collide regardless of port — `playwright-report/`, `test-results/`, and `test-archive/` all live **inside each project's own repo** (the scripts use `process.cwd()`), so each project keeps its own separate history.
+The report **files** never collide regardless of port — `playwright-report/`, `test-results/`, and `test-archive/` all live **inside each project's own repo** (the scripts use `process.cwd()`). The report **port** matters only for the live `show-report` server that the dashboard button opens: pin it per project so the button is unambiguous.
 
 ### Setting up this E2E harness in a new project
 
@@ -77,16 +77,21 @@ scripts/test-archive.mjs      # fully path-relative — copy as-is
 tests/                        # DELETE the AIRLUXO specs — write your own (see below)
 ```
 
-**4. Claim a distinct port** (add a row to the registry above), then pin it in two files:
-- `vite.config.js`: `preview: { port: 4181, strictPort: true }`
-- `playwright.config.ts`: the `BASE_URL` default fallback **and** `webServer.url` → `http://localhost:4181`
+**4. Claim a distinct port pair** (add a row to the registry above), then pin both:
+- **Preview port** (e.g. 4181):
+  - `vite.config.js`: `preview: { port: 4181, strictPort: true }`
+  - `playwright.config.ts`: the `BASE_URL` default fallback **and** `webServer.url` → `http://localhost:4181`
+- **Report port** (e.g. 9381) — only needed if the app has a dashboard button that opens the report; pin it in all three spots so they agree:
+  - `package.json` → `"test:report": "playwright show-report --port 9381"`
+  - `scripts/test-archive.mjs` → the `show-report` spawn args (`'--port', '9381'`)
+  - the dashboard's `REPORT_URL` default → `http://localhost:9381`
 
-**5. Add the test scripts** to `package.json`:
+**5. Add the test scripts** to `package.json` (report port = your claimed one):
 ```json
 "test": "playwright test",
 "test:chromium": "playwright test --project=chromium",
 "test:ui": "playwright test --ui",
-"test:report": "playwright show-report",
+"test:report": "playwright show-report --port 9381",
 "test:archive": "node scripts/test-archive.mjs"
 ```
 
@@ -94,6 +99,7 @@ tests/                        # DELETE the AIRLUXO specs — write your own (see
 - **Specs** — write fresh `tests/*.spec.ts` for the new app's routes/selectors. Start with a `smoke.spec.ts` (every route mounts, no uncaught JS errors). Add stable `data-testid` hooks + page objects under `tests/pages/` as flows grow.
 - **Logged-in flows** — only if the app has auth. Copy `auth.setup.ts` + the `setup`/`logged-in` projects, point them at the new login, and set the credential env vars (`.e2e.env` locally, repo secrets in CI). Drop them entirely if not needed.
 - **`.githooks/pre-push`** — change the `AIRLUXO` label and the `/tmp/airluxo-e2e.log` path so two projects' hooks don't overwrite each other's log.
+- **Report button** — if you copied a dashboard "Open latest report" link, point its `REPORT_URL` at the claimed report port (step 4).
 
 **7. Gitignore** the local-only artifacts:
 ```

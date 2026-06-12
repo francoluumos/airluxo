@@ -117,7 +117,10 @@ console.log(`\n✓ Archived → test-archive/${slug}  (${status}: ${passed}✓ $
 
 // 5. Open the archived report (detached, so this script exits and the server keeps serving).
 if (!noOpen) {
-  const show = spawn('npx', ['playwright', 'show-report', join(dest, 'report')], {
+  // Port 9380 is AIRLUXO's pinned report port (the FounderDashboard button +
+  // npm run test:report use the same one) — distinct from Playwright's shared
+  // 9323 default so it never collides with another project's report. See TESTING.md.
+  const show = spawn('npx', ['playwright', 'show-report', join(dest, 'report'), '--port', '9380'], {
     detached: true,
     stdio: 'ignore',
   });
