@@ -5,7 +5,10 @@ import { defineConfig, devices } from '@playwright/test';
 // with httpCredentials). Multi-browser incl. mobile. HTML report + traces document
 // each run (what/when/which browser passed). See TESTING.md.
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:4173';
+// AIRLUXO's E2E preview port is 4180 (pinned in vite.config.js, strictPort).
+// Each project owns a distinct port — see the port registry in TESTING.md — so
+// two suites can run at once without one attaching to the other's preview server.
+const BASE_URL = process.env.BASE_URL || 'http://localhost:4180';
 
 // The public browser projects skip the auth setup and the logged-in specs.
 const PUBLIC_IGNORE = [/auth\.setup\.ts/, /\.loggedin\.spec\.ts/];
@@ -53,7 +56,7 @@ export default defineConfig({
   // Build once + serve the production bundle locally. Reused if already running.
   webServer: process.env.BASE_URL ? undefined : {
     command: 'npm run build && npm run preview',
-    url: 'http://localhost:4173',
+    url: 'http://localhost:4180',
     timeout: 180_000,
     reuseExistingServer: !process.env.CI,
   },

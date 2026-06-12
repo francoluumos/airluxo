@@ -36,6 +36,86 @@ The HTML report (`playwright-report/`) is **overwritten every run** — it's the
 
 **Next flows to author:** full booking → licence → Stripe-test-card payment (needs a Stripe-connected car + test mode); customer-account logged-in flows (needs a customer session fixture — magic-link/Google, so likely a programmatic Supabase sign-in).
 
+### Port registry — one preview port per project
+
+Each project's E2E preview server binds a **distinct, pinned port** so two suites can run at the same time without one silently attaching to the other's server (the `webServer.reuseExistingServer` trap). The port is pinned in `vite.config.js` with `strictPort: true`, so a clash fails loudly instead of drifting to a random port.
+
+| Project | Preview port | Pinned in |
+| --- | ---: | --- |
+| AIRLUXO | **4180** | `vite.config.js` → `preview.port`, mirrored in `playwright.config.ts` |
+| _(next project)_ | 4181 | _claim the next free port here_ |
+| _(next project)_ | 4182 | |
+
+Reports never collide regardless of port — `playwright-report/`, `test-results/`, and `test-archive/` all live **inside each project's own repo** (the scripts use `process.cwd()`), so each project keeps its own separate history.
+
+### Setting up this E2E harness in a new project
+
+The framework is portable; the specs are not. Copy the scaffolding, claim a port, then rewrite the tests for the new app.
+
+**1. Install the Playwright CLI + browsers**
+```bash
+npm install -D @playwright/test
+npx playwright install --with-deps   # downloads chromium/firefox/webkit (CI uses the same line)
+```
+
+**2. Install the Playwright MCP** (so Claude Code can drive a browser to author/debug specs). Add a repo-root `.mcp.json`:
+```json
+{
+  "mcpServers": {
+    "playwright": { "command": "npx", "args": ["@playwright/mcp@latest"] }
+  }
+}
+```
+Then restart Claude Code (or `/mcp` → reconnect) and approve the `playwright` server. `npx` fetches it on first run — no global install. (CLI = runs the tests; MCP = lets the agent open a live browser to write/repair them. You want both.)
+
+**3. Copy the scaffolding** from AIRLUXO and adapt:
+```
+playwright.config.ts          # keep structure; change the port (step 4)
+scripts/test-archive.mjs      # fully path-relative — copy as-is
+.github/workflows/e2e.yml     # copy; adjust the env secrets to the new project's
+.githooks/pre-push            # copy; RENAME the branding + the /tmp/<project>-e2e.log path
+tests/                        # DELETE the AIRLUXO specs — write your own (see below)
+```
+
+**4. Claim a distinct port** (add a row to the registry above), then pin it in two files:
+- `vite.config.js`: `preview: { port: 4181, strictPort: true }`
+- `playwright.config.ts`: the `BASE_URL` default fallback **and** `webServer.url` → `http://localhost:4181`
+
+**5. Add the test scripts** to `package.json`:
+```json
+"test": "playwright test",
+"test:chromium": "playwright test --project=chromium",
+"test:ui": "playwright test --ui",
+"test:report": "playwright show-report",
+"test:archive": "node scripts/test-archive.mjs"
+```
+
+**6. Per-project bits to change** (don't copy AIRLUXO's blindly):
+- **Specs** — write fresh `tests/*.spec.ts` for the new app's routes/selectors. Start with a `smoke.spec.ts` (every route mounts, no uncaught JS errors). Add stable `data-testid` hooks + page objects under `tests/pages/` as flows grow.
+- **Logged-in flows** — only if the app has auth. Copy `auth.setup.ts` + the `setup`/`logged-in` projects, point them at the new login, and set the credential env vars (`.e2e.env` locally, repo secrets in CI). Drop them entirely if not needed.
+- **`.githooks/pre-push`** — change the `AIRLUXO` label and the `/tmp/airluxo-e2e.log` path so two projects' hooks don't overwrite each other's log.
+
+**7. Gitignore** the local-only artifacts:
+```
+test-archive/
+test-results/
+playwright-report/
+tests/.auth/
+.e2e.env
+```
+
+**8. Enable the pre-push hook** (per clone — hooks aren't cloned):
+```bash
+git config core.hooksPath .githooks
+```
+
+**9. Verify** the wiring before writing real tests:
+```bash
+npm run build && npm run preview   # should print Local: http://localhost:<your-port>/
+# in another shell:
+npm run test:chromium              # smoke should pass against the pinned port
+```
+
 ---
 
 ## Manual testing checklist
