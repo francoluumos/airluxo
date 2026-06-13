@@ -262,7 +262,7 @@ function Pipeline() {
               </div>
               <div className={`mt-2 min-h-[5rem] space-y-2 rounded-2xl p-1 transition-colors ${over ? 'bg-gold/10 outline-dashed outline-2 outline-gold/40' : ''}`}>
                 {cards.map((p) => (
-                  <ProspectCard key={p.id} p={p} onClaim={setClaiming} onDeleted={load} onDragEnd={() => setDragOver(null)} />
+                  <ProspectCard key={p.id} p={p} onClaim={setClaiming} onDeleted={load} onChanged={load} onDragEnd={() => setDragOver(null)} />
                 ))}
                 {cards.length === 0 && <div className="rounded-2xl border border-dashed border-mist py-8 text-center text-xs text-stone/40">—</div>}
               </div>
@@ -277,12 +277,13 @@ function Pipeline() {
   );
 }
 
-function ProspectCard({ p, onClaim, onDeleted, onDragEnd }) {
+function ProspectCard({ p, onClaim, onDeleted, onChanged, onDragEnd }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [dragging, setDragging] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [delBusy, setDelBusy] = useState(false);
+  const [info, setInfo] = useState(false);
   const previewLink = `${siteOrigin()}/?embed=${p.id}&preview=${p.preview_token}`;
   const contact = [p.prospect_contact_name, p.prospect_contact_email].filter(Boolean).join(' · ');
 
@@ -310,6 +311,12 @@ function ProspectCard({ p, onClaim, onDeleted, onDragEnd }) {
       onDragEnd={() => { setDragging(false); onDragEnd?.(); }}
       className={`group relative cursor-grab rounded-2xl border border-mist bg-cloud p-3 shadow-[0_10px_30px_-24px_rgba(11,11,12,0.5)] transition-opacity active:cursor-grabbing ${dragging ? 'opacity-40' : ''}`}
     >
+      <button
+        type="button"
+        onClick={() => setInfo(true)}
+        title="Lead details"
+        className="ring-lux absolute right-8 top-1.5 z-10 grid h-6 w-6 place-items-center rounded-md text-stone/50 opacity-0 transition-all hover:rotate-45 hover:text-ink group-hover:opacity-100"
+      ><Icon.Gear width={15} height={15} /></button>
       <button
         type="button"
         onClick={() => setConfirming(true)}
@@ -347,6 +354,90 @@ function ProspectCard({ p, onClaim, onDeleted, onDragEnd }) {
       <button onClick={() => onClaim(p)} className="ring-lux mt-2 w-full text-center text-[0.7rem] font-semibold text-go transition-colors hover:underline">
         Go live →
       </button>
+      {info && <ProspectInfoModal p={p} onClose={() => setInfo(false)} onSaved={() => { setInfo(false); onChanged?.(); }} />}
+    </div>
+  );
+}
+
+// The gear on a pipeline card: full lead info, editable. Reads the prospect_* fields
+// the pipeline already loaded; saves through admin-update-partner.
+function ProspectInfoModal({ p, onClose, onSaved }) {
+  const [f, setF] = useState({
+    company_name: p.company_name || '',
+    contact_name: p.prospect_contact_name || '',
+    contact_phone: p.prospect_contact_phone || '',
+    contact_email: p.prospect_contact_email || '',
+    source: p.prospect_source || '',
+    notes: p.prospect_notes || '',
+    street: p.prospect_street || '', street_number: p.prospect_street_number || '',
+    zip: p.prospect_zip || '', city: p.prospect_city || '',
+    country: p.prospect_country || 'Switzerland',
+    lat: p.prospect_lat ?? null, lng: p.prospect_lng ?? null, address: '',
+    links: p.prospect_links || [],
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
+  const stage = STAGES.find((s) => s.key === (p.pipeline_stage || 'lead'));
+  const previewLink = `${siteOrigin()}/?embed=${p.id}&preview=${p.preview_token}`;
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!f.company_name.trim()) { setErr('Company name is required.'); return; }
+    setBusy(true); setErr('');
+    try {
+      await updatePartner(p.id, {
+        company_name: f.company_name, contact_name: f.contact_name,
+        phone: f.contact_phone, email: f.contact_email, source: f.source, notes: f.notes,
+        street: f.street, street_number: f.street_number, zip: f.zip, city: f.city,
+        country: f.country, lat: f.lat, lng: f.lng, links: f.links,
+      });
+      onSaved();
+    } catch (e2) { setErr(e2.message || 'Could not save.'); setBusy(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/50 p-5 backdrop-blur-sm" onClick={onClose}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl">{p.company_name}</h2>
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone">
+              <span className="rounded-full bg-cloud px-2 py-0.5 font-semibold text-ink">{stage?.label || 'Lead'}</span>
+              <span>{p.car_count} {Number(p.car_count) === 1 ? 'car' : 'cars'}</span>
+              {p.created_at && <span>· added {fmtDate(p.created_at)}</span>}
+            </p>
+          </div>
+          <a href={previewLink} target="_blank" rel="noreferrer" className="ring-lux shrink-0 rounded-lg border border-mist px-2.5 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-ink">Preview ↗</a>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <AdminField label="Company name *" value={f.company_name} onChange={set('company_name')} />
+          <div className="grid grid-cols-2 gap-3">
+            <AdminField label="Contact name" value={f.contact_name} onChange={set('contact_name')} />
+            <AdminField label="Contact phone" value={f.contact_phone} onChange={set('contact_phone')} />
+          </div>
+          <AdminField label="Contact email" value={f.contact_email} onChange={set('contact_email')} type="email" />
+          <AdminField label="Source" value={f.source} onChange={set('source')} placeholder="Referral, cold outreach, event…" />
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-stone">Notes</span>
+            <textarea value={f.notes} onChange={set('notes')} rows={3}
+              className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+          </label>
+          <div className="border-t border-mist pt-3">
+            <AddressFields value={f} onChange={(v) => setF((s) => ({ ...s, ...v }))} white />
+          </div>
+          <div className="border-t border-mist pt-3">
+            <LinksEditor value={f.links} onChange={(links) => setF((s) => ({ ...s, links }))} />
+          </div>
+        </div>
+
+        {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+        <div className="mt-5 flex gap-3">
+          <button type="button" onClick={onClose} className="ring-lux rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink">Close</button>
+          <button type="submit" disabled={busy} className="ring-lux flex-1 rounded-full bg-ink py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">{busy ? 'Saving…' : 'Save'}</button>
+        </div>
+      </form>
     </div>
   );
 }

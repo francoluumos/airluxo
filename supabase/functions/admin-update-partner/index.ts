@@ -3,7 +3,8 @@
 // the right place: for a prospect it's the contact email; for a live partner it's
 // the actual login email (auth), which needs the service role. Admin-only.
 // verify_jwt ON. Body: { partner_id, company_name?, contact_name?, phone?, email?,
-//   street?, street_number?, zip?, city?, country?, lat?, lng?, links?: [{platform,url}] }
+//   street?, street_number?, zip?, city?, country?, lat?, lng?, links?: [{platform,url}],
+//   source?, notes? }
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -47,7 +48,12 @@ Deno.serve(async (req) => {
 
     const patch: Record<string, unknown> = {};
     if (typeof body.company_name === "string" && body.company_name.trim()) patch.company_name = body.company_name.trim();
-    if (body.contact_name !== undefined) patch.contact_name = String(body.contact_name || "").trim() || null;
+    if (body.contact_name !== undefined) {
+      const cn = String(body.contact_name || "").trim() || null;
+      patch.contact_name = cn;
+      // Prospects display prospect_contact_name (pipeline) — keep both in sync.
+      if (p.is_prospect) patch.prospect_contact_name = cn;
+    }
     // Phone mirrors email: prospect → contact phone, live partner → partners.phone.
     if (body.phone !== undefined) {
       const phone = String(body.phone || "").trim() || null;
@@ -64,6 +70,10 @@ Deno.serve(async (req) => {
     if (body.lat !== undefined) patch.prospect_lat = body.lat ?? null;
     if (body.lng !== undefined) patch.prospect_lng = body.lng ?? null;
     if (body.links !== undefined) patch.prospect_links = cleanLinks(body.links);
+
+    // Prospect CRM fields (founder pipeline only).
+    if (body.source !== undefined) patch.prospect_source = String(body.source || "").trim() || null;
+    if (body.notes !== undefined) patch.prospect_notes = String(body.notes || "").trim() || null;
 
     const email = body.email !== undefined ? String(body.email || "").trim().toLowerCase() : null;
     if (email) {
