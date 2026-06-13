@@ -5,6 +5,7 @@ import { chf } from '../lib/format.js';
 import { tierForTrips } from '../lib/loyalty.js';
 import { listSubscribers, setNewsletter } from '../lib/newsletter.js';
 import { MARKETING_FLOWS, marketingOverview, setFlowActive, previewFlow } from '../lib/marketing.js';
+import { AddressFields } from './LocationForm.jsx';
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus } from '../lib/prospects.js';
@@ -261,7 +262,7 @@ function Pipeline() {
               </div>
               <div className={`mt-2 min-h-[5rem] space-y-2 rounded-2xl p-1 transition-colors ${over ? 'bg-gold/10 outline-dashed outline-2 outline-gold/40' : ''}`}>
                 {cards.map((p) => (
-                  <ProspectCard key={p.id} p={p} onClaim={setClaiming} onDragEnd={() => setDragOver(null)} />
+                  <ProspectCard key={p.id} p={p} onClaim={setClaiming} onDeleted={load} onDragEnd={() => setDragOver(null)} />
                 ))}
                 {cards.length === 0 && <div className="rounded-2xl border border-dashed border-mist py-8 text-center text-xs text-stone/40">—</div>}
               </div>
@@ -276,10 +277,12 @@ function Pipeline() {
   );
 }
 
-function ProspectCard({ p, onClaim, onDragEnd }) {
+function ProspectCard({ p, onClaim, onDeleted, onDragEnd }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [dragging, setDragging] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);
   const previewLink = `${siteOrigin()}/?embed=${p.id}&preview=${p.preview_token}`;
   const contact = [p.prospect_contact_name, p.prospect_contact_email].filter(Boolean).join(' · ');
 
@@ -294,13 +297,39 @@ function ProspectCard({ p, onClaim, onDragEnd }) {
     } finally { setBusy(false); }
   }
 
+  async function doDelete() {
+    setDelBusy(true); setErr('');
+    try { await deletePartner(p.id); onDeleted?.(); }
+    catch (e) { setErr(e.message || 'Could not delete.'); setDelBusy(false); setConfirming(false); }
+  }
+
   return (
     <div
-      draggable
+      draggable={!confirming}
       onDragStart={(e) => { e.dataTransfer.setData('text/plain', p.id); e.dataTransfer.effectAllowed = 'move'; setDragging(true); }}
       onDragEnd={() => { setDragging(false); onDragEnd?.(); }}
-      className={`cursor-grab rounded-2xl border border-mist bg-cloud p-3 shadow-[0_10px_30px_-24px_rgba(11,11,12,0.5)] transition-opacity active:cursor-grabbing ${dragging ? 'opacity-40' : ''}`}
+      className={`group relative cursor-grab rounded-2xl border border-mist bg-cloud p-3 shadow-[0_10px_30px_-24px_rgba(11,11,12,0.5)] transition-opacity active:cursor-grabbing ${dragging ? 'opacity-40' : ''}`}
     >
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        title="Delete lead"
+        className="ring-lux absolute right-1.5 top-1.5 z-10 grid h-6 w-6 place-items-center rounded-md text-stone/50 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
+      >✕</button>
+      {confirming && (
+        <div className="absolute inset-0 z-20 grid place-items-center rounded-2xl bg-paper/95 p-3 text-center backdrop-blur-[1px]">
+          <div>
+            <p className="text-xs font-semibold text-ink">Delete this lead permanently?</p>
+            {err && <p className="mt-1 text-[0.7rem] text-red-600">{err}</p>}
+            <div className="mt-2 flex justify-center gap-2">
+              <button type="button" onClick={() => { setConfirming(false); setErr(''); }} disabled={delBusy}
+                className="ring-lux rounded-lg border border-mist px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:border-ink disabled:opacity-60">Cancel</button>
+              <button type="button" onClick={doDelete} disabled={delBusy}
+                className="ring-lux rounded-lg border border-red-300 px-2.5 py-1 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60">{delBusy ? 'Deleting…' : 'Delete'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="font-display text-sm leading-tight">{p.company_name}</div>
       {contact && <div className="mt-0.5 truncate text-xs text-stone">{contact}</div>}
       <div className="mt-1.5 text-xs text-stone">{p.car_count} {Number(p.car_count) === 1 ? 'car' : 'cars'}</div>
@@ -370,7 +399,11 @@ function ClaimModal({ p, onClose, onClaimed }) {
 }
 
 function CreateProspectModal({ onClose, onCreated }) {
-  const [f, setF] = useState({ company_name: '', contact_name: '', contact_email: '', contact_phone: '', source: '' });
+  const [f, setF] = useState({
+    company_name: '', contact_name: '', contact_email: '', contact_phone: '', source: '',
+    street: '', street_number: '', zip: '', city: '', country: 'Switzerland', lat: null, lng: null, address: '',
+    links: [],
+  });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -385,7 +418,7 @@ function CreateProspectModal({ onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-ink/50 p-5 backdrop-blur-sm" onClick={onClose}>
-      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} className="w-full max-w-md rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius-card)] border border-mist bg-paper p-6">
         <h2 className="font-display text-xl">New prospect</h2>
         <p className="mt-1 text-sm text-stone">Creates a private preview workspace — no partner email needed.</p>
         <div className="mt-4 space-y-3">
@@ -396,6 +429,12 @@ function CreateProspectModal({ onClose, onCreated }) {
           </div>
           <AdminField label="Contact email" value={f.contact_email} onChange={set('contact_email')} type="email" />
           <AdminField label="Source" value={f.source} onChange={set('source')} placeholder="Referral, cold outreach, event…" />
+          <div className="border-t border-mist pt-3">
+            <AddressFields value={f} onChange={(v) => setF((p) => ({ ...p, ...v }))} />
+          </div>
+          <div className="border-t border-mist pt-3">
+            <LinksEditor value={f.links} onChange={(links) => setF((p) => ({ ...p, links }))} />
+          </div>
         </div>
         {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
         <div className="mt-5 flex gap-3">
@@ -514,6 +553,11 @@ function PartnerEditModal({ p, onClose, onSaved }) {
     contact_name: p.contact_name || '',
     phone: p.phone || '',
     email: (p.is_prospect ? p.prospect_contact_email : p.login_email) || '',
+    street: p.prospect_street || '', street_number: p.prospect_street_number || '',
+    zip: p.prospect_zip || '', city: p.prospect_city || '',
+    country: p.prospect_country || 'Switzerland',
+    lat: p.prospect_lat ?? null, lng: p.prospect_lng ?? null, address: '',
+    links: p.prospect_links || [],
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -528,7 +572,7 @@ function PartnerEditModal({ p, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-ink/50 p-5 backdrop-blur-sm" onClick={onClose}>
-      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} className="w-full max-w-md rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius-card)] border border-mist bg-paper p-6">
         <h2 className="font-display text-xl">Edit — {p.company_name}</h2>
         <div className="mt-4 space-y-3">
           <AdminField label="Company name" value={f.company_name} onChange={set('company_name')} />
@@ -537,6 +581,12 @@ function PartnerEditModal({ p, onClose, onSaved }) {
             <AdminField label="Phone" value={f.phone} onChange={set('phone')} />
           </div>
           <AdminField label={p.is_prospect ? 'Contact email' : 'Login email'} value={f.email} onChange={set('email')} type="email" />
+          <div className="border-t border-mist pt-3">
+            <AddressFields value={f} onChange={(v) => setF((s) => ({ ...s, ...v }))} />
+          </div>
+          <div className="border-t border-mist pt-3">
+            <LinksEditor value={f.links} onChange={(links) => setF((s) => ({ ...s, links }))} />
+          </div>
         </div>
         {!p.is_prospect && <p className="mt-2 text-xs text-stone">This is the partner's login email — changing it updates how they sign in.</p>}
         {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
@@ -712,6 +762,42 @@ function AdminField({ label, value, onChange, placeholder, type }) {
       <input type={type} value={value} onChange={onChange} placeholder={placeholder}
         className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
     </label>
+  );
+}
+
+const LINK_PLATFORMS = ['Website', 'Instagram', 'LinkedIn', 'Facebook', 'TikTok', 'X', 'YouTube', 'Other'];
+
+// Multi-select web / social links: pick platforms, fill a URL for each.
+// `value` is an array of { platform, url }; `onChange` gets the updated array.
+function LinksEditor({ value, onChange }) {
+  const links = value || [];
+  const add = (platform) => onChange([...links, { platform, url: '' }]);
+  const setUrl = (i, url) => onChange(links.map((l, j) => (j === i ? { ...l, url } : l)));
+  const remove = (i) => onChange(links.filter((_, j) => j !== i));
+  return (
+    <div>
+      <span className="mb-1 block text-xs font-semibold text-stone">Web & socials</span>
+      <div className="flex flex-wrap gap-1.5">
+        {LINK_PLATFORMS.map((p) => (
+          <button key={p} type="button" onClick={() => add(p)}
+            className="ring-lux rounded-full border border-mist px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:border-ink">
+            + {p}
+          </button>
+        ))}
+      </div>
+      {links.length > 0 && (
+        <div className="mt-2 space-y-2">
+          {links.map((l, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="w-16 shrink-0 truncate text-xs font-semibold text-stone">{l.platform}</span>
+              <input value={l.url} onChange={(e) => setUrl(i, e.target.value)} placeholder="https://…"
+                className="ring-lux flex-1 rounded-xl border border-mist bg-cloud px-3 py-2 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+              <button type="button" onClick={() => remove(i)} className="ring-lux shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 transition-colors hover:underline">Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

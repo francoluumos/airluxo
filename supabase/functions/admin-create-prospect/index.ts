@@ -5,9 +5,20 @@
 // Admin-only: the caller must be in app_admins. verify_jwt ON.
 //
 // Secrets: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY (all default).
-// Body: { company_name (required), contact_name?, contact_email?, contact_phone?, city?, source?, notes? }
+// Body: { company_name (required), contact_name?, contact_email?, contact_phone?, city?,
+//         source?, notes?, street?, street_number?, zip?, country?, lat?, lng?,
+//         links?: [{ platform, url }] }
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+
+// Keep only well-formed { platform, url } link rows with a non-empty url.
+function cleanLinks(raw: unknown): { platform: string; url: string }[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((l) => ({ platform: String((l as any)?.platform || "").trim(), url: String((l as any)?.url || "").trim() }))
+    .filter((l) => l.url)
+    .slice(0, 30);
+}
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -60,6 +71,14 @@ Deno.serve(async (req) => {
       prospect_contact_phone: body.contact_phone || null,
       prospect_source: body.source || null,
       prospect_notes: body.notes || null,
+      prospect_street: body.street || null,
+      prospect_street_number: body.street_number || null,
+      prospect_zip: body.zip || null,
+      prospect_city: body.city || null,
+      prospect_country: body.country || null,
+      prospect_lat: body.lat ?? null,
+      prospect_lng: body.lng ?? null,
+      prospect_links: cleanLinks(body.links),
     }).eq("id", pid).select("id, company_name, pipeline_stage, preview_token, created_at").maybeSingle();
     if (uErr) return json({ error: uErr.message }, 500);
 

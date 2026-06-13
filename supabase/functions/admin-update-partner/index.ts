@@ -2,9 +2,19 @@
 // Edit a partner's details from the founder dashboard. The "email" field maps to
 // the right place: for a prospect it's the contact email; for a live partner it's
 // the actual login email (auth), which needs the service role. Admin-only.
-// verify_jwt ON. Body: { partner_id, company_name?, contact_name?, phone?, email? }
+// verify_jwt ON. Body: { partner_id, company_name?, contact_name?, phone?, email?,
+//   street?, street_number?, zip?, city?, country?, lat?, lng?, links?: [{platform,url}] }
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+
+// Keep only well-formed { platform, url } link rows with a non-empty url.
+function cleanLinks(raw: unknown): { platform: string; url: string }[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((l) => ({ platform: String((l as any)?.platform || "").trim(), url: String((l as any)?.url || "").trim() }))
+    .filter((l) => l.url)
+    .slice(0, 30);
+}
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +54,16 @@ Deno.serve(async (req) => {
       if (p.is_prospect) patch.prospect_contact_phone = phone;
       else patch.phone = phone;
     }
+
+    // Structured address + web/social links (stored on partners for any partner).
+    if (body.street !== undefined) patch.prospect_street = String(body.street || "").trim() || null;
+    if (body.street_number !== undefined) patch.prospect_street_number = String(body.street_number || "").trim() || null;
+    if (body.zip !== undefined) patch.prospect_zip = String(body.zip || "").trim() || null;
+    if (body.city !== undefined) patch.prospect_city = String(body.city || "").trim() || null;
+    if (body.country !== undefined) patch.prospect_country = String(body.country || "").trim() || null;
+    if (body.lat !== undefined) patch.prospect_lat = body.lat ?? null;
+    if (body.lng !== undefined) patch.prospect_lng = body.lng ?? null;
+    if (body.links !== undefined) patch.prospect_links = cleanLinks(body.links);
 
     const email = body.email !== undefined ? String(body.email || "").trim().toLowerCase() : null;
     if (email) {
