@@ -3,7 +3,9 @@ import { searchSwissAddress } from '../lib/geocode.js';
 import { useT } from '../lib/i18n.jsx';
 
 const COUNTRIES = ['Switzerland', 'Liechtenstein', 'France', 'Germany', 'Italy', 'Austria'];
-const inputCls = 'ring-lux w-full rounded-lg border border-mist bg-paper px-3 py-2 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone';
+const inputBase = 'ring-lux w-full rounded-lg border border-mist px-3 py-2 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone';
+const inputCls = `${inputBase} bg-paper`;
+const inputClsWhite = `${inputBase} bg-cloud`;
 
 function Field({ label, children }) {
   return (
@@ -16,13 +18,15 @@ function Field({ label, children }) {
 
 // Reusable structured address block with Swiss address autocomplete (geo.admin.ch).
 // `value` carries { street, street_number, zip, city, country, lat, lng, address }.
-export function AddressFields({ value, onChange }) {
+export function AddressFields({ value, onChange, white }) {
   const t = useT();
+  const cls = white ? inputClsWhite : inputCls;
   const set = (patch) => onChange({ ...value, ...patch });
   return (
     <div className="space-y-2.5">
       <Field label={t('partner.addr.find')}>
         <AddressAutocomplete
+          white={white}
           onSelect={(p) => set({
             address: p.address, street: p.street, street_number: p.street_number,
             zip: p.zip, city: p.city, country: p.country, lat: p.lat, lng: p.lng,
@@ -30,15 +34,15 @@ export function AddressFields({ value, onChange }) {
         />
       </Field>
       <div className="grid grid-cols-[1fr_5rem] gap-2">
-        <Field label={t('partner.addr.street')}><input value={value.street || ''} onChange={(e) => set({ street: e.target.value })} className={inputCls} /></Field>
-        <Field label={t('partner.addr.no')}><input value={value.street_number || ''} onChange={(e) => set({ street_number: e.target.value })} className={inputCls} /></Field>
+        <Field label={t('partner.addr.street')}><input value={value.street || ''} onChange={(e) => set({ street: e.target.value })} className={cls} /></Field>
+        <Field label={t('partner.addr.no')}><input value={value.street_number || ''} onChange={(e) => set({ street_number: e.target.value })} className={cls} /></Field>
       </div>
       <div className="grid grid-cols-[5rem_1fr] gap-2">
-        <Field label={t('partner.addr.zip')}><input value={value.zip || ''} onChange={(e) => set({ zip: e.target.value })} className={inputCls} /></Field>
-        <Field label={t('partner.addr.city')}><input value={value.city || ''} onChange={(e) => set({ city: e.target.value })} className={inputCls} /></Field>
+        <Field label={t('partner.addr.zip')}><input value={value.zip || ''} onChange={(e) => set({ zip: e.target.value })} className={cls} /></Field>
+        <Field label={t('partner.addr.city')}><input value={value.city || ''} onChange={(e) => set({ city: e.target.value })} className={cls} /></Field>
       </div>
       <Field label={t('partner.addr.country')}>
-        <select value={value.country || 'Switzerland'} onChange={(e) => set({ country: e.target.value })} className={inputCls}>
+        <select value={value.country || 'Switzerland'} onChange={(e) => set({ country: e.target.value })} className={cls}>
           {COUNTRIES.map((c) => <option key={c}>{c}</option>)}
         </select>
       </Field>
@@ -67,8 +71,9 @@ export default function LocationForm({ value, onChange }) {
   );
 }
 
-function AddressAutocomplete({ onSelect }) {
+function AddressAutocomplete({ onSelect, white }) {
   const t = useT();
+  const cls = white ? inputClsWhite : inputCls;
   const [q, setQ] = useState('');
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
@@ -95,7 +100,7 @@ function AddressAutocomplete({ onSelect }) {
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => results.length && setOpen(true)}
         placeholder={t('partner.addr.autocompletePlaceholder')}
-        className={inputCls}
+        className={cls}
         autoComplete="off"
       />
       {loading && <span className="absolute right-3 top-2.5 inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-mist border-t-ink" />}

@@ -430,7 +430,7 @@ function CreateProspectModal({ onClose, onCreated }) {
           <AdminField label="Contact email" value={f.contact_email} onChange={set('contact_email')} type="email" />
           <AdminField label="Source" value={f.source} onChange={set('source')} placeholder="Referral, cold outreach, event…" />
           <div className="border-t border-mist pt-3">
-            <AddressFields value={f} onChange={(v) => setF((p) => ({ ...p, ...v }))} />
+            <AddressFields value={f} onChange={(v) => setF((p) => ({ ...p, ...v }))} white />
           </div>
           <div className="border-t border-mist pt-3">
             <LinksEditor value={f.links} onChange={(links) => setF((p) => ({ ...p, links }))} />
@@ -582,7 +582,7 @@ function PartnerEditModal({ p, onClose, onSaved }) {
           </div>
           <AdminField label={p.is_prospect ? 'Contact email' : 'Login email'} value={f.email} onChange={set('email')} type="email" />
           <div className="border-t border-mist pt-3">
-            <AddressFields value={f} onChange={(v) => setF((s) => ({ ...s, ...v }))} />
+            <AddressFields value={f} onChange={(v) => setF((s) => ({ ...s, ...v }))} white />
           </div>
           <div className="border-t border-mist pt-3">
             <LinksEditor value={f.links} onChange={(links) => setF((s) => ({ ...s, links }))} />
