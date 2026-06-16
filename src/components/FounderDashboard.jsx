@@ -480,6 +480,10 @@ function DraftCard({ d, onChanged, onErr }) {
   const [targets, setTargets] = useState(['Instagram']);
   const [when, setWhen] = useState('');
   const [busy, setBusy] = useState('');
+  const [frame, setFrame] = useState(0);
+  const [zoom, setZoom] = useState(false);
+  const prevFrame = () => setFrame((f) => (f - 1 + assets.length) % assets.length);
+  const nextFrame = () => setFrame((f) => (f + 1) % assets.length);
   const dirty = caption !== (d.caption || '');
   const actionable = d.status === 'generated' || d.status === 'approved';
   const badge = { generated: 'bg-mist text-stone', approved: 'bg-go/15 text-go', rejected: 'bg-red-100 text-red-700', scheduled: 'bg-gold/15 text-gold', posted: 'bg-go/15 text-go', failed: 'bg-red-100 text-red-700' };
@@ -500,12 +504,22 @@ function DraftCard({ d, onChanged, onErr }) {
 
   return (
     <div className="rounded-2xl border border-mist bg-cloud p-3">
-      <div className="aspect-[9/16] max-h-80 overflow-hidden rounded-xl bg-ink/5">
-        {assets[0]
+      <div className="relative aspect-[9/16] max-h-80 overflow-hidden rounded-xl bg-ink/5">
+        {assets[frame]
           ? (d.format === 'reel'
-            ? <video src={assets[0]} controls playsInline className="h-full w-full object-contain" />
-            : <img src={assets[0]} alt="" className="h-full w-full object-contain" />)
+            ? <video src={assets[frame]} controls playsInline className="h-full w-full object-contain" />
+            : <button type="button" onClick={() => setZoom(true)} className="ring-lux block h-full w-full cursor-zoom-in"><img src={assets[frame]} alt="" className="h-full w-full object-contain" /></button>)
           : <div className="grid h-full place-items-center text-xs text-stone/50">No preview</div>}
+        {d.format !== 'reel' && assets[frame] && <span className="pointer-events-none absolute right-1.5 top-1.5 rounded-md bg-ink/60 px-1.5 py-0.5 text-[0.6rem] font-semibold text-cloud">⤢ enlarge</span>}
+        {assets.length > 1 && (
+          <>
+            <button type="button" onClick={prevFrame} className="ring-lux absolute left-1 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-ink/55 text-cloud hover:bg-ink/75">‹</button>
+            <button type="button" onClick={nextFrame} className="ring-lux absolute right-1 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-ink/55 text-cloud hover:bg-ink/75">›</button>
+            <div className="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 gap-1">
+              {assets.map((_, i) => <span key={i} className={`h-1.5 w-1.5 rounded-full ${i === frame ? 'bg-cloud' : 'bg-cloud/40'}`} />)}
+            </div>
+          </>
+        )}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
         <span className="font-semibold capitalize">{d.format}</span>
@@ -533,6 +547,20 @@ function DraftCard({ d, onChanged, onErr }) {
             <button onClick={approve} disabled={!!busy} className="ring-lux flex-1 rounded-full bg-go py-2 text-xs font-bold text-cloud transition-opacity hover:opacity-90 disabled:opacity-50">{busy === 'app' ? 'Scheduling…' : 'Approve & schedule'}</button>
           </div>
         </>
+      )}
+
+      {zoom && assets[frame] && (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-ink/80 p-4 backdrop-blur-sm" onClick={() => setZoom(false)}>
+          <img src={assets[frame]} alt="" className="max-h-[90vh] max-w-[92vw] rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+          <button type="button" onClick={() => setZoom(false)} className="ring-lux absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-cloud/90 text-ink">✕</button>
+          {assets.length > 1 && (
+            <div className="absolute inset-x-0 bottom-6 flex items-center justify-center gap-3" onClick={(e) => e.stopPropagation()}>
+              <button type="button" onClick={prevFrame} className="ring-lux grid h-9 w-9 place-items-center rounded-full bg-cloud/90 text-ink">‹</button>
+              <span className="text-xs font-semibold text-cloud">{frame + 1} / {assets.length}</span>
+              <button type="button" onClick={nextFrame} className="ring-lux grid h-9 w-9 place-items-center rounded-full bg-cloud/90 text-ink">›</button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
