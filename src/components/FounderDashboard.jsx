@@ -6,7 +6,7 @@ import { tierForTrips } from '../lib/loyalty.js';
 import { listSubscribers, setNewsletter } from '../lib/newsletter.js';
 import { MARKETING_FLOWS, marketingOverview, setFlowActive, previewFlow } from '../lib/marketing.js';
 import { AddressFields } from './LocationForm.jsx';
-import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, listDrafts, listContentPosts } from '../lib/content.js';
+import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addInspirationLink, listDrafts, listContentPosts } from '../lib/content.js';
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
@@ -381,18 +381,47 @@ function ContentTableShell({ minWidth = 760, headers, children }) {
 function ContentInspiration() {
   const [rows, setRows] = useState(null);
   const [err, setErr] = useState('');
-  useEffect(() => { listInspiration().then(setRows).catch((e) => { setErr(e.message); setRows([]); }); }, []);
+  const [url, setUrl] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const load = () => listInspiration().then(setRows).catch((e) => { setErr(e.message); setRows([]); });
+  useEffect(() => { load(); }, []);
   const pager = usePager(rows, 25);
+
+  async function addLink(e) {
+    e.preventDefault();
+    const u = url.trim();
+    if (!u) return;
+    setBusy(true); setErr('');
+    try { await addInspirationLink(u, note.trim() || null); setUrl(''); setNote(''); await load(); }
+    catch (e2) { setErr(e2.message || 'Could not add link.'); }
+    finally { setBusy(false); }
+  }
+
   if (rows === null) return <div className="grid place-items-center py-16"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
   return (
     <div>
+      <form onSubmit={addLink} className="mb-4 flex flex-wrap items-end gap-2">
+        <label className="block flex-1">
+          <span className="mb-1 block text-xs font-semibold text-stone">Add a reel/post by link</span>
+          <input value={url} onChange={(e) => setUrl(e.target.value)} type="url" placeholder="https://www.instagram.com/reel/…" className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+        </label>
+        <label className="block flex-1">
+          <span className="mb-1 block text-xs font-semibold text-stone">Note (optional)</span>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="why it's a reference" className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+        </label>
+        <button type="submit" disabled={busy || !url.trim()} className="ring-lux shrink-0 rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-50">{busy ? 'Adding…' : 'Add link'}</button>
+      </form>
       {err && <p className="mb-3 text-sm text-red-600">{err}</p>}
       <ContentTableShell minWidth={820} headers={['Source', 'Caption', 'Views', 'Likes', 'Comments', 'Score', 'Posted']}>
-        {rows.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-stone">No inspiration yet — add creators in Settings; the daily scan fills this in.</td></tr>}
+        {rows.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-stone">No inspiration yet — paste a link above, or add creators in Settings for the daily scan.</td></tr>}
         {pager.slice.map((r) => (
           <tr key={r.id} className="border-b border-mist/60 bg-paper last:border-0">
-            <td className="px-4 py-3 font-semibold">{r.reel_url ? <a href={r.reel_url} target="_blank" rel="noreferrer" className="text-ink hover:underline">@{r.source_handle || '—'}</a> : `@${r.source_handle || '—'}`}</td>
-            <td className="px-4 py-3 text-stone">{clip(r.caption)}</td>
+            <td className="px-4 py-3 font-semibold">
+              {r.reel_url ? <a href={r.reel_url} target="_blank" rel="noreferrer" className="text-ink hover:underline">{r.source_handle ? `@${r.source_handle}` : 'link ↗'}</a> : `@${r.source_handle || '—'}`}
+              {r.source === 'manual' && <span className="ml-1.5 rounded-full bg-gold/15 px-1.5 py-0.5 text-[0.55rem] font-bold uppercase tracking-wider text-gold">manual</span>}
+            </td>
+            <td className="px-4 py-3 text-stone">{clip(r.note || r.caption)}</td>
             <td className="px-4 py-3 tnum text-stone">{tnum(r.views)}</td>
             <td className="px-4 py-3 tnum text-stone">{tnum(r.likes)}</td>
             <td className="px-4 py-3 tnum text-stone">{tnum(r.comments)}</td>

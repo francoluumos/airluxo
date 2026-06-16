@@ -27,6 +27,12 @@ export async function listInspiration(limit = 200) {
   if (error) throw error;
   return data ?? [];
 }
+// Hand-pick a specific reel/post by URL (enriched with metrics later by the scan).
+export async function addInspirationLink(url, note = null) {
+  const { data, error } = await supabase.rpc('admin_add_inspiration_link', { p_url: url, p_note: note });
+  if (error) throw error;
+  return data;
+}
 
 // ── Drafts ────────────────────────────────────────────────────────────────
 export async function listDrafts(status = null) {
