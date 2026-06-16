@@ -78,6 +78,17 @@ machine). Once it behaves, schedule it daily with `/schedule`. Each run logs to
 
 ---
 
+## Beta / first-test mode (manual links, no scraping)
+To validate generation before mining works:
+1. In **Content → Inspiration → Add by link**, paste a few reels you love and put the
+   **emotion/vibe you want** in the *note* (that's the concept seed).
+2. Run a trimmed routine: **skip step 1 (mine)**. Read `content_inspiration` where
+   `source = 'manual'`; use each row's `note` (and, optionally, enrich the link via the
+   **Apify MCP** to read its caption) as the brief seed in step 2. Then steps 3–7 as normal.
+3. **No Soul ID yet?** For a first smoke test you can generate the scene + real car
+   without a consistent human (or a one-off person) just to prove generate → `content-ingest`
+   → approval queue works. Add the Soul ID afterwards for recurring, identity-consistent models.
+
 ## Scheduling
 Once a manual run looks good, schedule it on the home machine:
 `/schedule` → daily (e.g. 06:00) → this routine. Keep the machine awake + MCPs connected.
