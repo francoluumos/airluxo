@@ -82,7 +82,9 @@ Return ONLY a JSON object (no prose, no markdown) with these keys; use null when
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             tools: [{ url_context: {} }, { google_search: {} }],
-            generationConfig: { temperature: 0.1, maxOutputTokens: 800 },
+            // 2.5-flash is a thinking model — give it enough room so reasoning doesn't
+            // eat the whole budget and leave no answer.
+            generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
           }),
         },
       );
@@ -92,9 +94,14 @@ Return ONLY a JSON object (no prose, no markdown) with these keys; use null when
     if (!resp.ok) return json({ error: `Gemini error ${resp.status}: ${(await resp.text()).slice(0, 300)}` }, 502);
 
     const gem = await resp.json();
-    const text = (gem?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "").trim();
+    const cand = gem?.candidates?.[0];
+    const text = (cand?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "").trim();
     const parsed = parseJson(text);
-    if (!parsed) return json({ error: "Could not read structured details from that site." }, 422);
+    if (!parsed) {
+      // Surface why (finishReason / safety / prompt feedback) so failures are diagnosable.
+      const reason = cand?.finishReason || gem?.promptFeedback?.blockReason || "no JSON in response";
+      return json({ error: `Couldn't read details from that site (${reason}). Try again or fill manually.` }, 422);
+    }
 
     const str = (v: unknown) => {
       const s = String(v ?? "").trim();

@@ -98,7 +98,12 @@ export async function setProspectStage(id, stage) {
 // vat_number, links:[{platform,url}] } — the founder reviews before saving.
 export async function enrichProspect(url) {
   const { data, error } = await supabase.functions.invoke('enrich-prospect', { body: { url } });
-  if (error) throw error;
+  if (error) {
+    // Surface the function's real error body (FunctionsHttpError hides it behind a generic message).
+    let msg = error.message;
+    try { const body = await error.context?.json(); if (body?.error) msg = body.error; } catch { /* keep generic */ }
+    throw new Error(msg);
+  }
   if (data?.error) throw new Error(data.error);
   return data.data;
 }

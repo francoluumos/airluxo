@@ -925,8 +925,8 @@ function WebsiteField({ value, onChange, onEnriched }) {
           className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
         {isLikelyUrl(value) && (
           <button type="button" onClick={run} disabled={busy} title="Auto-fill the form from this website"
-            className="ring-lux flex shrink-0 items-center gap-1 rounded-xl bg-gold/15 px-3 py-2.5 text-xs font-bold text-gold transition-colors hover:bg-gold/25 disabled:opacity-60">
-            {busy ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gold/40 border-t-gold" /> : '✨'} {busy ? 'Reading…' : 'AI fill'}
+            className="ring-lux shrink-0 rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-50">
+            {busy ? 'Reading…' : '✨ AI fill'}
           </button>
         )}
       </div>
