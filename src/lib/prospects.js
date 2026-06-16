@@ -93,6 +93,28 @@ export async function setProspectStage(id, stage) {
   if (error) throw error;
 }
 
+// AI-enrich a lead from its website (Gemini reads the site + web-searches the gaps).
+// Returns { company_name, street, street_number, zip, city, country, email, phone,
+// vat_number, links:[{platform,url}] } — the founder reviews before saving.
+export async function enrichProspect(url) {
+  const { data, error } = await supabase.functions.invoke('enrich-prospect', { body: { url } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.data;
+}
+
+// Timestamped note log on a lead (kind='note' in partner_events).
+export async function listProspectNotes(id) {
+  const { data, error } = await supabase.rpc('admin_list_prospect_notes', { p_id: id });
+  if (error) throw error;
+  return data ?? [];
+}
+export async function addProspectNote(id, text) {
+  const { data, error } = await supabase.rpc('admin_add_prospect_note', { p_id: id, p_text: text });
+  if (error) throw error;
+  return (data ?? [])[0];
+}
+
 // The main-site origin to build the fleet on (strip the admin. subdomain so the
 // partner dashboard isn't served from the admin app).
 export function siteOrigin() {

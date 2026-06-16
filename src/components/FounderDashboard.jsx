@@ -8,7 +8,7 @@ import { MARKETING_FLOWS, marketingOverview, setFlowActive, previewFlow } from '
 import { AddressFields } from './LocationForm.jsx';
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
-import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus } from '../lib/prospects.js';
+import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote } from '../lib/prospects.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -369,6 +369,7 @@ function ProspectInfoModal({ p, onClose, onSaved }) {
     contact_email: p.prospect_contact_email || '',
     source: p.prospect_source || '',
     notes: p.prospect_notes || '',
+    website: p.prospect_website || '', vat: p.prospect_vat || '',
     street: p.prospect_street || '', street_number: p.prospect_street_number || '',
     zip: p.prospect_zip || '', city: p.prospect_city || '',
     country: p.prospect_country || 'Switzerland',
@@ -389,6 +390,7 @@ function ProspectInfoModal({ p, onClose, onSaved }) {
       await updatePartner(p.id, {
         company_name: f.company_name, contact_name: f.contact_name,
         phone: f.contact_phone, email: f.contact_email, source: f.source, notes: f.notes,
+        website: f.website, vat: f.vat,
         street: f.street, street_number: f.street_number, zip: f.zip, city: f.city,
         country: f.country, lat: f.lat, lng: f.lng, links: f.links,
       });
@@ -398,7 +400,7 @@ function ProspectInfoModal({ p, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-ink/50 p-5 backdrop-blur-sm" onClick={onClose}>
-      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[var(--radius-card)] border border-mist bg-paper p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-display text-xl">{p.company_name}</h2>
@@ -411,24 +413,41 @@ function ProspectInfoModal({ p, onClose, onSaved }) {
           <a href={previewLink} target="_blank" rel="noreferrer" className="ring-lux shrink-0 rounded-lg border border-mist px-2.5 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-ink">Preview ↗</a>
         </div>
 
-        <div className="mt-4 space-y-3">
-          <AdminField label="Company name *" value={f.company_name} onChange={set('company_name')} />
-          <div className="grid grid-cols-2 gap-3">
-            <AdminField label="Contact name" value={f.contact_name} onChange={set('contact_name')} />
-            <AdminField label="Contact phone" value={f.contact_phone} onChange={set('contact_phone')} />
+        <div className="mt-4 grid gap-x-5 gap-y-3 md:grid-cols-2">
+          <div className="md:col-span-2">
+            <AdminField label="Company name *" value={f.company_name} onChange={set('company_name')} />
           </div>
-          <AdminField label="Contact email" value={f.contact_email} onChange={set('contact_email')} type="email" />
-          <AdminField label="Source" value={f.source} onChange={set('source')} placeholder="Referral, cold outreach, event…" />
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-stone">Notes</span>
-            <textarea value={f.notes} onChange={set('notes')} rows={3}
-              className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
-          </label>
-          <div className="border-t border-mist pt-3">
+
+          {/* Left column — contact + identity */}
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <AdminField label="Contact name" value={f.contact_name} onChange={set('contact_name')} />
+              <AdminField label="Contact phone" value={f.contact_phone} onChange={set('contact_phone')} />
+            </div>
+            <AdminField label="Contact email" value={f.contact_email} onChange={set('contact_email')} type="email" />
+            <WebsiteField value={f.website} onChange={(v) => setF((s) => ({ ...s, website: v }))} onEnriched={(d) => setF((s) => enrichPatch(s, d))} />
+            <div className="grid grid-cols-2 gap-3">
+              <AdminField label="VAT / UID" value={f.vat} onChange={set('vat')} placeholder="CHE-123.456.789" />
+              <AdminField label="Source" value={f.source} onChange={set('source')} placeholder="Referral, event…" />
+            </div>
+          </div>
+
+          {/* Right column — address */}
+          <div className="space-y-3">
             <AddressFields value={f} onChange={(v) => setF((s) => ({ ...s, ...v }))} white />
           </div>
-          <div className="border-t border-mist pt-3">
+
+          <div className="border-t border-mist pt-3 md:col-span-2">
             <LinksEditor value={f.links} onChange={(links) => setF((s) => ({ ...s, links }))} />
+          </div>
+
+          <div className="grid gap-5 border-t border-mist pt-3 md:col-span-2 md:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-stone">Notes (summary)</span>
+              <textarea value={f.notes} onChange={set('notes')} rows={4}
+                className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+            </label>
+            <NotesLog prospectId={p.id} />
           </div>
         </div>
 
@@ -492,6 +511,7 @@ function ClaimModal({ p, onClose, onClaimed }) {
 function CreateProspectModal({ onClose, onCreated }) {
   const [f, setF] = useState({
     company_name: '', contact_name: '', contact_email: '', contact_phone: '', source: '',
+    website: '', vat: '',
     street: '', street_number: '', zip: '', city: '', country: 'Switzerland', lat: null, lng: null, address: '',
     links: [],
   });
@@ -519,7 +539,11 @@ function CreateProspectModal({ onClose, onCreated }) {
             <AdminField label="Contact phone" value={f.contact_phone} onChange={set('contact_phone')} />
           </div>
           <AdminField label="Contact email" value={f.contact_email} onChange={set('contact_email')} type="email" />
-          <AdminField label="Source" value={f.source} onChange={set('source')} placeholder="Referral, cold outreach, event…" />
+          <WebsiteField value={f.website} onChange={(v) => setF((p) => ({ ...p, website: v }))} onEnriched={(d) => setF((p) => enrichPatch(p, d))} />
+          <div className="grid grid-cols-2 gap-3">
+            <AdminField label="VAT / UID" value={f.vat} onChange={set('vat')} placeholder="CHE-123.456.789" />
+            <AdminField label="Source" value={f.source} onChange={set('source')} placeholder="Referral, event…" />
+          </div>
           <div className="border-t border-mist pt-3">
             <AddressFields value={f} onChange={(v) => setF((p) => ({ ...p, ...v }))} white />
           </div>
@@ -843,6 +867,7 @@ function eventLabel(e) {
   if (e.kind === 'created') return 'Prospect created';
   if (e.kind === 'went_live') return 'Went live 🎉';
   if (e.kind === 'stage') { const s = STAGES.find((x) => x.key === e.detail); return `Moved to ${s?.label || e.detail}`; }
+  if (e.kind === 'note') return e.detail || 'Note';
   return e.kind;
 }
 
@@ -856,7 +881,104 @@ function AdminField({ label, value, onChange, placeholder, type }) {
   );
 }
 
-const LINK_PLATFORMS = ['Website', 'Instagram', 'LinkedIn', 'Facebook', 'TikTok', 'X', 'YouTube', 'Other'];
+const LINK_PLATFORMS = ['Instagram', 'LinkedIn', 'Facebook', 'TikTok', 'X', 'YouTube', 'Other'];
+
+const isLikelyUrl = (s) => /\.[a-z]{2,}/i.test((s || '').trim());
+
+// Merge AI-enriched data into the form, filling ONLY empty fields (never overwrites
+// what's already typed). Socials are appended if that platform isn't present yet.
+function enrichPatch(prev, d) {
+  const keep = (cur, val) => (cur && String(cur).trim() ? cur : (val || cur || ''));
+  const have = new Set((prev.links || []).map((l) => l.platform));
+  const fresh = (d.links || []).filter((l) => l.url && !have.has(l.platform));
+  return {
+    ...prev,
+    company_name: keep(prev.company_name, d.company_name),
+    contact_email: keep(prev.contact_email, d.email),
+    contact_phone: keep(prev.contact_phone, d.phone),
+    vat: keep(prev.vat, d.vat_number),
+    street: keep(prev.street, d.street),
+    street_number: keep(prev.street_number, d.street_number),
+    zip: keep(prev.zip, d.zip),
+    city: keep(prev.city, d.city),
+    country: prev.country || d.country || 'Switzerland',
+    links: [...(prev.links || []), ...fresh],
+  };
+}
+
+// Website input with an inline "AI enrich" button that appears once a URL is typed.
+// onEnriched(data) receives the structured details to merge into the form.
+function WebsiteField({ value, onChange, onEnriched }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  async function run() {
+    setBusy(true); setErr('');
+    try { onEnriched(await enrichProspect(value)); }
+    catch (e) { setErr(e.message || 'Could not enrich from this site.'); }
+    finally { setBusy(false); }
+  }
+  return (
+    <div>
+      <span className="mb-1 block text-xs font-semibold text-stone">Website</span>
+      <div className="flex items-center gap-2">
+        <input value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder="https://…" type="url"
+          className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+        {isLikelyUrl(value) && (
+          <button type="button" onClick={run} disabled={busy} title="Auto-fill the form from this website"
+            className="ring-lux flex shrink-0 items-center gap-1 rounded-xl bg-gold/15 px-3 py-2.5 text-xs font-bold text-gold transition-colors hover:bg-gold/25 disabled:opacity-60">
+            {busy ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gold/40 border-t-gold" /> : '✨'} {busy ? 'Reading…' : 'AI fill'}
+          </button>
+        )}
+      </div>
+      {err && <p className="mt-1 text-[0.7rem] text-red-600">{err}</p>}
+    </div>
+  );
+}
+
+// Timestamped note log for a lead: add an entry + see history newest-first.
+function NotesLog({ prospectId }) {
+  const [notes, setNotes] = useState(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  useEffect(() => { listProspectNotes(prospectId).then(setNotes).catch(() => setNotes([])); }, [prospectId]);
+
+  async function add() {
+    const t = text.trim();
+    if (!t) return;
+    setBusy(true); setErr('');
+    try {
+      const row = await addProspectNote(prospectId, t);
+      setNotes((ns) => [row, ...(ns || [])]);
+      setText('');
+    } catch (e) { setErr(e.message || 'Could not add note.'); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div>
+      <span className="mb-1 block text-xs font-semibold text-stone">Activity log</span>
+      <div className="flex items-start gap-2">
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder="Log a call, email, meeting…"
+          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); add(); } }}
+          className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3 py-2 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+        <button type="button" onClick={add} disabled={busy || !text.trim()}
+          className="ring-lux shrink-0 rounded-xl bg-ink px-3 py-2 text-xs font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">{busy ? '…' : 'Log'}</button>
+      </div>
+      {err && <p className="mt-1 text-[0.7rem] text-red-600">{err}</p>}
+      <div className="mt-2 max-h-44 space-y-2 overflow-auto">
+        {notes === null && <p className="text-xs text-stone/60">Loading…</p>}
+        {notes && notes.length === 0 && <p className="text-xs text-stone/60">No notes logged yet.</p>}
+        {notes && notes.map((n) => (
+          <div key={n.id} className="rounded-lg border border-mist bg-cloud px-3 py-2">
+            <div className="whitespace-pre-wrap text-sm text-ink">{n.text}</div>
+            <div className="mt-0.5 text-[0.65rem] text-stone">{fmtDateTime(n.at)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // Multi-select web / social links: pick platforms, fill a URL for each.
 // `value` is an array of { platform, url }; `onChange` gets the updated array.

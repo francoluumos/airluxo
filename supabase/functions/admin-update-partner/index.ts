@@ -74,6 +74,8 @@ Deno.serve(async (req) => {
     // Prospect CRM fields (founder pipeline only).
     if (body.source !== undefined) patch.prospect_source = String(body.source || "").trim() || null;
     if (body.notes !== undefined) patch.prospect_notes = String(body.notes || "").trim() || null;
+    if (body.website !== undefined) patch.prospect_website = String(body.website || "").trim() || null;
+    if (body.vat !== undefined) patch.prospect_vat = String(body.vat || "").trim() || null;
 
     const email = body.email !== undefined ? String(body.email || "").trim().toLowerCase() : null;
     if (email) {

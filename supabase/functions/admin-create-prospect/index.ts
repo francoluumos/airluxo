@@ -79,6 +79,8 @@ Deno.serve(async (req) => {
       prospect_lat: body.lat ?? null,
       prospect_lng: body.lng ?? null,
       prospect_links: cleanLinks(body.links),
+      prospect_website: body.website || null,
+      prospect_vat: body.vat || null,
     }).eq("id", pid).select("id, company_name, pipeline_stage, preview_token, created_at").maybeSingle();
     if (uErr) return json({ error: uErr.message }, 500);
 
