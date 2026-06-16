@@ -8,7 +8,7 @@ import { MARKETING_FLOWS, marketingOverview, setFlowActive, previewFlow } from '
 import { AddressFields } from './LocationForm.jsx';
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
-import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview } from '../lib/prospects.js';
+import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport } from '../lib/prospects.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -153,6 +153,7 @@ function FounderShell() {
         </div>
 
         {section === 'overview' ? <Overview />
+          : section === 'finance' ? <Finance />
           : section === 'pipeline' ? <Pipeline />
           : section === 'partners' ? <Partners />
           : section === 'customers' ? <Customers />
@@ -296,6 +297,170 @@ function Overview() {
       )}
 
       {d && <p className="mt-4 text-xs text-stone">Day buckets in Europe/Zurich. GMV excludes declined & cancelled bookings.</p>}
+    </div>
+  );
+}
+
+/* ── Finance ───────────────────────────────────────────────────────────── */
+const FIN_PERIODS = [{ days: 7, label: '7 days' }, { days: 30, label: '30 days' }, { days: 90, label: '90 days' }, { days: 36500, label: 'All' }];
+
+// Lazy-load xlsx (keeps it out of the main bundle) and download a workbook.
+async function downloadSheet(filename, rows) {
+  const XLSX = await import('xlsx');
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Data');
+  XLSX.writeFile(wb, filename);
+}
+
+function FinStat({ label, value, sub, accent }) {
+  return (
+    <div className={`rounded-2xl border p-4 ${accent ? 'border-ink/15 bg-ink text-cloud' : 'border-mist bg-cloud'}`}>
+      <div className={`text-[0.65rem] font-semibold uppercase tracking-wider ${accent ? 'text-cloud/70' : 'text-stone'}`}>{label}</div>
+      <div className="font-display mt-1 text-2xl tnum">{value}</div>
+      {sub && <div className={`mt-0.5 text-[0.65rem] ${accent ? 'text-cloud/60' : 'text-stone'}`}>{sub}</div>}
+    </div>
+  );
+}
+
+function Finance() {
+  const [days, setDays] = useState(30);
+  const [fin, setFin] = useState(null);
+  const [err, setErr] = useState('');
+  const [rows, setRows] = useState(null);
+  const [exporting, setExporting] = useState('');
+
+  useEffect(() => {
+    setFin(null); setErr('');
+    adminFinancials(days).then(setFin).catch((e) => { setErr(e.message); setFin(false); });
+  }, [days]);
+  useEffect(() => { bookingsExport(5000).then(setRows).catch(() => setRows([])); }, []);
+
+  async function exportBookings() {
+    setExporting('bookings');
+    try {
+      const data = (rows && rows.length ? rows : await bookingsExport(5000));
+      await downloadSheet('airluxo-bookings.xlsx', data.map((b) => ({
+        Date: fmtDate(b.created_at), Status: b.status, Partner: b.company_name || '',
+        Customer: b.customer || '', Car: b.car_label || '', From: b.start_date || '', To: b.end_date || '',
+        Plan: b.plan, Base: Number(b.base_amount) || 0, 'Add-ons': Number(b.addons_amount) || 0,
+        'Service fee': Number(b.service_fee) || 0, Discount: Number(b.discount_amount) || 0,
+        'Loyalty credit': Number(b.loyalty_credit) || 0, Total: Number(b.total_amount) || 0,
+        'Host commission (est)': Number(b.host_commission_est) || 0,
+      })));
+    } catch (e) { setErr(e.message); } finally { setExporting(''); }
+  }
+  async function exportPartners() {
+    setExporting('partners');
+    try {
+      const ps = await listPartners();
+      await downloadSheet('airluxo-partners.xlsx', ps.map((p) => ({
+        Company: p.company_name || '', Status: partnerStatus(p), Plan: p.plan || 'free',
+        Cars: Number(p.car_count) || 0, Email: p.login_email || p.prospect_contact_email || '',
+        Phone: p.phone || '', City: p.prospect_city || '', VAT: p.prospect_vat || '',
+        Website: p.prospect_website || '', Source: p.prospect_source || '',
+        Joined: fmtDate(p.created_at), Archived: p.archived_at ? fmtDate(p.archived_at) : '',
+      })));
+    } catch (e) { setErr(e.message); } finally { setExporting(''); }
+  }
+  async function exportCustomers() {
+    setExporting('customers');
+    try {
+      const cs = await listCustomers();
+      await downloadSheet('airluxo-customers.xlsx', cs.map((c) => ({
+        Name: c.full_name || '', Email: c.email || '', Phone: c.phone || '',
+        Bookings: Number(c.bookings_count) || 0, Completed: Number(c.completed_count) || 0,
+        'Gross spend': Number(c.gross) || 0, 'Loyalty points': Number(c.loyalty_points) || 0,
+        'Licence verified': c.licence_verified ? 'yes' : 'no',
+        'Marketing opt-in': c.marketing_opt_in ? 'yes' : 'no', Joined: fmtDate(c.created_at),
+      })));
+    } catch (e) { setErr(e.message); } finally { setExporting(''); }
+  }
+
+  const exportBtn = 'ring-lux rounded-full border border-mist bg-cloud px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink disabled:opacity-60';
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Finance</h1>
+          <p className="mt-1 text-sm text-stone">What we earn (subscriptions + booking fees) and spend (discounts, credits). Figures marked est. use each partner’s current plan rate.</p>
+        </div>
+        <div className="inline-flex shrink-0 rounded-full border border-mist bg-cloud p-1">
+          {FIN_PERIODS.map((p) => (
+            <button key={p.days} onClick={() => setDays(p.days)}
+              className={`ring-lux rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${days === p.days ? 'bg-ink text-cloud' : 'text-stone hover:text-ink'}`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {err && <p className="mt-4 text-sm text-red-600">{err}</p>}
+      {fin === null && <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>}
+
+      {fin && (
+        <>
+          <div className="mt-6">
+            <SubLabel>Revenue · this period</SubLabel>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <FinStat label="Net earnings · est." value={chf(fin.net)} sub="fees + commission − spend" accent />
+              <FinStat label="Subscriptions · MRR" value={chf(fin.subscriptions.mrr)} sub={`${fin.subscriptions.pro} Pro · ${fin.subscriptions.max} Max · ${fin.subscriptions.free} Free`} />
+              <FinStat label="Service fees" value={chf(fin.revenue.service_fees)} sub={`${fin.revenue.bookings} bookings`} />
+              <FinStat label="Host commission · est." value={chf(fin.revenue.host_commission)} sub={`GMV ${chf(fin.revenue.gmv)}`} />
+            </div>
+          </div>
+          <div className="mt-5">
+            <SubLabel>Spend · this period</SubLabel>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <FinStat label="Discounts given" value={chf(fin.spend.discounts)} />
+              <FinStat label="Loyalty credits" value={chf(fin.spend.loyalty_credits)} />
+              <FinStat label="Affiliate commission" value={chf(fin.spend.affiliate_commission)} sub="recorded, not deducted" />
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+        <SubLabel>Booking history</SubLabel>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={exportBookings} disabled={!!exporting} className={exportBtn}>{exporting === 'bookings' ? 'Exporting…' : '⬇ Bookings (Excel)'}</button>
+          <button onClick={exportPartners} disabled={!!exporting} className={exportBtn}>{exporting === 'partners' ? 'Exporting…' : '⬇ Partners (Excel)'}</button>
+          <button onClick={exportCustomers} disabled={!!exporting} className={exportBtn}>{exporting === 'customers' ? 'Exporting…' : '⬇ Customers (Excel)'}</button>
+        </div>
+      </div>
+
+      <div className="mt-3 overflow-x-auto rounded-2xl border border-mist">
+        <table className="w-full min-w-[860px] text-sm">
+          <thead>
+            <tr className="border-b border-mist bg-cloud text-left text-[0.65rem] uppercase tracking-wider text-stone">
+              {['Date', 'Partner', 'Customer', 'Car', 'Status', 'Base', 'Add-ons', 'Service', 'Disc.', 'Total', 'Comm. est'].map((h) => (
+                <th key={h} className="px-3 py-2 font-semibold">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows === null && <tr><td colSpan={11} className="px-3 py-6 text-center text-stone">Loading…</td></tr>}
+            {rows && rows.length === 0 && <tr><td colSpan={11} className="px-3 py-6 text-center text-stone">No bookings yet.</td></tr>}
+            {rows && rows.slice(0, 60).map((b, i) => (
+              <tr key={i} className="border-b border-mist/60 last:border-0">
+                <td className="whitespace-nowrap px-3 py-2 text-stone">{fmtDate(b.created_at)}</td>
+                <td className="px-3 py-2">{b.company_name || '—'}</td>
+                <td className="px-3 py-2 text-stone">{b.customer || '—'}</td>
+                <td className="px-3 py-2 text-stone">{b.car_label || '—'}</td>
+                <td className="whitespace-nowrap px-3 py-2"><span className="rounded-full bg-cloud px-2 py-0.5 text-xs">{b.status}</span></td>
+                <td className="px-3 py-2 tnum text-stone">{chf(b.base_amount)}</td>
+                <td className="px-3 py-2 tnum text-stone">{chf(b.addons_amount)}</td>
+                <td className="px-3 py-2 tnum text-stone">{chf(b.service_fee)}</td>
+                <td className="px-3 py-2 tnum text-stone">{chf(b.discount_amount)}</td>
+                <td className="px-3 py-2 tnum font-semibold">{chf(b.total_amount)}</td>
+                <td className="px-3 py-2 tnum text-go">{chf(b.host_commission_est)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {rows && rows.length > 60 && <p className="mt-2 text-xs text-stone">Showing 60 of {rows.length} — export for the full history.</p>}
     </div>
   );
 }

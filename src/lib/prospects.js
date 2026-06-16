@@ -51,6 +51,20 @@ export async function adminOverview(days = 7) {
   return data;
 }
 
+// Founder Financials: subscription run-rate + booking-fee revenue − spend, for a window.
+export async function adminFinancials(days = 30) {
+  const { data, error } = await supabase.rpc('admin_financials', { p_days: days });
+  if (error) throw error;
+  return data;
+}
+
+// Full booking history (newest first) for the Financials table + Excel export.
+export async function bookingsExport(limit = 5000) {
+  const { data, error } = await supabase.rpc('admin_bookings_export', { p_limit: limit });
+  if (error) throw error;
+  return data ?? [];
+}
+
 // Founder Customers section.
 export async function listCustomers() {
   const { data, error } = await supabase.rpc('admin_list_customers');
