@@ -413,6 +413,8 @@ function Finance() {
   const [err, setErr] = useState('');
   const [rows, setRows] = useState(null);
   const [exporting, setExporting] = useState('');
+  const [page, setPage] = useState(0);
+  const PAGE = 25;
 
   useEffect(() => {
     setFin(null); setErr('');
@@ -462,6 +464,11 @@ function Finance() {
   }
 
   const exportBtn = 'ring-lux flex items-center gap-1.5 rounded-full border border-mist bg-cloud px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50';
+
+  const total = rows ? rows.length : 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = rows ? rows.slice(safePage * PAGE, safePage * PAGE + PAGE) : [];
 
   return (
     <div>
@@ -526,7 +533,7 @@ function Finance() {
           <tbody>
             {rows === null && <tr><td colSpan={11} className="px-4 py-6 text-center text-stone">Loading…</td></tr>}
             {rows && rows.length === 0 && <tr><td colSpan={11} className="px-4 py-6 text-center text-stone">No bookings yet.</td></tr>}
-            {rows && rows.slice(0, 60).map((b, i) => (
+            {pageRows.map((b, i) => (
               <tr key={i} className="border-b border-mist/60 bg-paper last:border-0">
                 <td className="whitespace-nowrap px-4 py-3 text-stone">{fmtDate(b.created_at)}</td>
                 <td className="px-4 py-3">{b.company_name || '—'}</td>
@@ -544,7 +551,18 @@ function Finance() {
           </tbody>
         </table>
       </div>
-      {rows && rows.length > 60 && <p className="mt-2 text-xs text-stone">Showing 60 of {rows.length} — export for the full history.</p>}
+      {total > PAGE && (
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className="text-xs text-stone">{safePage * PAGE + 1}–{Math.min((safePage + 1) * PAGE, total)} of {total}</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={safePage === 0}
+              className="ring-lux grid h-8 w-8 place-items-center rounded-full border border-mist text-ink transition-colors hover:border-ink disabled:opacity-40"><Icon.Arrow width={15} height={15} className="rotate-180" /></button>
+            <span className="text-xs font-semibold tnum text-stone">Page {safePage + 1} / {pageCount}</span>
+            <button onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}
+              className="ring-lux grid h-8 w-8 place-items-center rounded-full border border-mist text-ink transition-colors hover:border-ink disabled:opacity-40"><Icon.Arrow width={15} height={15} /></button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
