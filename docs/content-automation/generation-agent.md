@@ -65,8 +65,10 @@ machine). Once it behaves, schedule it daily with `/schedule`. Each run logs to
 >
 > **5 · Caption (brand guardrails — hard rules).** Write a caption that is:
 > emotion-first and scene-led; **no price, no "book now"/CTA, no hard sell**; at most
-> **one** subtle brand mention (`@airluxo` or a small tag); a few fitting hashtags. The
-> car and the feeling are the story; AIRLUXO is a quiet signature, not the pitch.
+> **one** subtle brand mention (`@airluxo` or a small tag); and **always 3–6 fitting
+> hashtags** on their own line (mix scene/location + theme, e.g. #swissroads #grandtouring
+> #alpinedrive #roadtrip — not spammy, no #ad). The car and the feeling are the story;
+> AIRLUXO is a quiet signature, not the pitch.
 >
 > **6 · Ingest.** POST each surviving draft to `content-ingest` with its `listing_id`,
 > `format`, `concept_brief`, `asset_urls`, `caption`, `virality_score`, `hook_score`, and
