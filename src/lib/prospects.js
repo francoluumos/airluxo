@@ -65,6 +65,18 @@ export async function bookingsExport(limit = 5000) {
   return data ?? [];
 }
 
+// Security audit (Developer): latest run + short history. Re-run daily by cron.
+export async function securityStatus() {
+  const { data, error } = await supabase.rpc('admin_latest_security');
+  if (error) throw error;
+  return data;
+}
+export async function runSecurityAudit() {
+  const { data, error } = await supabase.rpc('admin_run_security_audit');
+  if (error) throw error;
+  return data;
+}
+
 // Founder Customers section.
 export async function listCustomers() {
   const { data, error } = await supabase.rpc('admin_list_customers');

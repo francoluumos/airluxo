@@ -8,7 +8,7 @@ import { MARKETING_FLOWS, marketingOverview, setFlowActive, previewFlow } from '
 import { AddressFields } from './LocationForm.jsx';
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
-import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport } from '../lib/prospects.js';
+import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -205,6 +205,90 @@ function Developer() {
           <p className="mt-2"><span className="font-semibold text-ink">CI test runs</span> opens GitHub Actions, where every push/PR uploads its report (downloadable, 14-day history) — reachable from anywhere.</p>
         </div>
       </div>
+
+      <SecurityAudit />
+    </div>
+  );
+}
+
+const SEV_RANK = { high: 0, medium: 1, low: 2 };
+const STATUS_STYLE = {
+  pass: 'bg-go/15 text-go', warn: 'bg-gold/15 text-gold',
+  fail: 'bg-red-100 text-red-700', manual: 'bg-mist text-stone',
+};
+const STATUS_LABEL = { pass: 'Pass', warn: 'Warn', fail: 'Fail', manual: 'Manual' };
+
+function SecurityAudit() {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState('');
+  const [running, setRunning] = useState(false);
+
+  const load = () => securityStatus().then(setD).catch((e) => { setErr(e.message); setD(false); });
+  useEffect(() => { load(); }, []);
+
+  async function rerun() {
+    setRunning(true); setErr('');
+    try { await runSecurityAudit(); await load(); }
+    catch (e) { setErr(e.message || 'Could not run the audit.'); }
+    finally { setRunning(false); }
+  }
+
+  const latest = d && d.latest;
+  const findings = (latest && latest.findings) || [];
+  // Action items first (fail → warn → manual), each by severity; passes last.
+  const order = { fail: 0, warn: 1, manual: 2, pass: 3 };
+  const sorted = [...findings].sort((a, b) =>
+    (order[a.status] - order[b.status]) || ((SEV_RANK[a.severity] ?? 9) - (SEV_RANK[b.severity] ?? 9)));
+
+  return (
+    <div className="mt-7 rounded-[var(--radius-card)] border border-mist bg-cloud p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-paper text-ink"><Icon.Shield width={18} height={18} /></span>
+          <div>
+            <h2 className="font-display text-lg leading-none">Security</h2>
+            <p className="mt-1 text-xs text-stone">Automated checks on RLS, policies, definer functions & config. Re-runs daily; remediation tasks below.</p>
+          </div>
+        </div>
+        <button onClick={rerun} disabled={running} className="ring-lux shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-60">
+          {running ? 'Running…' : 'Run check now'}
+        </button>
+      </div>
+
+      {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+      {d === null && <div className="grid place-items-center py-10"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>}
+
+      {latest && (
+        <>
+          <div className="mt-5 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-go/15 px-2.5 py-1 font-semibold text-go">{latest.passed} pass</span>
+            <span className="rounded-full bg-gold/15 px-2.5 py-1 font-semibold text-gold">{latest.warnings} warn</span>
+            <span className="rounded-full bg-red-100 px-2.5 py-1 font-semibold text-red-700">{latest.failures} fail</span>
+            <span className="rounded-full bg-mist px-2.5 py-1 font-semibold text-stone">{latest.manual} manual</span>
+            <span className="ml-auto self-center text-stone">Last run {fmtDateTime(latest.ran_at)}</span>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {sorted.map((f) => (
+              <div key={f.key} className="rounded-xl border border-mist bg-paper p-3.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="font-semibold text-ink">{f.title}</div>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider ${STATUS_STYLE[f.status] || ''}`}>{STATUS_LABEL[f.status] || f.status}</span>
+                </div>
+                <p className="mt-1 text-xs text-stone">{f.detail}</p>
+                {Array.isArray(f.items) && f.items.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {f.items.map((it, i) => <span key={i} className="rounded-md bg-mist/60 px-1.5 py-0.5 font-mono text-[0.65rem] text-ink">{it}</span>)}
+                  </div>
+                )}
+                {f.status !== 'pass' && f.remediation && (
+                  <p className="mt-2 text-xs text-stone"><span className="font-semibold text-ink">Fix:</span> {f.remediation}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
