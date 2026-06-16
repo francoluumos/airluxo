@@ -6,6 +6,7 @@ import { tierForTrips } from '../lib/loyalty.js';
 import { listSubscribers, setNewsletter } from '../lib/newsletter.js';
 import { MARKETING_FLOWS, marketingOverview, setFlowActive, previewFlow } from '../lib/marketing.js';
 import { AddressFields } from './LocationForm.jsx';
+import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, listDrafts, listContentPosts } from '../lib/content.js';
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
@@ -25,6 +26,7 @@ const NAV = [
   { key: 'partners', label: 'Partners' },
   { key: 'customers', label: 'Customers' },
   { key: 'marketing', label: 'Marketing' },
+  { key: 'content', label: 'Content' },
   { key: 'translations', label: 'Translations' },
   { key: 'docs', label: 'Docs' },
   { key: 'developer', label: 'Developer' },
@@ -158,6 +160,7 @@ function FounderShell() {
           : section === 'partners' ? <Partners />
           : section === 'customers' ? <Customers />
           : section === 'marketing' ? <Marketing />
+          : section === 'content' ? <Content />
           : section === 'translations' ? <Translations />
           : section === 'docs' ? <DocsHub />
           : section === 'developer' ? <Developer />
@@ -321,6 +324,199 @@ function TablePager({ pager }) {
         <span className="text-xs font-semibold tnum text-stone">Page {page + 1} / {pageCount}</span>
         <button onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={page >= pageCount - 1}
           className="ring-lux grid h-8 w-8 place-items-center rounded-full border border-mist text-ink transition-colors hover:border-ink disabled:opacity-40"><Icon.Arrow width={15} height={15} /></button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Content ───────────────────────────────────────────────────────────── */
+const CONTENT_TABS = [
+  { key: 'inspiration', label: 'Inspiration' },
+  { key: 'drafts', label: 'Drafts' },
+  { key: 'schedule', label: 'Schedule' },
+  { key: 'settings', label: 'Settings' },
+];
+const clip = (s, n = 60) => { const t = (s || '').trim(); return t.length > n ? t.slice(0, n) + '…' : t; };
+const tnum = (v) => (v == null ? '—' : Number(v).toLocaleString('de-CH'));
+
+function Content() {
+  const [tab, setTab] = useState('settings');
+  return (
+    <div>
+      <div>
+        <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Content</h1>
+        <p className="mt-1 text-sm text-stone">Mine emotional inspiration, generate AIRLUXO reels & carousels, approve, and schedule. Start by adding creators to your watchlist in Settings.</p>
+      </div>
+      <div className="mt-4 inline-flex rounded-full border border-mist bg-cloud p-1">
+        {CONTENT_TABS.map((t) => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`ring-lux rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${tab === t.key ? 'bg-ink text-cloud' : 'text-stone hover:text-ink'}`}>{t.label}</button>
+        ))}
+      </div>
+      <div className="mt-5">
+        {tab === 'inspiration' ? <ContentInspiration />
+          : tab === 'drafts' ? <ContentDrafts />
+          : tab === 'schedule' ? <ContentSchedule />
+          : <ContentSettings />}
+      </div>
+    </div>
+  );
+}
+
+function ContentTableShell({ minWidth = 760, headers, children }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-mist bg-cloud">
+      <table className="w-full text-sm" style={{ minWidth: `${minWidth}px` }}>
+        <thead>
+          <tr className="border-b border-mist text-left text-[0.65rem] uppercase tracking-wider text-stone">
+            {headers.map((h) => <th key={h} className="px-4 py-3 font-bold">{h}</th>)}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
+function ContentInspiration() {
+  const [rows, setRows] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => { listInspiration().then(setRows).catch((e) => { setErr(e.message); setRows([]); }); }, []);
+  const pager = usePager(rows, 25);
+  if (rows === null) return <div className="grid place-items-center py-16"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
+  return (
+    <div>
+      {err && <p className="mb-3 text-sm text-red-600">{err}</p>}
+      <ContentTableShell minWidth={820} headers={['Source', 'Caption', 'Views', 'Likes', 'Comments', 'Score', 'Posted']}>
+        {rows.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-stone">No inspiration yet — add creators in Settings; the daily scan fills this in.</td></tr>}
+        {pager.slice.map((r) => (
+          <tr key={r.id} className="border-b border-mist/60 bg-paper last:border-0">
+            <td className="px-4 py-3 font-semibold">{r.reel_url ? <a href={r.reel_url} target="_blank" rel="noreferrer" className="text-ink hover:underline">@{r.source_handle || '—'}</a> : `@${r.source_handle || '—'}`}</td>
+            <td className="px-4 py-3 text-stone">{clip(r.caption)}</td>
+            <td className="px-4 py-3 tnum text-stone">{tnum(r.views)}</td>
+            <td className="px-4 py-3 tnum text-stone">{tnum(r.likes)}</td>
+            <td className="px-4 py-3 tnum text-stone">{tnum(r.comments)}</td>
+            <td className="px-4 py-3 tnum font-semibold">{r.work_score == null ? '—' : Number(r.work_score).toFixed(1)}</td>
+            <td className="px-4 py-3 text-stone">{r.posted_at ? fmtDate(r.posted_at) : '—'}</td>
+          </tr>
+        ))}
+      </ContentTableShell>
+      <TablePager pager={pager} />
+    </div>
+  );
+}
+
+function ContentDrafts() {
+  const [rows, setRows] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => { listDrafts().then(setRows).catch((e) => { setErr(e.message); setRows([]); }); }, []);
+  const pager = usePager(rows, 25);
+  const badge = { generated: 'bg-mist text-stone', approved: 'bg-go/15 text-go', rejected: 'bg-red-100 text-red-700', scheduled: 'bg-gold/15 text-gold', posted: 'bg-go/15 text-go', failed: 'bg-red-100 text-red-700' };
+  if (rows === null) return <div className="grid place-items-center py-16"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
+  return (
+    <div>
+      {err && <p className="mb-3 text-sm text-red-600">{err}</p>}
+      <ContentTableShell minWidth={760} headers={['Format', 'Status', 'Virality', 'Hook', 'Caption', 'Created']}>
+        {rows.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-stone">No drafts yet — generated reels & carousels land here for approval.</td></tr>}
+        {pager.slice.map((r) => (
+          <tr key={r.id} className="border-b border-mist/60 bg-paper last:border-0">
+            <td className="px-4 py-3 font-semibold capitalize">{r.format}</td>
+            <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-[0.7rem] font-bold capitalize ${badge[r.status] || 'bg-mist text-stone'}`}>{r.status}</span></td>
+            <td className="px-4 py-3 tnum">{r.virality_score == null ? '—' : Number(r.virality_score).toFixed(0)}</td>
+            <td className="px-4 py-3 tnum text-stone">{r.hook_score == null ? '—' : Number(r.hook_score).toFixed(0)}</td>
+            <td className="px-4 py-3 text-stone">{clip(r.caption)}</td>
+            <td className="px-4 py-3 text-stone">{fmtDate(r.created_at)}</td>
+          </tr>
+        ))}
+      </ContentTableShell>
+      <TablePager pager={pager} />
+    </div>
+  );
+}
+
+function ContentSchedule() {
+  const [rows, setRows] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => { listContentPosts().then(setRows).catch((e) => { setErr(e.message); setRows([]); }); }, []);
+  const pager = usePager(rows, 25);
+  const badge = { scheduled: 'bg-gold/15 text-gold', publishing: 'bg-gold/15 text-gold', posted: 'bg-go/15 text-go', failed: 'bg-red-100 text-red-700' };
+  if (rows === null) return <div className="grid place-items-center py-16"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
+  return (
+    <div>
+      {err && <p className="mb-3 text-sm text-red-600">{err}</p>}
+      <ContentTableShell minWidth={620} headers={['Scheduled for', 'Channels', 'Status', 'Posted']}>
+        {rows.length === 0 && <tr><td colSpan={4} className="px-4 py-10 text-center text-sm text-stone">Nothing scheduled — approved drafts get queued here.</td></tr>}
+        {pager.slice.map((r) => (
+          <tr key={r.id} className="border-b border-mist/60 bg-paper last:border-0">
+            <td className="px-4 py-3 font-semibold">{r.scheduled_for ? fmtDateTime(r.scheduled_for) : '—'}</td>
+            <td className="px-4 py-3 text-stone">{Array.isArray(r.targets) ? r.targets.join(', ') : '—'}</td>
+            <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-[0.7rem] font-bold capitalize ${badge[r.status] || 'bg-mist text-stone'}`}>{r.status}</span></td>
+            <td className="px-4 py-3 text-stone">{r.posted_at ? fmtDateTime(r.posted_at) : '—'}</td>
+          </tr>
+        ))}
+      </ContentTableShell>
+      <TablePager pager={pager} />
+    </div>
+  );
+}
+
+function ContentSettings() {
+  const [rows, setRows] = useState(null);
+  const [handle, setHandle] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const load = () => listWatchlist().then(setRows).catch((e) => { setErr(e.message); setRows([]); });
+  useEffect(() => { load(); }, []);
+
+  async function add(e) {
+    e.preventDefault();
+    const h = handle.trim().replace(/^@/, '');
+    if (!h) return;
+    setBusy(true); setErr('');
+    try { await upsertWatchlist({ handle: h, note: note.trim() || null }); setHandle(''); setNote(''); await load(); }
+    catch (e2) { setErr(e2.message || 'Could not add.'); }
+    finally { setBusy(false); }
+  }
+  async function toggle(r) {
+    try { await upsertWatchlist({ id: r.id, platform: r.platform, handle: r.handle, note: r.note, active: !r.active }); await load(); }
+    catch (e2) { setErr(e2.message); }
+  }
+  async function remove(id) {
+    try { await deleteWatchlist(id); await load(); } catch (e2) { setErr(e2.message); }
+  }
+
+  return (
+    <div className="max-w-2xl">
+      <SubLabel>Instagram watchlist</SubLabel>
+      <p className="mt-1 text-sm text-stone">Creators you love + seeds for discovery. The daily scan mines their public reels and ranks what works — inspiration only, never reposted.</p>
+
+      <form onSubmit={add} className="mt-4 flex flex-wrap items-end gap-2">
+        <label className="block flex-1">
+          <span className="mb-1 block text-xs font-semibold text-stone">Handle</span>
+          <input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="@creator" className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+        </label>
+        <label className="block flex-1">
+          <span className="mb-1 block text-xs font-semibold text-stone">Note (optional)</span>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="why you like them" className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+        </label>
+        <button type="submit" disabled={busy || !handle.trim()} className="ring-lux shrink-0 rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-50">{busy ? 'Adding…' : 'Add'}</button>
+      </form>
+      {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+
+      <div className="mt-5 space-y-2">
+        {rows === null && <div className="grid place-items-center py-10"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>}
+        {rows && rows.length === 0 && <p className="text-sm text-stone">No creators yet — add one above.</p>}
+        {rows && rows.map((r) => (
+          <div key={r.id} className="flex items-center gap-3 rounded-xl border border-mist bg-cloud px-3.5 py-2.5">
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-ink">@{r.handle} {!r.active && <span className="ml-1 rounded-full bg-mist px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-stone">paused</span>}</div>
+              {r.note && <div className="truncate text-xs text-stone">{r.note}</div>}
+            </div>
+            <button onClick={() => toggle(r)} className="ring-lux shrink-0 rounded-lg border border-mist px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:border-ink">{r.active ? 'Pause' : 'Resume'}</button>
+            <button onClick={() => remove(r.id)} className="ring-lux shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 transition-colors hover:underline">Remove</button>
+          </div>
+        ))}
       </div>
     </div>
   );
