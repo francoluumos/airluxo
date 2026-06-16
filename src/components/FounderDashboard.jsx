@@ -6,7 +6,7 @@ import { tierForTrips } from '../lib/loyalty.js';
 import { listSubscribers, setNewsletter } from '../lib/newsletter.js';
 import { MARKETING_FLOWS, marketingOverview, setFlowActive, previewFlow } from '../lib/marketing.js';
 import { AddressFields } from './LocationForm.jsx';
-import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addInspirationLink, listDrafts, setDraftStatus, setDraftCaption, scheduleDraft, listContentPosts } from '../lib/content.js';
+import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addInspirationLink, runScrape, listDrafts, setDraftStatus, setDraftCaption, scheduleDraft, listContentPosts } from '../lib/content.js';
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
@@ -561,8 +561,15 @@ function ContentSettings() {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [scan, setScan] = useState('');
   const load = () => listWatchlist().then(setRows).catch((e) => { setErr(e.message); setRows([]); });
   useEffect(() => { load(); }, []);
+
+  async function scanNow() {
+    setScan('running'); setErr('');
+    try { const r = await runScrape(); setScan(`Scanned — ${r.scraped ?? 0} reels from ${r.handles ?? 0} accounts. See Inspiration.`); }
+    catch (e) { setErr(e.message || 'Scan failed.'); setScan(''); }
+  }
 
   async function add(e) {
     e.preventDefault();
@@ -583,8 +590,14 @@ function ContentSettings() {
 
   return (
     <div className="max-w-2xl">
-      <SubLabel>Instagram watchlist</SubLabel>
-      <p className="mt-1 text-sm text-stone">Creators you love + seeds for discovery. The daily scan mines their public reels and ranks what works — inspiration only, never reposted.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <SubLabel>Instagram watchlist</SubLabel>
+          <p className="mt-1 text-sm text-stone">Creators you love + seeds for discovery. The daily scan mines their public reels and ranks what works — inspiration only, never reposted.</p>
+        </div>
+        <button onClick={scanNow} disabled={scan === 'running'} className="ring-lux shrink-0 rounded-full border border-mist bg-cloud px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-60">{scan === 'running' ? 'Scanning…' : 'Scan now'}</button>
+      </div>
+      {scan && scan !== 'running' && <p className="mt-2 text-xs text-go">{scan}</p>}
 
       <form onSubmit={add} className="mt-4 flex flex-wrap items-end gap-2">
         <label className="block flex-1">

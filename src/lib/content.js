@@ -27,6 +27,18 @@ export async function listInspiration(limit = 200) {
   if (error) throw error;
   return data ?? [];
 }
+// Mine the active watchlist now (Apify) — the daily cron does this automatically too.
+export async function runScrape(limitPerHandle = 20) {
+  const { data, error } = await supabase.functions.invoke('content-scrape', { body: { limit_per_handle: limitPerHandle } });
+  if (error) {
+    let msg = error.message;
+    try { const b = await error.context?.json(); if (b?.error) msg = b.error; } catch { /* keep generic */ }
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 // Hand-pick a specific reel/post by URL (enriched with metrics later by the scan).
 export async function addInspirationLink(url, note = null) {
   const { data, error } = await supabase.rpc('admin_add_inspiration_link', { p_url: url, p_note: note });
