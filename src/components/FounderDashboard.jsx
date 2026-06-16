@@ -6,7 +6,7 @@ import { tierForTrips } from '../lib/loyalty.js';
 import { listSubscribers, setNewsletter } from '../lib/newsletter.js';
 import { MARKETING_FLOWS, marketingOverview, setFlowActive, previewFlow } from '../lib/marketing.js';
 import { AddressFields } from './LocationForm.jsx';
-import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addInspirationLink, runScrape, listDrafts, setDraftStatus, setDraftCaption, scheduleDraft, listContentPosts } from '../lib/content.js';
+import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addInspirationLink, deleteInspiration, runScrape, listDrafts, setDraftStatus, setDraftCaption, scheduleDraft, listContentPosts } from '../lib/content.js';
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
@@ -397,6 +397,9 @@ function ContentInspiration() {
     catch (e2) { setErr(e2.message || 'Could not add link.'); }
     finally { setBusy(false); }
   }
+  async function remove(id) {
+    try { await deleteInspiration(id); await load(); } catch (e2) { setErr(e2.message); }
+  }
 
   if (rows === null) return <div className="grid place-items-center py-16"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
   return (
@@ -427,7 +430,12 @@ function ContentInspiration() {
             <td className="px-4 py-3 tnum text-stone">{tnum(r.comments)}</td>
             <td className="px-4 py-3 tnum font-semibold">{r.work_score == null ? '—' : Number(r.work_score).toFixed(1)}</td>
             <td className="px-4 py-3 text-stone">{r.posted_at ? fmtDate(r.posted_at) : '—'}</td>
-            <td className="px-4 py-3">{r.reel_url ? <a href={r.reel_url} target="_blank" rel="noreferrer" className="ring-lux inline-block rounded-lg border border-mist px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:border-ink">▶ Watch</a> : '—'}</td>
+            <td className="px-4 py-3">
+              <div className="flex items-center gap-1.5">
+                {r.reel_url ? <a href={r.reel_url} target="_blank" rel="noreferrer" className="ring-lux inline-block rounded-lg border border-mist px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:border-ink">▶ Watch</a> : <span className="text-stone">—</span>}
+                <button onClick={() => remove(r.id)} title="Remove inspiration" className="ring-lux rounded-lg px-1.5 py-1 text-xs font-semibold text-red-600 transition-colors hover:underline">✕</button>
+              </div>
+            </td>
           </tr>
         ))}
       </ContentTableShell>

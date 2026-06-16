@@ -39,6 +39,11 @@ export async function runScrape(limitPerHandle = 20) {
   return data;
 }
 
+export async function deleteInspiration(id) {
+  const { error } = await supabase.rpc('admin_delete_inspiration', { p_id: id });
+  if (error) throw error;
+}
+
 // Hand-pick a specific reel/post by URL (enriched with metrics later by the scan).
 export async function addInspirationLink(url, note = null) {
   const { data, error } = await supabase.rpc('admin_add_inspiration_link', { p_url: url, p_note: note });
