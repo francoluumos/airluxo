@@ -296,6 +296,36 @@ function SecurityAudit() {
 // CRM pipeline board: prospects as cards in stage columns. Create = a private
 // preview workspace (placeholder partner). Phase 2 adds build-the-fleet + hide
 // from marketplace; Phase 4 the claim-to-live.
+/* ── Shared table pagination ───────────────────────────────────────────── */
+// Reusable client-side pager. Call it unconditionally (before any early return).
+// Resets to page 1 whenever the item count changes (e.g. a filter narrows the list).
+function usePager(items, size = 25) {
+  const [page, setPage] = useState(0);
+  const total = items ? items.length : 0;
+  const pageCount = Math.max(1, Math.ceil(total / size));
+  const safePage = Math.min(page, pageCount - 1);
+  useEffect(() => { setPage(0); }, [total]);
+  const slice = items ? items.slice(safePage * size, safePage * size + size) : [];
+  return { page: safePage, setPage, pageCount, total, slice, size };
+}
+
+function TablePager({ pager }) {
+  const { page, setPage, pageCount, total, size } = pager;
+  if (total <= size) return null;
+  return (
+    <div className="mt-3 flex items-center justify-between gap-3">
+      <span className="text-xs text-stone">{page * size + 1}–{Math.min((page + 1) * size, total)} of {total}</span>
+      <div className="flex items-center gap-2">
+        <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
+          className="ring-lux grid h-8 w-8 place-items-center rounded-full border border-mist text-ink transition-colors hover:border-ink disabled:opacity-40"><Icon.Arrow width={15} height={15} className="rotate-180" /></button>
+        <span className="text-xs font-semibold tnum text-stone">Page {page + 1} / {pageCount}</span>
+        <button onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={page >= pageCount - 1}
+          className="ring-lux grid h-8 w-8 place-items-center rounded-full border border-mist text-ink transition-colors hover:border-ink disabled:opacity-40"><Icon.Arrow width={15} height={15} /></button>
+      </div>
+    </div>
+  );
+}
+
 /* ── Overview ──────────────────────────────────────────────────────────── */
 const OV_PERIODS = [{ days: 7, label: '7 days' }, { days: 30, label: '30 days' }, { days: 90, label: '90 days' }];
 
@@ -413,8 +443,7 @@ function Finance() {
   const [err, setErr] = useState('');
   const [rows, setRows] = useState(null);
   const [exporting, setExporting] = useState('');
-  const [page, setPage] = useState(0);
-  const PAGE = 25;
+  const pager = usePager(rows, 25);
 
   useEffect(() => {
     setFin(null); setErr('');
@@ -464,11 +493,6 @@ function Finance() {
   }
 
   const exportBtn = 'ring-lux flex items-center gap-1.5 rounded-full border border-mist bg-cloud px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50';
-
-  const total = rows ? rows.length : 0;
-  const pageCount = Math.max(1, Math.ceil(total / PAGE));
-  const safePage = Math.min(page, pageCount - 1);
-  const pageRows = rows ? rows.slice(safePage * PAGE, safePage * PAGE + PAGE) : [];
 
   return (
     <div>
@@ -533,7 +557,7 @@ function Finance() {
           <tbody>
             {rows === null && <tr><td colSpan={11} className="px-4 py-6 text-center text-stone">Loading…</td></tr>}
             {rows && rows.length === 0 && <tr><td colSpan={11} className="px-4 py-6 text-center text-stone">No bookings yet.</td></tr>}
-            {pageRows.map((b, i) => (
+            {pager.slice.map((b, i) => (
               <tr key={i} className="border-b border-mist/60 bg-paper last:border-0">
                 <td className="whitespace-nowrap px-4 py-3 text-stone">{fmtDate(b.created_at)}</td>
                 <td className="px-4 py-3">{b.company_name || '—'}</td>
@@ -551,18 +575,7 @@ function Finance() {
           </tbody>
         </table>
       </div>
-      {total > PAGE && (
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <span className="text-xs text-stone">{safePage * PAGE + 1}–{Math.min((safePage + 1) * PAGE, total)} of {total}</span>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={safePage === 0}
-              className="ring-lux grid h-8 w-8 place-items-center rounded-full border border-mist text-ink transition-colors hover:border-ink disabled:opacity-40"><Icon.Arrow width={15} height={15} className="rotate-180" /></button>
-            <span className="text-xs font-semibold tnum text-stone">Page {safePage + 1} / {pageCount}</span>
-            <button onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}
-              className="ring-lux grid h-8 w-8 place-items-center rounded-full border border-mist text-ink transition-colors hover:border-ink disabled:opacity-40"><Icon.Arrow width={15} height={15} /></button>
-          </div>
-        </div>
-      )}
+      <TablePager pager={pager} />
     </div>
   );
 }
@@ -933,9 +946,7 @@ function Partners() {
   const load = () => listPartners().then(setRows).catch((e) => { setErr(e.message); setRows([]); });
   useEffect(() => { load(); }, []);
 
-  if (rows === null) return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
-
-  const withStatus = rows.map((p) => ({ ...p, status: partnerStatus(p) }));
+  const withStatus = (rows || []).map((p) => ({ ...p, status: partnerStatus(p) }));
   const active = withStatus.filter((p) => !p.archived_at);
   const archived = withStatus.filter((p) => p.archived_at);
   const counts = { all: active.length, prospecting: 0, won: 0, lost: 0, archived: archived.length };
@@ -946,6 +957,9 @@ function Partners() {
     ? byStatus.filter((p) => [p.company_name, p.contact_name, (p.is_prospect ? p.prospect_contact_email : p.login_email), p.phone]
       .some((v) => (v || '').toLowerCase().includes(ql)))
     : byStatus;
+  const pager = usePager(filtered, 25);
+
+  if (rows === null) return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
 
   return (
     <div>
@@ -981,7 +995,7 @@ function Partners() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p) => (
+            {pager.slice.map((p) => (
               <Fragment key={p.id}>
                 <tr onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
                   className={`cursor-pointer border-b border-mist/60 transition-colors hover:bg-mist/30 ${expandedId === p.id ? 'bg-mist/30' : ''}`}>
@@ -1007,6 +1021,7 @@ function Partners() {
           </tbody>
         </table>
       </div>
+      <TablePager pager={pager} />
 
       {editing && <PartnerEditModal p={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
       {deleting && <DeletePartnerModal p={deleting} onClose={() => setDeleting(null)} onArchived={() => { setDeleting(null); load(); }} onDeleted={() => { setDeleting(null); load(); }} />}
@@ -1379,10 +1394,11 @@ function Customers() {
   const [err, setErr] = useState('');
   useEffect(() => { listCustomers().then(setRows).catch((e) => { setErr(e.message); setRows([]); }); }, []);
 
-  if (rows === null) return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
-
   const ql = q.trim().toLowerCase();
-  const filtered = ql ? rows.filter((c) => [c.full_name, c.email, c.phone].some((v) => (v || '').toLowerCase().includes(ql))) : rows;
+  const filtered = ql ? (rows || []).filter((c) => [c.full_name, c.email, c.phone].some((v) => (v || '').toLowerCase().includes(ql))) : (rows || []);
+  const pager = usePager(filtered, 25);
+
+  if (rows === null) return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
 
   return (
     <div>
@@ -1410,7 +1426,7 @@ function Customers() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((c) => (
+            {pager.slice.map((c) => (
               <Fragment key={c.id}>
                 <tr onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
                   className={`cursor-pointer border-b border-mist/60 transition-colors hover:bg-mist/30 ${expandedId === c.id ? 'bg-mist/30' : ''}`}>
@@ -1435,6 +1451,7 @@ function Customers() {
           </tbody>
         </table>
       </div>
+      <TablePager pager={pager} />
     </div>
   );
 }
@@ -1772,6 +1789,7 @@ function Translations() {
     }).catch((e) => { setErr(e.message); setRows({}); });
   }
   useEffect(() => { load(locale); }, [locale]);
+  const pager = usePager(KEYS, 25);
 
   if (rows === null) return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
 
@@ -1857,7 +1875,7 @@ function Translations() {
             </tr>
           </thead>
           <tbody>
-            {KEYS.map((k) => {
+            {pager.slice.map((k) => {
               const st = status(k);
               const val = edits[k] ?? rows[k]?.value ?? '';
               const dirty = edits[k] != null && edits[k] !== (rows[k]?.value ?? '');
@@ -1885,6 +1903,7 @@ function Translations() {
           </tbody>
         </table>
       </div>
+      <TablePager pager={pager} />
     </div>
   );
 }
