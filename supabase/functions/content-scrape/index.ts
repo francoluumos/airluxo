@@ -70,26 +70,34 @@ Deno.serve(async (req) => {
     items = await res.json();
     if (!Array.isArray(items)) items = [];
 
+    const reelUrl = (it: any) =>
+      it.url || it.reelUrl || it.postUrl || it.permalink ||
+      (it.shortCode || it.code ? `https://www.instagram.com/reel/${it.shortCode || it.code}/` : null) ||
+      it.inputUrl || null;
+
     const rows = items.map((it) => {
-      const views = n(it.videoViewCount ?? it.videoPlayCount ?? it.playCount ?? it.views);
-      const likes = n(it.likesCount ?? it.likes);
-      const comments = n(it.commentsCount ?? it.comments);
-      const postedAt = it.timestamp || it.takenAt || null;
+      const views = n(it.videoViewCount ?? it.videoPlayCount ?? it.playCount ?? it.views ?? it.igPlayCount ?? it.viewsCount);
+      const likes = n(it.likesCount ?? it.likes ?? it.likeCount);
+      const comments = n(it.commentsCount ?? it.comments ?? it.commentCount);
+      const postedAt = it.timestamp || it.takenAt || it.taken_at || null;
       return {
-        reel_url: it.url || it.reelUrl || null,
-        source_handle: it.ownerUsername || it.username || null,
-        caption: it.caption || it.text || null,
+        reel_url: reelUrl(it),
+        source_handle: it.ownerUsername || it.username || it.ownerUsernameRaw || it.owner?.username || null,
+        caption: it.caption || it.text || (typeof it.edge_media_to_caption === "object" ? null : it.caption) || null,
         hashtags: Array.isArray(it.hashtags) ? it.hashtags : [],
         views, likes, comments,
         posted_at: postedAt,
-        audio_title: it.musicInfo?.song_name || it.musicInfo?.artist_name || null,
+        audio_title: it.musicInfo?.song_name || it.musicInfo?.artist_name || it.musicInfo?.audio_id || null,
         work_score: workScore(views, likes, comments, postedAt),
         source: "scraped",
         scraped_at: new Date().toISOString(),
       };
     }).filter((r) => r.reel_url);
 
-    if (rows.length === 0) return json({ ok: true, scraped: 0, note: "no reels returned" });
+    if (rows.length === 0) {
+      // Diagnostic: Apify returned items but none mapped → surface the real field names.
+      return json({ ok: true, scraped: 0, received: items.length, sample_keys: items[0] ? Object.keys(items[0]) : [] });
+    }
 
     // Upsert; do not clobber a manual note/source flag (handled by content-inspiration-ingest
     // convention — here we only set source='scraped' on rows we mined).

@@ -413,8 +413,8 @@ function ContentInspiration() {
         <button type="submit" disabled={busy || !url.trim()} className="ring-lux shrink-0 rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-cloud transition-colors hover:bg-void disabled:opacity-50">{busy ? 'Adding…' : 'Add link'}</button>
       </form>
       {err && <p className="mb-3 text-sm text-red-600">{err}</p>}
-      <ContentTableShell minWidth={820} headers={['Source', 'Caption', 'Views', 'Likes', 'Comments', 'Score', 'Posted']}>
-        {rows.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-stone">No inspiration yet — paste a link above, or add creators in Settings for the daily scan.</td></tr>}
+      <ContentTableShell minWidth={900} headers={['Source', 'Caption', 'Views', 'Likes', 'Comments', 'Score', 'Posted', 'Watch']}>
+        {rows.length === 0 && <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-stone">No inspiration yet — paste a link above, or add creators in Settings for the daily scan.</td></tr>}
         {pager.slice.map((r) => (
           <tr key={r.id} className="border-b border-mist/60 bg-paper last:border-0">
             <td className="px-4 py-3 font-semibold">
@@ -427,6 +427,7 @@ function ContentInspiration() {
             <td className="px-4 py-3 tnum text-stone">{tnum(r.comments)}</td>
             <td className="px-4 py-3 tnum font-semibold">{r.work_score == null ? '—' : Number(r.work_score).toFixed(1)}</td>
             <td className="px-4 py-3 text-stone">{r.posted_at ? fmtDate(r.posted_at) : '—'}</td>
+            <td className="px-4 py-3">{r.reel_url ? <a href={r.reel_url} target="_blank" rel="noreferrer" className="ring-lux inline-block rounded-lg border border-mist px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:border-ink">▶ Watch</a> : '—'}</td>
           </tr>
         ))}
       </ContentTableShell>
