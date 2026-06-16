@@ -514,31 +514,31 @@ function Finance() {
         </div>
       </div>
 
-      <div className="mt-3 overflow-x-auto rounded-2xl border border-mist">
+      <div className="mt-3 overflow-x-auto rounded-2xl border border-mist bg-cloud">
         <table className="w-full min-w-[860px] text-sm">
           <thead>
-            <tr className="border-b border-mist bg-cloud text-left text-[0.65rem] uppercase tracking-wider text-stone">
+            <tr className="border-b border-mist text-left text-[0.65rem] uppercase tracking-wider text-stone">
               {['Date', 'Partner', 'Customer', 'Car', 'Status', 'Base', 'Add-ons', 'Service', 'Disc.', 'Total', 'Comm. est'].map((h) => (
-                <th key={h} className="px-3 py-2 font-semibold">{h}</th>
+                <th key={h} className="px-4 py-3 font-bold">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows === null && <tr><td colSpan={11} className="px-3 py-6 text-center text-stone">Loading…</td></tr>}
-            {rows && rows.length === 0 && <tr><td colSpan={11} className="px-3 py-6 text-center text-stone">No bookings yet.</td></tr>}
+            {rows === null && <tr><td colSpan={11} className="px-4 py-6 text-center text-stone">Loading…</td></tr>}
+            {rows && rows.length === 0 && <tr><td colSpan={11} className="px-4 py-6 text-center text-stone">No bookings yet.</td></tr>}
             {rows && rows.slice(0, 60).map((b, i) => (
-              <tr key={i} className="border-b border-mist/60 last:border-0">
-                <td className="whitespace-nowrap px-3 py-2 text-stone">{fmtDate(b.created_at)}</td>
-                <td className="px-3 py-2">{b.company_name || '—'}</td>
-                <td className="px-3 py-2 text-stone">{b.customer || '—'}</td>
-                <td className="px-3 py-2 text-stone">{b.car_label || '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2"><span className="rounded-full bg-cloud px-2 py-0.5 text-xs">{b.status}</span></td>
-                <td className="px-3 py-2 tnum text-stone">{chf(b.base_amount)}</td>
-                <td className="px-3 py-2 tnum text-stone">{chf(b.addons_amount)}</td>
-                <td className="px-3 py-2 tnum text-stone">{chf(b.service_fee)}</td>
-                <td className="px-3 py-2 tnum text-stone">{chf(b.discount_amount)}</td>
-                <td className="px-3 py-2 tnum font-semibold">{chf(b.total_amount)}</td>
-                <td className="px-3 py-2 tnum text-go">{chf(b.host_commission_est)}</td>
+              <tr key={i} className="border-b border-mist/60 bg-paper last:border-0">
+                <td className="whitespace-nowrap px-4 py-3 text-stone">{fmtDate(b.created_at)}</td>
+                <td className="px-4 py-3">{b.company_name || '—'}</td>
+                <td className="px-4 py-3 text-stone">{b.customer || '—'}</td>
+                <td className="px-4 py-3 text-stone">{b.car_label || '—'}</td>
+                <td className="whitespace-nowrap px-4 py-3"><span className="rounded-full bg-cloud px-2 py-0.5 text-xs">{b.status}</span></td>
+                <td className="px-4 py-3 tnum text-stone">{chf(b.base_amount)}</td>
+                <td className="px-4 py-3 tnum text-stone">{chf(b.addons_amount)}</td>
+                <td className="px-4 py-3 tnum text-stone">{chf(b.service_fee)}</td>
+                <td className="px-4 py-3 tnum text-stone">{chf(b.discount_amount)}</td>
+                <td className="px-4 py-3 tnum font-semibold">{chf(b.total_amount)}</td>
+                <td className="px-4 py-3 tnum text-go">{chf(b.host_commission_est)}</td>
               </tr>
             ))}
           </tbody>
