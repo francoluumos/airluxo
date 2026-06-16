@@ -461,7 +461,7 @@ function Finance() {
     } catch (e) { setErr(e.message); } finally { setExporting(''); }
   }
 
-  const exportBtn = 'ring-lux rounded-full border border-mist bg-cloud px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink disabled:opacity-60';
+  const exportBtn = 'ring-lux flex items-center gap-1.5 rounded-full border border-mist bg-cloud px-3.5 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50';
 
   return (
     <div>
@@ -508,9 +508,9 @@ function Finance() {
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
         <SubLabel>Booking history</SubLabel>
         <div className="flex flex-wrap gap-2">
-          <button onClick={exportBookings} disabled={!!exporting} className={exportBtn}>{exporting === 'bookings' ? 'Exporting…' : '⬇ Bookings (Excel)'}</button>
-          <button onClick={exportPartners} disabled={!!exporting} className={exportBtn}>{exporting === 'partners' ? 'Exporting…' : '⬇ Partners (Excel)'}</button>
-          <button onClick={exportCustomers} disabled={!!exporting} className={exportBtn}>{exporting === 'customers' ? 'Exporting…' : '⬇ Customers (Excel)'}</button>
+          <button onClick={exportBookings} disabled={!!exporting} className={exportBtn}><Icon.ArrowUpRight width={14} height={14} /> {exporting === 'bookings' ? 'Exporting…' : 'Bookings (Excel)'}</button>
+          <button onClick={exportPartners} disabled={!!exporting} className={exportBtn}><Icon.ArrowUpRight width={14} height={14} /> {exporting === 'partners' ? 'Exporting…' : 'Partners (Excel)'}</button>
+          <button onClick={exportCustomers} disabled={!!exporting} className={exportBtn}><Icon.ArrowUpRight width={14} height={14} /> {exporting === 'customers' ? 'Exporting…' : 'Customers (Excel)'}</button>
         </div>
       </div>
 
