@@ -8,7 +8,7 @@ import { MARKETING_FLOWS, marketingOverview, setFlowActive, previewFlow } from '
 import { AddressFields } from './LocationForm.jsx';
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
-import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote } from '../lib/prospects.js';
+import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview } from '../lib/prospects.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -19,13 +19,13 @@ const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'nume
 // this UI gate is just UX, not protection.
 
 const NAV = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'finance', label: 'Finance' },
   { key: 'pipeline', label: 'Pipeline' },
   { key: 'partners', label: 'Partners' },
   { key: 'customers', label: 'Customers' },
-  { key: 'finance', label: 'Finance' },
   { key: 'marketing', label: 'Marketing' },
   { key: 'translations', label: 'Translations' },
-  { key: 'overview', label: 'Overview' },
   { key: 'docs', label: 'Docs' },
   { key: 'developer', label: 'Developer' },
 ];
@@ -115,7 +115,7 @@ function NotAuthorized() {
 
 function FounderShell() {
   const { signOut, user } = useAuth();
-  const [section, setSection] = useState('pipeline');
+  const [section, setSection] = useState('overview');
 
   return (
     <div className="flex min-h-screen bg-paper text-ink">
@@ -152,7 +152,8 @@ function FounderShell() {
           ))}
         </div>
 
-        {section === 'pipeline' ? <Pipeline />
+        {section === 'overview' ? <Overview />
+          : section === 'pipeline' ? <Pipeline />
           : section === 'partners' ? <Partners />
           : section === 'customers' ? <Customers />
           : section === 'marketing' ? <Marketing />
@@ -210,6 +211,95 @@ function Developer() {
 // CRM pipeline board: prospects as cards in stage columns. Create = a private
 // preview workspace (placeholder partner). Phase 2 adds build-the-fleet + hide
 // from marketplace; Phase 4 the claim-to-live.
+/* ── Overview ──────────────────────────────────────────────────────────── */
+const OV_PERIODS = [{ days: 7, label: '7 days' }, { days: 30, label: '30 days' }, { days: 90, label: '90 days' }];
+
+// Tiny inline sparkline for a daily series.
+function Sparkline({ values, color = 'var(--color-ink, #0b0b0c)' }) {
+  const vals = values && values.length ? values : [0, 0];
+  const max = Math.max(...vals, 1);
+  const w = 100, h = 26;
+  const step = vals.length > 1 ? w / (vals.length - 1) : w;
+  const pts = vals.map((v, i) => `${(i * step).toFixed(1)},${(h - (v / max) * (h - 2) - 1).toFixed(1)}`).join(' ');
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="h-7 w-full">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+function deltaPct(cur, prev) {
+  if (!prev) return cur > 0 ? 100 : 0;
+  return ((cur - prev) / prev) * 100;
+}
+
+function OvKpi({ label, cur, prev, series, money, color }) {
+  const d = deltaPct(cur, prev);
+  const up = d >= 0;
+  const flat = Math.abs(d) < 0.5;
+  return (
+    <div className="rounded-2xl border border-mist bg-cloud p-4">
+      <div className="text-[0.65rem] font-semibold uppercase tracking-wider text-stone">{label}</div>
+      <div className="mt-1 flex items-end justify-between gap-2">
+        <div className="font-display text-2xl tnum">{money ? chf(cur) : cur}</div>
+        <div className={`mb-0.5 text-xs font-semibold tnum ${flat ? 'text-stone' : up ? 'text-go' : 'text-red-600'}`}>
+          {flat ? '±0%' : `${up ? '↑' : '↓'} ${Math.abs(d).toFixed(0)}%`}
+        </div>
+      </div>
+      <div className="mt-2"><Sparkline values={series} color={color} /></div>
+      <div className="mt-1 text-[0.65rem] text-stone">vs {money ? chf(prev) : prev} previous</div>
+    </div>
+  );
+}
+
+function Overview() {
+  const [days, setDays] = useState(7);
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    setD(null); setErr('');
+    adminOverview(days).then(setD).catch((e) => { setErr(e.message); setD(false); });
+  }, [days]);
+
+  const daily = (d && d.daily) || [];
+  const ser = (k) => daily.map((row) => Number(row[k]) || 0);
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight">Overview</h1>
+          <p className="mt-1 text-sm text-stone">What we’re adding each day — leads, partners, customers and bookings — vs the previous {days} days.</p>
+        </div>
+        <div className="inline-flex shrink-0 rounded-full border border-mist bg-cloud p-1">
+          {OV_PERIODS.map((p) => (
+            <button key={p.days} onClick={() => setDays(p.days)}
+              className={`ring-lux rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${days === p.days ? 'bg-ink text-cloud' : 'text-stone hover:text-ink'}`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {err && <p className="mt-4 text-sm text-red-600">{err}</p>}
+      {d === null && <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>}
+
+      {d && (
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <OvKpi label="New leads" cur={d.current.leads} prev={d.previous.leads} series={ser('leads')} color="#b8893f" />
+          <OvKpi label="New partners" cur={d.current.partners} prev={d.previous.partners} series={ser('partners')} color="#0b0b0c" />
+          <OvKpi label="New customers" cur={d.current.customers} prev={d.previous.customers} series={ser('customers')} color="#2563eb" />
+          <OvKpi label="Bookings" cur={d.current.bookings} prev={d.previous.bookings} series={ser('bookings')} color="#16a34a" />
+          <OvKpi label="GMV" cur={Number(d.current.gmv)} prev={Number(d.previous.gmv)} series={ser('gmv')} money color="#16a34a" />
+        </div>
+      )}
+
+      {d && <p className="mt-4 text-xs text-stone">Day buckets in Europe/Zurich. GMV excludes declined & cancelled bookings.</p>}
+    </div>
+  );
+}
+
 function Pipeline() {
   const [rows, setRows] = useState(null);
   const [creating, setCreating] = useState(false);
@@ -422,7 +512,7 @@ function ProspectInfoModal({ p, onClose, onSaved }) {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <AdminField label="Contact name" value={f.contact_name} onChange={set('contact_name')} />
-              <AdminField label="Contact phone" value={f.contact_phone} onChange={set('contact_phone')} />
+              <AdminField label="Contact phone" value={f.contact_phone} onChange={(e) => setF((s) => ({ ...s, contact_phone: e.target.value.replace(/\s+/g, '') }))} />
             </div>
             <AdminField label="Contact email" value={f.contact_email} onChange={set('contact_email')} type="email" />
             <WebsiteField value={f.website} onChange={(v) => setF((s) => ({ ...s, website: v }))} onEnriched={(d) => setF((s) => enrichPatch(s, d))} />
@@ -536,7 +626,7 @@ function CreateProspectModal({ onClose, onCreated }) {
           <AdminField label="Company name *" value={f.company_name} onChange={set('company_name')} placeholder="Geneva Prestige Cars" />
           <div className="grid grid-cols-2 gap-3">
             <AdminField label="Contact name" value={f.contact_name} onChange={set('contact_name')} />
-            <AdminField label="Contact phone" value={f.contact_phone} onChange={set('contact_phone')} />
+            <AdminField label="Contact phone" value={f.contact_phone} onChange={(e) => setF((s) => ({ ...s, contact_phone: e.target.value.replace(/\s+/g, '') }))} />
           </div>
           <AdminField label="Contact email" value={f.contact_email} onChange={set('contact_email')} type="email" />
           <WebsiteField value={f.website} onChange={(v) => setF((p) => ({ ...p, website: v }))} onEnriched={(d) => setF((p) => enrichPatch(p, d))} />
@@ -693,7 +783,7 @@ function PartnerEditModal({ p, onClose, onSaved }) {
           <AdminField label="Company name" value={f.company_name} onChange={set('company_name')} />
           <div className="grid grid-cols-2 gap-3">
             <AdminField label="Contact name" value={f.contact_name} onChange={set('contact_name')} />
-            <AdminField label="Phone" value={f.phone} onChange={set('phone')} />
+            <AdminField label="Phone" value={f.phone} onChange={(e) => setF((s) => ({ ...s, phone: e.target.value.replace(/\s+/g, '') }))} />
           </div>
           <AdminField label={p.is_prospect ? 'Contact email' : 'Login email'} value={f.email} onChange={set('email')} type="email" />
           <div className="border-t border-mist pt-3">

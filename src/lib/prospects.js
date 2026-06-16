@@ -44,6 +44,13 @@ export async function archivePartner(id, archived) {
   if (error) throw error;
 }
 
+// Founder Overview dashboard: daily adds + current-vs-previous period totals.
+export async function adminOverview(days = 7) {
+  const { data, error } = await supabase.rpc('admin_overview', { p_days: days });
+  if (error) throw error;
+  return data;
+}
+
 // Founder Customers section.
 export async function listCustomers() {
   const { data, error } = await supabase.rpc('admin_list_customers');
