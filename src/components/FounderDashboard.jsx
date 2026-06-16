@@ -6,7 +6,7 @@ import { tierForTrips } from '../lib/loyalty.js';
 import { listSubscribers, setNewsletter } from '../lib/newsletter.js';
 import { MARKETING_FLOWS, marketingOverview, setFlowActive, previewFlow } from '../lib/marketing.js';
 import { AddressFields } from './LocationForm.jsx';
-import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addInspirationLink, listDrafts, listContentPosts } from '../lib/content.js';
+import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addInspirationLink, listDrafts, setDraftStatus, setDraftCaption, scheduleDraft, listContentPosts } from '../lib/content.js';
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
@@ -435,30 +435,96 @@ function ContentInspiration() {
   );
 }
 
+const CONTENT_CHANNELS = ['Instagram', 'TikTok', 'YouTube'];
+
 function ContentDrafts() {
   const [rows, setRows] = useState(null);
   const [err, setErr] = useState('');
-  useEffect(() => { listDrafts().then(setRows).catch((e) => { setErr(e.message); setRows([]); }); }, []);
-  const pager = usePager(rows, 25);
-  const badge = { generated: 'bg-mist text-stone', approved: 'bg-go/15 text-go', rejected: 'bg-red-100 text-red-700', scheduled: 'bg-gold/15 text-gold', posted: 'bg-go/15 text-go', failed: 'bg-red-100 text-red-700' };
+  const [filter, setFilter] = useState('open'); // open = generated|approved
+  const load = () => listDrafts().then(setRows).catch((e) => { setErr(e.message); setRows([]); });
+  useEffect(() => { load(); }, []);
+
   if (rows === null) return <div className="grid place-items-center py-16"><span className="h-5 w-5 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
+  const open = rows.filter((r) => r.status === 'generated' || r.status === 'approved');
+  const shown = filter === 'open' ? open : rows;
+
   return (
     <div>
-      {err && <p className="mb-3 text-sm text-red-600">{err}</p>}
-      <ContentTableShell minWidth={760} headers={['Format', 'Status', 'Virality', 'Hook', 'Caption', 'Created']}>
-        {rows.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-stone">No drafts yet — generated reels & carousels land here for approval.</td></tr>}
-        {pager.slice.map((r) => (
-          <tr key={r.id} className="border-b border-mist/60 bg-paper last:border-0">
-            <td className="px-4 py-3 font-semibold capitalize">{r.format}</td>
-            <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-[0.7rem] font-bold capitalize ${badge[r.status] || 'bg-mist text-stone'}`}>{r.status}</span></td>
-            <td className="px-4 py-3 tnum">{r.virality_score == null ? '—' : Number(r.virality_score).toFixed(0)}</td>
-            <td className="px-4 py-3 tnum text-stone">{r.hook_score == null ? '—' : Number(r.hook_score).toFixed(0)}</td>
-            <td className="px-4 py-3 text-stone">{clip(r.caption)}</td>
-            <td className="px-4 py-3 text-stone">{fmtDate(r.created_at)}</td>
-          </tr>
+      <div className="mb-3 flex items-center gap-2">
+        {[['open', `Needs review (${open.length})`], ['all', `All (${rows.length})`]].map(([k, l]) => (
+          <button key={k} onClick={() => setFilter(k)}
+            className={`ring-lux rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${filter === k ? 'bg-ink text-cloud' : 'border border-mist text-stone hover:border-ink'}`}>{l}</button>
         ))}
-      </ContentTableShell>
-      <TablePager pager={pager} />
+      </div>
+      {err && <p className="mb-3 text-sm text-red-600">{err}</p>}
+      {shown.length === 0 && <p className="rounded-2xl border border-dashed border-mist py-12 text-center text-sm text-stone/60">No drafts here — generated reels & carousels land in this queue for approval.</p>}
+      <div className="grid gap-4 md:grid-cols-2">
+        {shown.map((d) => <DraftCard key={d.id} d={d} onChanged={load} onErr={setErr} />)}
+      </div>
+    </div>
+  );
+}
+
+function DraftCard({ d, onChanged, onErr }) {
+  const assets = Array.isArray(d.asset_urls) ? d.asset_urls : [];
+  const [caption, setCaption] = useState(d.caption || '');
+  const [targets, setTargets] = useState(['Instagram']);
+  const [when, setWhen] = useState('');
+  const [busy, setBusy] = useState('');
+  const dirty = caption !== (d.caption || '');
+  const actionable = d.status === 'generated' || d.status === 'approved';
+  const badge = { generated: 'bg-mist text-stone', approved: 'bg-go/15 text-go', rejected: 'bg-red-100 text-red-700', scheduled: 'bg-gold/15 text-gold', posted: 'bg-go/15 text-go', failed: 'bg-red-100 text-red-700' };
+
+  const toggle = (c) => setTargets((t) => (t.includes(c) ? t.filter((x) => x !== c) : [...t, c]));
+  async function saveCaption() { setBusy('cap'); onErr(''); try { await setDraftCaption(d.id, caption); await onChanged(); } catch (e) { onErr(e.message); } finally { setBusy(''); } }
+  async function reject() { setBusy('rej'); onErr(''); try { await setDraftStatus(d.id, 'rejected'); await onChanged(); } catch (e) { onErr(e.message); } finally { setBusy(''); } }
+  async function approve() {
+    if (!targets.length) { onErr('Pick at least one channel.'); return; }
+    if (!when) { onErr('Pick a date & time.'); return; }
+    setBusy('app'); onErr('');
+    try {
+      if (dirty) await setDraftCaption(d.id, caption);
+      await scheduleDraft(d.id, new Date(when).toISOString(), targets);
+      await onChanged();
+    } catch (e) { onErr(e.message); } finally { setBusy(''); }
+  }
+
+  return (
+    <div className="rounded-2xl border border-mist bg-cloud p-3">
+      <div className="aspect-[9/16] max-h-80 overflow-hidden rounded-xl bg-ink/5">
+        {assets[0]
+          ? (d.format === 'reel'
+            ? <video src={assets[0]} controls playsInline className="h-full w-full object-contain" />
+            : <img src={assets[0]} alt="" className="h-full w-full object-contain" />)
+          : <div className="grid h-full place-items-center text-xs text-stone/50">No preview</div>}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-semibold capitalize">{d.format}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[0.65rem] font-bold capitalize ${badge[d.status] || 'bg-mist text-stone'}`}>{d.status}</span>
+        {d.virality_score != null && <span className="rounded-full bg-go/12 px-2 py-0.5 font-semibold text-go">viral {Number(d.virality_score).toFixed(0)}</span>}
+        {d.hook_score != null && <span className="rounded-full bg-gold/15 px-2 py-0.5 font-semibold text-gold">hook {Number(d.hook_score).toFixed(0)}</span>}
+        {assets.length > 1 && <span className="text-stone">{assets.length} frames</span>}
+      </div>
+      <textarea value={caption} onChange={(e) => setCaption(e.target.value)} rows={3} placeholder="Caption…"
+        className="ring-lux mt-2 w-full rounded-xl border border-mist bg-paper px-3 py-2 text-sm outline-none transition-colors focus:border-ink placeholder:text-stone" />
+      {dirty && actionable && <button onClick={saveCaption} disabled={!!busy} className="ring-lux mt-1 text-xs font-semibold text-ink hover:underline disabled:opacity-50">{busy === 'cap' ? 'Saving…' : 'Save caption'}</button>}
+
+      {actionable && (
+        <>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {CONTENT_CHANNELS.map((c) => (
+              <button key={c} onClick={() => toggle(c)}
+                className={`ring-lux rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${targets.includes(c) ? 'bg-ink text-cloud' : 'border border-mist text-stone hover:border-ink'}`}>{c}</button>
+            ))}
+          </div>
+          <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)}
+            className="ring-lux mt-2 w-full rounded-xl border border-mist bg-paper px-3 py-2 text-sm outline-none transition-colors focus:border-ink" />
+          <div className="mt-2 flex gap-2">
+            <button onClick={reject} disabled={!!busy} className="ring-lux rounded-full border border-red-300 px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50">{busy === 'rej' ? '…' : 'Reject'}</button>
+            <button onClick={approve} disabled={!!busy} className="ring-lux flex-1 rounded-full bg-go py-2 text-xs font-bold text-cloud transition-opacity hover:opacity-90 disabled:opacity-50">{busy === 'app' ? 'Scheduling…' : 'Approve & schedule'}</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

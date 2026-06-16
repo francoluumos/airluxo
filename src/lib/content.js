@@ -44,6 +44,10 @@ export async function setDraftStatus(id, status) {
   const { error } = await supabase.rpc('admin_set_draft_status', { p_id: id, p_status: status });
   if (error) throw error;
 }
+export async function setDraftCaption(id, caption) {
+  const { error } = await supabase.rpc('admin_set_draft_caption', { p_id: id, p_caption: caption });
+  if (error) throw error;
+}
 export async function scheduleDraft(draftId, scheduledFor, targets) {
   const { data, error } = await supabase.rpc('admin_schedule_draft', {
     p_draft_id: draftId, p_scheduled_for: scheduledFor, p_targets: targets,
