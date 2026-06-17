@@ -1336,11 +1336,18 @@ function BrandReviewModal({ partnerId, onClose }) {
                     {techChips.map((c, i) => <span key={i} className="rounded-full bg-cloud px-2 py-0.5 text-[0.7rem] font-semibold text-ink">{c}</span>)}
                   </div>
                 )}
-                {data?.job?.screenshot_url && (
-                  <a href={data.job.screenshot_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-ink hover:underline">
-                    Original site screenshot <Icon.ArrowUpRight width={13} height={13} />
-                  </a>
-                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {data?.job?.screenshot_url && (
+                    <a href={data.job.screenshot_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-ink hover:underline">
+                      Original site screenshot <Icon.ArrowUpRight width={13} height={13} />
+                    </a>
+                  )}
+                  {data?.drive_folder_url && (
+                    <a href={data.drive_folder_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-ink hover:underline">
+                      Car images in Drive <Icon.ArrowUpRight width={13} height={13} />
+                    </a>
+                  )}
+                </div>
               </div>
             </section>
 
