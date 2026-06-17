@@ -46,25 +46,31 @@ function isLikelyPhoto(u: string): boolean {
   return /\.(jpe?g|png|webp|avif)(\?|$)/i.test(u) || /(format=|fit=|w=\d|width=)/i.test(u);
 }
 
-// AI-extraction schema for the fleet page → a structured car list.
-const CARS_SCHEMA = {
-  type: "object",
-  properties: {
-    cars: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          make: { type: "string" }, model: { type: "string" }, year: { type: "string" },
-          price_per_day: { type: "string", description: "Daily rental price as a number, CHF" },
-          power: { type: "string", description: "Horsepower" }, seats: { type: "string" },
-          transmission: { type: "string" }, fuel: { type: "string" },
-          image_url: { type: "string", description: "Main photo URL of the car" },
-        },
+// Extract a structured car list from the scraped page TEXT with Gemini (forced JSON).
+// More reliable than Firecrawl's single-page json on JS-rendered (Wix) galleries, and
+// fully synchronous — no dependency on the crawl/cron. Returns [] on any failure.
+async function extractCars(markdown: string, apiKey: string | undefined): Promise<any[]> {
+  if (!markdown || !apiKey) return [];
+  const prompt = `You are reading a Swiss luxury car-rental company's website. List EVERY rental car offered. Return ONLY JSON of the form {"cars":[{"make":"","model":"","year":"","price_per_day":"","power":"","seats":"","transmission":"","fuel":""}]}. price_per_day = the daily price as a plain number in CHF (no currency symbol); power = horsepower number; use "" when unknown. Do not invent cars.\n\nWEBSITE CONTENT:\n${markdown.slice(0, 16000)}`;
+  try {
+    const r = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey,
+      {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 4096, responseMimeType: "application/json" },
+        }),
       },
-    },
-  },
-};
+    );
+    if (!r.ok) return [];
+    const g = await r.json();
+    const txt = (g?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "").trim();
+    const m = txt.replace(/```json|```/gi, "").match(/\{[\s\S]*\}/);
+    const obj = m ? JSON.parse(m[0]) : {};
+    return Array.isArray(obj.cars) ? obj.cars.slice(0, 40) : [];
+  } catch { return []; }
+}
 
 // Best-effort tech-stack read from the homepage rawHtml + links + metadata.
 function detectTechStack(html: string, links: string[], generator: string): Record<string, unknown> {
@@ -252,24 +258,15 @@ Deno.serve(async (req) => {
       brand_kit_raw: brandKitRaw, partner_pages: partnerPages, tech_stack: techStack,
     }).eq("id", partnerId);
 
-    // 2b) Structured car extraction over the fleet page (AI json) → a real car list.
-    let cars: any[] = [];
+    // 2b) Structured car list — Gemini reads the homepage (+ fleet page) text we scraped.
+    let fleetMd = "";
     if (fleetUrl) {
       try {
-        const carRes = await fetch(`${FC}/v2/scrape`, {
-          method: "POST", headers: fcHeaders,
-          body: JSON.stringify({
-            url: fleetUrl,
-            formats: [{ type: "json", schema: CARS_SCHEMA, prompt: "Extract every rental car offered on this page. For each car return make, model, year, price per day (number, CHF), power (hp), seats, transmission, fuel, and the main image URL." }],
-          }),
-        });
-        if (carRes.ok) {
-          const cj = await carRes.json();
-          const cd = cj.data || cj;
-          cars = Array.isArray(cd.json?.cars) ? cd.json.cars.slice(0, 40) : [];
-        }
-      } catch { /* extraction is best-effort */ }
+        const fr = await fetch(`${FC}/v2/scrape`, { method: "POST", headers: fcHeaders, body: JSON.stringify({ url: fleetUrl, formats: ["markdown"] }) });
+        if (fr.ok) { const fj = await fr.json(); fleetMd = (fj.data || fj).markdown || ""; }
+      } catch { /* best-effort */ }
     }
+    const cars = await extractCars([(d.markdown || ""), fleetMd].filter(Boolean).join("\n\n---\n\n"), Deno.env.get("GEMINI_API_KEY"));
 
     // 3) Kick off the async fleet crawl (finalized by partner-ingest-poll).
     let crawlId: string | null = null;
