@@ -60,6 +60,13 @@ export async function applyListingPhotos(listingId, photos) {
   if (error) throw error;
 }
 
+// Build a prospect's fleet from the review: create a listing (admin) with core fields + photos.
+export async function createPartnerListing(partnerId, fields, photos) {
+  const { data, error } = await supabase.rpc('admin_create_listing', { p_partner_id: partnerId, p_fields: fields, p_photos: photos });
+  if (error) throw error;
+  return data;
+}
+
 // Normalize a raw Firecrawl/impeccable brand kit into the editable shape the review UI
 // + brandKitToVars use: { colors:{primary,accent,bg,text}, fonts:{display,body,url}, logo_url }.
 // Firecrawl returns colors with varied keys and fonts as a [{role,family}] array.

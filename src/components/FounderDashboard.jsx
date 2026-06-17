@@ -10,7 +10,7 @@ import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addIn
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
-import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, setPartnerBrandKit, normalizeKit, brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
+import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, createPartnerListing, setPartnerBrandKit, normalizeKit, brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
 import { setPartnerSite, slugify, mapSiteConfig, setPartnerLegal, addPartnerDomain, listPartnerDomains, setDomainVerified, removePartnerDomain } from '../lib/site.js';
 import { LEGAL_FIELDS, seedLegal, buildLegalPages } from '../lib/legal.js';
 
@@ -1188,6 +1188,27 @@ function ColorField({ label, value, onChange }) {
   );
 }
 
+function CarField({ label, value, onChange }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[0.7rem] font-semibold text-stone">{label}</span>
+      <input value={value || ''} onChange={(e) => onChange(e.target.value)}
+        className="ring-lux w-full rounded-lg border border-mist bg-paper px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-ink" />
+    </label>
+  );
+}
+function CarSelect({ label, value, onChange, options }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[0.7rem] font-semibold text-stone">{label}</span>
+      <select value={value || ''} onChange={(e) => onChange(e.target.value)}
+        className="ring-lux w-full rounded-lg border border-mist bg-paper px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-ink">
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </label>
+  );
+}
+
 // Strip empty fields → the kit shape brandKitToVars/Embed expect.
 function cleanKit(k) {
   const colors = {};
@@ -1221,6 +1242,16 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
   const [domains, setDomains] = useState([]);
   const [newHost, setNewHost] = useState('');
   const [busyDomain, setBusyDomain] = useState(false);
+  const [newCar, setNewCar] = useState(null); // null = closed; else the car-form fields
+  const [savingCar, setSavingCar] = useState(false);
+
+  // Re-pull the review payload (after creating/attaching cars) and reset image selection.
+  async function reloadReview() {
+    const d = await partnerBrandReview(partnerId);
+    setData(d);
+    setAssigns((d?.job?.images || []).map(() => ({ selected: false, listingId: '', type: 'interior' })));
+    return d;
+  }
 
   useEffect(() => {
     let alive = true;
@@ -1269,8 +1300,30 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
     try {
       for (const lid of carIds) await applyListingPhotos(lid, groups[lid]);
       setMsg(`Photos applied to ${carIds.length} ${carIds.length === 1 ? 'car' : 'cars'}.`);
+      await reloadReview();
     } catch (e) { setErr(e.message || 'Could not apply photos.'); }
     finally { setSavingImgs(false); }
+  }
+
+  // Selected scraped images → a photos[] gallery (first selected = hero unless tagged).
+  function selectedPhotos() {
+    const picked = assigns.map((a, i) => ({ ...a, i })).filter((a) => a.selected && images[a.i]);
+    const anyHero = picked.some((a) => a.type === 'hero');
+    return picked.map((a, n) => ({ url: images[a.i].url, type: (!anyHero && n === 0) ? 'hero' : a.type, caption: '' }));
+  }
+
+  const BLANK_CAR = { make: '', model: '', year: '', category: 'Sport', price_per_day: '', power: '', seats: '2', gearbox: 'Auto', fuel: 'Petrol', exterior_color: '', interior_color: '', mileage_per_day: '250', city: '', description: '' };
+
+  async function createCar() {
+    if (!newCar?.make?.trim() && !newCar?.model?.trim()) { setErr('Add at least a make or model.'); return; }
+    setSavingCar(true); setErr(''); setMsg('');
+    try {
+      await createPartnerListing(partnerId, newCar, selectedPhotos());
+      setNewCar(null);
+      await reloadReview();
+      setMsg('Car added to the fleet.');
+    } catch (e) { setErr(e.message || 'Could not create the car.'); }
+    finally { setSavingCar(false); }
   }
 
   async function savePublish(makeLive) {
@@ -1324,7 +1377,7 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
   const selectedCount = assigns.filter((a) => a.selected).length;
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="w-full">
       <Crumbs items={[{ label: 'Pipeline', onClick: toPipeline }, { label: companyName || data?.company_name || 'Lead', onClick: onBack }, { label: 'Brand & pitch' }]} />
       <div className="rounded-[var(--radius-card)] border border-mist bg-paper p-6">
         <div className="flex items-start justify-between gap-3">
@@ -1393,47 +1446,109 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
               </div>
             </section>
 
-            {/* Car images */}
+            {/* Cars & images — build the fleet from the scraped photos */}
             <section className="border-t border-mist pt-4">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-bold text-ink">Car images <span className="font-normal text-stone">({images.length} found · {selectedCount} selected)</span></h3>
-                {isReviewable(data?.job?.status) && data?.job?.status === 'crawling' && <span className="text-xs text-stone animate-pulse">fetching more…</span>}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-ink">Cars &amp; images <span className="font-normal text-stone">({listings.length} {listings.length === 1 ? 'car' : 'cars'} · {images.length} images · {selectedCount} selected)</span></h3>
+                {data?.job?.status === 'crawling' && <span className="text-xs text-stone animate-pulse">fetching more…</span>}
               </div>
-              {listings.length === 0
-                ? <p className="mt-2 text-xs text-stone">No cars yet — build the fleet first (Build fleet ↗ on the card), then attach photos here.</p>
-                : images.length === 0
-                  ? <p className="mt-2 text-xs text-stone">No images extracted yet.</p>
-                  : (
-                    <>
-                      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                        {images.map((im, i) => (
-                          <div key={i} className={`overflow-hidden rounded-xl border ${assigns[i]?.selected ? 'border-ink' : 'border-mist'}`}>
-                            <button type="button" onClick={() => setAssign(i, { selected: !assigns[i]?.selected })} className="block w-full">
-                              <img src={im.url} alt="" loading="lazy" className="aspect-[4/3] w-full object-cover" onError={(e) => { e.currentTarget.style.opacity = '0.3'; }} />
-                            </button>
-                            <div className="space-y-1 p-1.5">
+
+              {/* Existing fleet */}
+              {listings.length > 0 && (
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                  {listings.map((l) => {
+                    const ph = Array.isArray(l.photos) ? l.photos.length : 0;
+                    return (
+                      <div key={l.id} className="flex items-center gap-2 rounded-xl border border-mist bg-cloud p-2">
+                        {l.photo_url ? <img src={l.photo_url} alt="" className="h-10 w-14 shrink-0 rounded-md object-cover" /> : <div className="grid h-10 w-14 shrink-0 place-items-center rounded-md bg-paper text-[0.6rem] text-stone">no img</div>}
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-semibold text-ink">{[l.make, l.model].filter(Boolean).join(' ') || 'Car'}</div>
+                          <div className="text-[0.7rem] text-stone">{ph} photo{ph === 1 ? '' : 's'}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Scraped images → select, tag, build a car */}
+              {images.length === 0
+                ? <p className="mt-3 text-xs text-stone">No images extracted yet.</p>
+                : (
+                  <>
+                    <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+                      {images.map((im, i) => (
+                        <div key={i} className={`overflow-hidden rounded-xl border ${assigns[i]?.selected ? 'border-ink ring-2 ring-ink/20' : 'border-mist'}`}>
+                          <button type="button" onClick={() => setAssign(i, { selected: !assigns[i]?.selected })} className="block w-full">
+                            <img src={im.url} alt="" loading="lazy" className="aspect-[4/3] w-full object-cover" onError={(e) => { e.currentTarget.style.opacity = '0.3'; }} />
+                          </button>
+                          <div className="space-y-1 p-1.5">
+                            <select value={assigns[i]?.type || 'interior'} onChange={(e) => setAssign(i, { type: e.target.value, selected: true })}
+                              className="ring-lux w-full rounded-md border border-mist bg-cloud px-1 py-1 text-[0.7rem] outline-none focus:border-ink">
+                              <option value="hero">Hero</option>
+                              <option value="interior">Interior</option>
+                              <option value="detail">Detail</option>
+                            </select>
+                            {listings.length > 0 && (
                               <select value={assigns[i]?.listingId || ''} onChange={(e) => setAssign(i, { listingId: e.target.value, selected: !!e.target.value })}
-                                className="ring-lux w-full rounded-md border border-mist bg-cloud px-1.5 py-1 text-[0.7rem] outline-none focus:border-ink">
-                                <option value="">— assign to car —</option>
+                                className="ring-lux w-full rounded-md border border-mist bg-cloud px-1 py-1 text-[0.7rem] outline-none focus:border-ink">
+                                <option value="">— attach to —</option>
                                 {listings.map((l) => <option key={l.id} value={l.id}>{[l.make, l.model].filter(Boolean).join(' ') || 'Car'}</option>)}
                               </select>
-                              <select value={assigns[i]?.type || 'interior'} onChange={(e) => setAssign(i, { type: e.target.value })}
-                                className="ring-lux w-full rounded-md border border-mist bg-cloud px-1.5 py-1 text-[0.7rem] outline-none focus:border-ink">
-                                <option value="hero">Hero (whole car)</option>
-                                <option value="interior">Interior</option>
-                                <option value="detail">Detail</option>
-                              </select>
-                            </div>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                      <button type="button" onClick={applyImages} disabled={savingImgs}
-                        className="ring-lux mt-3 rounded-full border border-ink px-5 py-2 text-sm font-semibold text-ink transition-colors hover:bg-cloud disabled:opacity-60">
-                        {savingImgs ? 'Applying…' : 'Apply car photos'}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => setNewCar(BLANK_CAR)} disabled={selectedCount === 0}
+                        className="ring-lux rounded-full bg-ink px-5 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">
+                        + New car from {selectedCount || ''} selected
                       </button>
-                      <p className="mt-1.5 text-[0.7rem] text-stone">Replaces each selected car&apos;s gallery with its assigned images; the “Hero” shot becomes the card image.</p>
-                    </>
-                  )}
+                      {listings.length > 0 && (
+                        <button type="button" onClick={applyImages} disabled={savingImgs}
+                          className="ring-lux rounded-full border border-ink px-5 py-2 text-sm font-semibold text-ink transition-colors hover:bg-cloud disabled:opacity-60">
+                          {savingImgs ? 'Attaching…' : 'Attach selected to existing'}
+                        </button>
+                      )}
+                    </div>
+                    <p className="mt-1.5 text-[0.7rem] text-stone">Select a car&apos;s photos (tag one “Hero” = the card image), then create the car — it shows in the storefront preview &amp; the website listings.</p>
+                  </>
+                )}
+
+              {/* New-car inline form */}
+              {newCar && (
+                <div className="mt-4 rounded-xl border border-ink/30 bg-cloud p-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-ink">New car {selectedCount > 0 && <span className="font-normal text-stone">· {selectedCount} photo{selectedCount === 1 ? '' : 's'}</span>}</h4>
+                    <button type="button" onClick={() => setNewCar(null)} className="text-xs font-semibold text-stone hover:text-ink">Cancel</button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">
+                    <CarField label="Make" value={newCar.make} onChange={(v) => setNewCar((s) => ({ ...s, make: v }))} />
+                    <CarField label="Model" value={newCar.model} onChange={(v) => setNewCar((s) => ({ ...s, model: v }))} />
+                    <CarField label="Year" value={newCar.year} onChange={(v) => setNewCar((s) => ({ ...s, year: v }))} />
+                    <CarField label="Price / day (CHF)" value={newCar.price_per_day} onChange={(v) => setNewCar((s) => ({ ...s, price_per_day: v }))} />
+                    <CarSelect label="Category" value={newCar.category} onChange={(v) => setNewCar((s) => ({ ...s, category: v }))} options={['Sport', 'Luxury', 'SUV', 'Convertible', 'Sedan', 'Electric']} />
+                    <CarField label="Power (hp)" value={newCar.power} onChange={(v) => setNewCar((s) => ({ ...s, power: v }))} />
+                    <CarField label="Seats" value={newCar.seats} onChange={(v) => setNewCar((s) => ({ ...s, seats: v }))} />
+                    <CarSelect label="Gearbox" value={newCar.gearbox} onChange={(v) => setNewCar((s) => ({ ...s, gearbox: v }))} options={['Auto', 'Manual']} />
+                    <CarSelect label="Fuel" value={newCar.fuel} onChange={(v) => setNewCar((s) => ({ ...s, fuel: v }))} options={['Petrol', 'Diesel', 'Hybrid', 'Electric']} />
+                    <CarField label="Exterior colour" value={newCar.exterior_color} onChange={(v) => setNewCar((s) => ({ ...s, exterior_color: v }))} />
+                    <CarField label="Interior colour" value={newCar.interior_color} onChange={(v) => setNewCar((s) => ({ ...s, interior_color: v }))} />
+                    <CarField label="Free km / day" value={newCar.mileage_per_day} onChange={(v) => setNewCar((s) => ({ ...s, mileage_per_day: v }))} />
+                    <CarField label="City" value={newCar.city} onChange={(v) => setNewCar((s) => ({ ...s, city: v }))} />
+                  </div>
+                  <label className="mt-2 block">
+                    <span className="mb-1 block text-[0.7rem] font-semibold text-stone">Description</span>
+                    <textarea value={newCar.description} onChange={(e) => setNewCar((s) => ({ ...s, description: e.target.value }))} rows={2}
+                      className="ring-lux w-full rounded-lg border border-mist bg-paper px-2.5 py-1.5 text-sm outline-none focus:border-ink" />
+                  </label>
+                  <button type="button" onClick={createCar} disabled={savingCar}
+                    className="ring-lux mt-3 rounded-full bg-ink px-5 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">
+                    {savingCar ? 'Creating…' : 'Create car'}
+                  </button>
+                </div>
+              )}
             </section>
 
             {/* Legal (Swiss Impressum / privacy / terms) */}

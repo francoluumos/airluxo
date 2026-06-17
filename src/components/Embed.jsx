@@ -70,9 +70,14 @@ export default function Embed({ partnerId, previewToken }) {
       ) : cars.length === 0 ? (
         <div className="py-24 text-center text-stone">No cars available right now.</div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {cars.map((c) => <CarCard key={c.id} car={c} onOpen={setActive} />)}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {(previewToken ? cars.slice(0, 5) : cars).map((c) => <CarCard key={c.id} car={c} onOpen={setActive} />)}
+          </div>
+          {previewToken && cars.length > 5 && (
+            <p className="mt-4 text-center text-xs text-stone">Showing 5 of {cars.length} cars in this sales preview.</p>
+          )}
+        </>
       )}
 
       <div className="mt-7 text-center text-xs text-stone">
