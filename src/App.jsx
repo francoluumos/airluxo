@@ -18,10 +18,11 @@ import FounderApp from './components/FounderDashboard.jsx';
 
 function Shell() {
   const { session, loading, authModal, closeAuth } = useAuth();
-  // The partner subdomain (partner.airluxo.ch) lands directly in the partner area;
-  // so does the ?partner deep-link (the founder "Build fleet" impersonation magic link).
+  // The partner subdomain (partner.airluxo.ch + staging.partner.airluxo.ch) lands directly
+  // in the partner area; so does the ?partner deep-link (founder "Build fleet" magic link).
+  // Label match so the staging.* prefix resolves too.
   const [route, setRoute] = useState(() =>
-    (window.location.hostname.startsWith('partner.') || new URLSearchParams(window.location.search).has('partner'))
+    (/(^|\.)partner\.airluxo\.ch$/i.test(window.location.hostname) || new URLSearchParams(window.location.search).has('partner'))
       ? 'partner' : 'home',
   ); // home | partner | account
   const [accountTab, setAccountTab] = useState('trips');
@@ -104,9 +105,10 @@ export default function App() {
   // Privacy & cookie policy (opened from the banner + footer): ?privacy.
   if (params.has('privacy')) return <PrivacyPolicy />;
 
-  // Founder / admin back office: admin.airluxo.ch (or ?admin before the subdomain
-  // DNS is wired). Auth + is_admin() gating lives inside FounderApp.
-  const adminMode = window.location.hostname.startsWith('admin.') || params.has('admin');
+  // Founder / admin back office: admin.airluxo.ch + staging.admin.airluxo.ch (or ?admin).
+  // Label match (not startsWith) so the staging.* prefix resolves too. Auth + is_admin()
+  // gating lives inside FounderApp.
+  const adminMode = /(^|\.)admin\.airluxo\.ch$/i.test(window.location.hostname) || params.has('admin');
   if (adminMode) {
     return (
       <AuthProvider>

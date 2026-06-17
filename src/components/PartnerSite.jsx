@@ -43,6 +43,7 @@ export default function PartnerSite({ slugOrKey, host }) {
     logo_url: (site.brand_kit || {}).logo_url || '',
     legal_pages: site.legal_pages || {},
     slug: site.slug,
+    hero: (site.site_config || {}).sections?.hero || null, // { headline (USP), sub, cta }
   };
 
   return (

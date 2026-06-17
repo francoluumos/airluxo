@@ -201,20 +201,20 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
           <motion.div variants={stagger} initial="hidden" animate="show">
             <motion.div variants={rise} className="eyebrow flex items-center gap-2.5 text-stone">
               <span className="h-1.5 w-1.5 rounded-full bg-go" />
-              Switzerland · 8 cantons · one marketplace
+              {partner ? partner.company_name : 'Switzerland · 8 cantons · one marketplace'}
             </motion.div>
 
             <motion.h1
               variants={rise}
               className="font-display mt-5 text-[clamp(2.9rem,6.4vw,5.2rem)] font-semibold leading-[0.94]"
             >
-              {t('home.heroLine1')}
-              <br />
-              <span className="italic text-gold">{t('home.heroLine2')}</span>
+              {partner && partner.hero?.headline
+                ? partner.hero.headline
+                : <>{t('home.heroLine1')}<br /><span className="italic text-gold">{t('home.heroLine2')}</span></>}
             </motion.h1>
 
             <motion.p variants={rise} className="mt-6 max-w-md text-[1.05rem] leading-relaxed text-stone">
-              {t('home.heroSubtitle')}
+              {partner && partner.hero?.sub ? partner.hero.sub : t('home.heroSubtitle')}
             </motion.p>
 
             {/* search panel */}
