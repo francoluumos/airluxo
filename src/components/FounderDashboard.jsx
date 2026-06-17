@@ -10,6 +10,7 @@ import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addIn
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
+import { startIngest, latestIngestJob } from '../lib/brandkit.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -1070,6 +1071,77 @@ function ProspectCard({ p, onClaim, onDeleted, onChanged, onDragEnd }) {
   );
 }
 
+// Firecrawl ingest panel inside the lead modal: paste/keep the website, "Analyze
+// website" → extract brand kit + USP + tech stack + car images. Polls the async fleet
+// crawl until ready. The founder reviews + applies the result in U6 (review/apply).
+const INGEST_LABELS = {
+  queued: 'Queued', scraping: 'Reading homepage…', crawling: 'Finding car images…',
+  enriching: 'Refining…', ready: 'Ready to review', failed: 'Failed',
+};
+const isIngestRunning = (s) => ['queued', 'scraping', 'crawling', 'enriching'].includes(s);
+
+function IngestPanel({ partnerId, website }) {
+  const [job, setJob] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    latestIngestJob(partnerId).then((j) => { if (alive) setJob(j); }).catch(() => {});
+    return () => { alive = false; };
+  }, [partnerId]);
+
+  // Poll while a crawl is still running (the cron finalizes it server-side).
+  useEffect(() => {
+    if (!job || !isIngestRunning(job.status)) return;
+    const t = setInterval(() => {
+      latestIngestJob(partnerId).then((j) => { if (j) setJob(j); }).catch(() => {});
+    }, 4000);
+    return () => clearInterval(t);
+  }, [partnerId, job?.status]);
+
+  async function analyze() {
+    if (!website || !website.trim()) { setErr('Add a website first.'); return; }
+    setBusy(true); setErr('');
+    try { setJob(await startIngest(partnerId, website.trim())); }
+    catch (e) { setErr(e.message || 'Could not analyze the website.'); }
+    finally { setBusy(false); }
+  }
+
+  const status = job?.status;
+  const imgCount = Array.isArray(job?.images) ? job.images.length : 0;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold text-stone">Brand &amp; site ingest</span>
+        <button type="button" onClick={analyze} disabled={busy || isIngestRunning(status)}
+          className="ring-lux rounded-full bg-ink px-4 py-1.5 text-xs font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">
+          {busy ? 'Starting…' : (job ? 'Re-analyze website' : 'Analyze website')}
+        </button>
+      </div>
+      {job && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone">
+          <span className={`rounded-full px-2 py-0.5 font-semibold ${status === 'failed' ? 'bg-red-50 text-red-600' : status === 'ready' ? 'bg-go/10 text-go' : 'bg-cloud text-ink'}`}>
+            {INGEST_LABELS[status] || status}
+            {isIngestRunning(status) && <span className="ml-1 animate-pulse">●</span>}
+          </span>
+          {imgCount > 0 && <span>{imgCount} car {imgCount === 1 ? 'image' : 'images'}</span>}
+          {job.screenshot_url && (
+            <a href={job.screenshot_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-ink hover:underline">
+              Screenshot <Icon.ArrowUpRight width={13} height={13} />
+            </a>
+          )}
+          {job.error && <span className="text-red-600">{job.error}</span>}
+          {job.created_at && <span>· {fmtDateTime(job.created_at)}</span>}
+        </div>
+      )}
+      <p className="mt-1.5 text-[0.7rem] text-stone">Extracts brand colours, fonts, logo, USP, tech stack &amp; car images. Review &amp; apply in the prospect&apos;s brand panel.</p>
+      {err && <p className="mt-1 text-[0.7rem] text-red-600">{err}</p>}
+    </div>
+  );
+}
+
 // The gear on a pipeline card: full lead info, editable. Reads the prospect_* fields
 // the pipeline already loaded; saves through admin-update-partner.
 function ProspectInfoModal({ p, onClose, onSaved }) {
@@ -1150,6 +1222,10 @@ function ProspectInfoModal({ p, onClose, onSaved }) {
 
           <div className="border-t border-mist pt-3 md:col-span-2">
             <LinksEditor value={f.links} onChange={(links) => setF((s) => ({ ...s, links }))} />
+          </div>
+
+          <div className="border-t border-mist pt-3 md:col-span-2">
+            <IngestPanel partnerId={p.id} website={f.website} />
           </div>
 
           <div className="grid gap-5 border-t border-mist pt-3 md:col-span-2 md:grid-cols-2">

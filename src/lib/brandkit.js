@@ -30,6 +30,22 @@ export async function listIngestJobs() {
   return data ?? [];
 }
 
+// Kick off a Firecrawl ingest for a prospect (brand kit + USP/copy + tech stack + car
+// images). Returns the created/updated job; the fleet crawl finalizes via cron.
+export async function startIngest(partnerId, url) {
+  const { data, error } = await supabase.functions.invoke('partner-ingest', { body: { partner_id: partnerId, url } });
+  if (error) throw new Error(data?.error || error.message || 'Ingest failed.');
+  if (data?.error) throw new Error(data.error);
+  return data?.job ?? null;
+}
+
+// The most recent ingest job for a partner (for the Pipeline status line / polling).
+export async function latestIngestJob(partnerId) {
+  const { data, error } = await supabase.rpc('admin_latest_ingest_job', { p_partner_id: partnerId });
+  if (error) throw error;
+  return Array.isArray(data) ? (data[0] ?? null) : (data ?? null);
+}
+
 // --- Validation: brand-kit values are partner-controllable, so never interpolate
 // them raw into CSS / a <link href>. Drop anything that doesn't match a strict shape.
 const HEX = /^#[0-9a-fA-F]{3,8}$/;

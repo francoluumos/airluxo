@@ -1,18 +1,22 @@
 ---
-title: "feat: Partner website-ingest + brand-kit theming + branded pitch preview"
+title: "feat: Partner white-label site — ingest, brand-kit theming, content/legal pages & own-domain deploy"
 type: feat
 date: 2026-06-17
 status: draft
 depth: deep
 ---
 
-# feat: Partner Website-Ingest, Brand-Kit Theming & Branded Pitch Preview
+# feat: Partner White-Label Site — Ingest, Brand-Kit Theming, Content/Legal Pages & Own-Domain Deploy
 
 ## Summary
 
-The acquisition front-half of the partner pipeline. Given a partner's website URL, **Firecrawl** (backend edge function) extracts their **USP + page copy**, a **brand kit** (colours, fonts, logo — via Firecrawl's `branding` format), their **car images**, and a **tech-stack read** (CMS, payment integrations, booking tool — sales intel for the pitch). The **impeccable** skill audits/refines the kit (vision on a full-page screenshot), car images export to a **per-partner luumos.io Google Drive folder** (Drive MCP, agent-side) and into Supabase Storage. The founder reviews it in the admin and applies it — which themes the existing **token-gated prospect preview** and a partner-dashboard **Design** section with the partner's **fonts + colours + logo only** (AIRLUXO's UI/UX is kept; CSS variables over our components). The preview shows the partner's **real car images** — a hero "whole car" shot that opens an interior/detail gallery on click — with the existing **manual video slot** retained.
+The full partner-acquisition engine: turn a prospect's existing website into **their own complete AIRLUXO-powered website, in their brand** — and optionally publish it on **their own domain**.
 
-This makes the sales pitch concrete ("here's your storefront, on our engine, in your brand") and sets up the long-run goal: claim the prospect live and pull their listings via the partner dashboard into airluxo.ch.
+Given a partner's website URL, **Firecrawl** (backend edge function) extracts their **USP + page copy**, a **brand kit** (colours, fonts, logo — via Firecrawl's `branding` format), their **car images**, and a **tech-stack read** (CMS, payment integrations, booking tool — sales intel for the pitch). The **impeccable** skill audits/refines the kit (vision on a full-page screenshot), car images export to a **per-partner luumos.io Google Drive folder** (Drive MCP, agent-side) and into Supabase Storage. The founder reviews it in the admin and applies it — which themes the partner's site and a partner-dashboard **Design** section with the partner's **fonts + colours + logo only** (AIRLUXO's UI/UX is kept; CSS variables over our components). Cars show their **real images** — a hero "whole car" shot that opens an interior/detail gallery on click — with the existing **manual video slot** retained.
+
+On top of the themed storefront, the partner gets a **full white-label website**: a home page with **their USP/about/benefits content**, the **fleet**, contact, and **Swiss legal pages (Impressum, privacy, terms)** generated from their legal-entity data. It serves at a **public route** (`airluxo.ch/p/<slug>`) and on the partner's **own domain** — default **multi-tenant** (partner points a CNAME at our deploy, resolved by hostname), with an optional **dedicated Vercel project per partner** as an isolation upsell.
+
+This makes the sales pitch concrete ("here's your whole website, on our engine, in your brand, on your domain") and sets up the long-run goal: claim the prospect live and pull their listings via the partner dashboard into airluxo.ch.
 
 ---
 
@@ -48,13 +52,17 @@ To acquire rental partners, AIRLUXO offers to build their website + booking tool
 - Multi-image per car (`photos` gallery: hero + interior/detail).
 - Storefront/preview **theming by fonts + colours + logo only**, via CSS variables over AIRLUXO components.
 - Admin review/apply flow; partner-dashboard **Design** tab.
+- **Partner content pages** — a white-label **home page** (hero/USP, about, benefits, contact) + fleet, built from the ingested copy and editable in admin + the partner dashboard.
+- **Swiss legal pages** — **Impressum**, privacy, terms generated from the partner's legal-entity data, plus a footer with legal links + "Powered by AIRLUXO".
+- **Public routing** — a stable public route `airluxo.ch/p/<slug>` (no token) for a published partner site, gated by a `published` flag.
+- **Own-domain deploy** — **multi-tenant** by default (partner CNAMEs their domain at our deploy; resolve partner by hostname), with an **optional dedicated Vercel project per partner** for isolation.
 
 ### Deferred to Follow-Up Work
-- Theming the **partner-dashboard chrome** (storefront/preview only for now).
+- Theming the **partner-dashboard chrome** (the public partner site + storefront are themed; the back-office dashboard stays AIRLUXO-styled).
 - AI thumbnail/video generation (use the partner's real images; the manual video slot stays).
-- A separate hosted **marketing website** / full white-label site builder.
 - The live **listings-API pull** into airluxo.ch (the long-run goal).
 - Auto re-ingest / change-tracking of a partner site over time.
+- A **visual page/section builder** (drag-drop) — v1 edits a fixed set of content sections; freeform layout is later.
 
 ### Non-Goals
 - Cloning the partner's full design system / layout — AIRLUXO's UI/UX is the product; only fonts + colours + logo change.
@@ -111,13 +119,24 @@ Listings currently hold only `photo_url` + `video_url`. Add `photos jsonb` = `[{
 **KTD-6 — Image grouping is auto-proposed, founder-reviewed.**
 A vision pass proposes per-car grouping + hero/interior type; the founder fixes it in the admin before apply. Rationale: auto-classification is fuzzy; a human gate keeps the preview clean.
 
+**KTD-7 — White-label site = a fixed-section content shell over the themed storefront (no freeform builder).**
+The partner's full site is `site_config.sections` (hero/USP · about · benefits · contact) rendered by presentational components around the existing themed fleet — not a drag-drop page builder. Sections seed from the ingested copy and are founder/partner-editable. Rationale: a fixed section set ships fast, keeps AIRLUXO's UX/quality, and matches "their content over our engine"; a visual builder is deferred.
+
+**KTD-8 — Swiss legal pages generated from structured `legal` data, stored editable, flagged as a template.**
+`partners.legal` (company, legal form, address, UID/CHE, VAT, contact, represented-by — pre-filled from pipeline fields) drives generated **Impressum/privacy/terms** into `legal_pages`, fully editable, with a footer. Rationale: Swiss sites need an Impressum; we already capture the entity data. The generated text is a **starting template for the partner's own review — not legal advice.**
+
+**KTD-9 — Multi-tenant hostname resolution is the default deploy; dedicated Vercel per partner is an option.**
+A published partner site serves at `airluxo.ch/p/<slug>` and on any custom domain the partner CNAMEs at the **single existing Vercel deploy** — the app resolves the partner from path/`host` via `partner_domains` + `public_partner_site`, and Vercel manages TLS for added domains. A **dedicated Vercel project per partner** (env `VITE_PARTNER_ID`, own domain) is an isolation upsell, kept as a runbook for v1. Rationale: one codebase/one deploy scales to N partners with no per-partner infra; the dedicated path covers VIPs who want isolation, exactly as the user requested.
+
 ---
 
 ## Data Model
 
-- **`partners`** (new columns): `brand_kit jsonb` (live: `{colors:{primary,accent,bg,text,...}, fonts:{display,body,url}, logo_url}`), `brand_kit_raw jsonb` (Firecrawl/impeccable proposal), `partner_pages jsonb` (`{usp, pages:[{title,url,copy}]}`), `tech_stack jsonb` (`{cms, booking, payments:[], ecommerce, analytics:[], other:[]}`), `drive_folder_url text`.
+- **`partners`** (new columns): `brand_kit jsonb` (live: `{colors:{primary,accent,bg,text,...}, fonts:{display,body,url}, logo_url}`), `brand_kit_raw jsonb` (Firecrawl/impeccable proposal), `partner_pages jsonb` (`{usp, pages:[{title,url,copy}]}` — raw ingested copy), `tech_stack jsonb` (`{cms, booking, payments:[], ecommerce, analytics:[], other:[]}`), `drive_folder_url text`.
+- **`partners`** (white-label site, Phase 5–7): `site_config jsonb` (the editable site: `{slug, published:bool, sections:{hero:{headline,sub,cta}, about:{title,body}, benefits:[{title,body,icon}], contact:{email,phone,address,map}}, nav:[...]}`), `legal jsonb` (legal-entity for Impressum/footer: `{company, legal_form, street, zip, city, country, uid, vat, email, phone, register, represented_by}`), `legal_pages jsonb` (generated/edited `{impressum, privacy, terms}` copy).
 - **`listings`** (new column): `photos jsonb` default `[]` (`[{url,type,caption}]`).
 - **`partner_ingest_jobs`** — `id, partner_id, url, status (queued|scraping|crawling|enriching|ready|failed), firecrawl_crawl_id, screenshot_url, error, created_at` — tracks the async ingest.
+- **`partner_domains`** — `id, partner_id, hostname (unique), kind ('subpath'|'cname'|'vercel'), verified bool, verify_token text, vercel_project_id text, created_at` — maps a public hostname → partner for multi-tenant resolution; `kind` distinguishes a CNAME at the shared deploy from a dedicated Vercel project.
 
 ---
 
@@ -242,12 +261,89 @@ A vision pass proposes per-car grouping + hero/interior type; the founder fixes 
 
 ---
 
+### Phase 5 — Partner content pages (white-label site)
+
+### U9. Site-content schema + ingest mapping + content RPCs
+**Goal:** Persist an editable `site_config` (home sections + nav + slug + published flag) and map the ingested `partner_pages` copy into it; expose admin + partner RPCs.
+**Requirements:** Goals (full white-label site); KTD-7.
+**Dependencies:** U1, U4.
+**Files:** `supabase/migrations/20260617-003-partner-site.sql` (`site_config`/`legal`/`legal_pages` columns + `partner_domains` table + RPCs: `admin_set_partner_site`, `partner_update_site`, `public_partner_site(p_slug_or_host)`), `src/lib/site.js` (client wrappers + `mapSiteConfig` defaults), `supabase/functions/partner-ingest-update/index.ts` (also propose `site_config.sections` from the ingested USP/copy).
+**Approach:** `site_config` carries a fixed section set (hero/about/benefits/contact) so there's no freeform builder yet; defaults derive from `partner_pages.usp` + scraped copy at ingest, founder-edited later. `slug` unique, defaults from partner name (kebab). `public_partner_site` is a SECURITY DEFINER read granted to `anon`, returns only **published** sites (config + brand_kit + legal_pages) for the public route. Partner-scoped `partner_update_site` writes where `id=auth.uid()`.
+**Patterns to follow:** `partner_brand_kit`/`partner_update_brand_kit` (public-read + owner-write split) in `20260617_partner_brandkit.sql`; `mapListing` defaults.
+**Test scenarios:**
+- Happy: ingest proposes hero/about/benefits from the USP; `admin_set_partner_site` stores it; `public_partner_site` returns a published site by slug.
+- Edge: unpublished site → `public_partner_site` returns null; duplicate slug rejected (unique); empty sections accepted (defaults render).
+- Error/authz: non-admin → `not authorized`; a partner editing another partner's site rejected; anon can only read published.
+**Verification:** Migration applies (201); a site round-trips admin↔public; ingest seeds editable sections.
+
+### U10. Public storefront site shell (home sections + fleet + nav)
+**Goal:** Render the partner's full site — themed home (hero/USP, about, benefits, contact), the fleet (existing storefront), and nav — over AIRLUXO's UX.
+**Requirements:** Goals; KTD-3, KTD-7.
+**Dependencies:** U2, U9.
+**Files:** `src/components/PartnerSite.jsx` (site shell: themed root + nav + section renderer + fleet + footer), `src/components/site/*` (Hero, About, Benefits, Contact section components), `src/components/Embed.jsx` (reuse theming + fleet grid inside the shell).
+**Approach:** Compose the existing themed fleet (U2/U8) inside a site shell driven by `site_config.sections`; each section is a presentational component using AIRLUXO's type/spacing tokens (only colours/fonts/logo change per KTD-3). Nav scrolls to sections + the fleet. Sections with no content are skipped. No new layout system — fixed section components.
+**Patterns to follow:** `Embed.jsx` themed root + CarCard grid; `index.css` `@theme` tokens.
+**Test scenarios:**
+- Happy: a site with hero+about+benefits+fleet renders all sections themed, nav jumps to each.
+- Edge: a site with only hero+fleet skips empty sections; no brand kit → AIRLUXO default theme.
+- Integration: cars in the fleet open the hero→gallery CarDetail (U3) under the themed shell.
+**Verification:** A partner's `site_config` renders as a coherent themed home page + fleet.
+
+### Phase 6 — Swiss legal pages
+
+### U11. Impressum / privacy / terms + footer
+**Goal:** Generate Swiss-compliant **Impressum**, privacy, and terms pages from the partner's legal-entity data and render a footer with legal links + "Powered by AIRLUXO".
+**Requirements:** Goals; KTD-8.
+**Dependencies:** U9, U10.
+**Files:** `src/lib/legal.js` (`buildImpressum`/`buildPrivacy`/`buildTerms` from `partners.legal`, CH templates, EN source + i18n keys), `src/components/site/LegalPage.jsx` + `Footer.jsx`, `src/components/FounderDashboard.jsx` + `src/components/PartnerDashboard.jsx` (edit `legal` fields + preview/override `legal_pages`), reuse `legal_pages` from U9.
+**Approach:** Pre-fill `legal` from existing prospect/partner fields (company, address, VAT/UID, email, phone — already captured in the pipeline). `buildImpressum` renders a Swiss Impressum (company, legal form, address, UID/CHE, contact, represented-by); privacy/terms are CH baseline templates with partner + AIRLUXO-as-processor mentions. Generated copy is stored in `legal_pages`, fully editable. Footer links Impressum/privacy/terms + "Powered by AIRLUXO". **The generated legal text is a starting template, flagged for the partner's own review (not legal advice).**
+**Patterns to follow:** the i18n EN-in-code + Supabase DE/FR/IT pattern; `site_config`/`legal` RPCs (U9).
+**Test scenarios:**
+- Happy: a partner with full `legal` data gets a populated Impressum + footer links; pages render under the themed shell.
+- Edge: missing UID/VAT → that line omitted (no blank label); partner edits override the generated copy and persist.
+- Integration: legal pages reachable from the footer on the public site (U10) and the token preview.
+**Verification:** The partner site shows a populated Impressum + privacy + terms from their data, editable in the dashboard.
+
+### Phase 7 — Public routing + own-domain deploy
+
+### U12. Public hostname/slug → partner resolution (multi-tenant)
+**Goal:** Serve a published partner site at `airluxo.ch/p/<slug>` and on a partner's CNAMEd custom domain, resolving the partner by path/hostname — no token.
+**Requirements:** Goals; KTD-9.
+**Dependencies:** U9, U10, U11.
+**Files:** `src/lib/tenant.js` (resolve partner from `window.location` path `/p/:slug` or `host` via `partner_domains`/`public_partner_site`), `src/App.jsx` (route `/p/:slug` + host-based boot → render `PartnerSite`), `supabase/migrations/20260617-004-partner-domains.sql` (already adds `partner_domains` in U9 — here add the `public_partner_domain(host)` resolver RPC + admin domain RPCs).
+**Approach:** On boot, if path matches `/p/:slug` or `host` ∉ {airluxo.ch, admin.airluxo.ch, staging} → look up the partner (slug first, then `partner_domains.hostname`), fetch `public_partner_site`, render `PartnerSite`; else the normal app. Only **published + verified** sites render publicly; unknown host/slug → AIRLUXO 404/home. Vercel rewrites already send all paths to the SPA. **Wildcard/custom-domain TLS is handled by Vercel domains (U13).**
+**Patterns to follow:** existing `App.jsx` embed/route handling (`?embed=` param); `public_partner_site` (U9).
+**Test scenarios:**
+- Happy: `airluxo.ch/p/<slug>` renders the published themed site; a verified custom host resolves to the same partner.
+- Edge: unpublished slug → not found; unknown host → AIRLUXO default; the admin/main hosts are never treated as a tenant.
+- Integration: the resolved site renders U10 sections + U11 legal + themed fleet, no preview banner.
+**Verification:** A published partner is reachable at a clean public URL and (once DNS+Vercel set) on their own domain.
+
+### U13. Own-domain connection — multi-tenant CNAME + optional dedicated Vercel
+**Goal:** Let the founder connect a partner's domain: default multi-tenant (CNAME → shared deploy, verify, add to Vercel), with an optional dedicated Vercel project per partner.
+**Requirements:** Goals; KTD-9.
+**Dependencies:** U12.
+**Files:** `src/components/FounderDashboard.jsx` (partner sheet → "Domain" panel: add hostname, show DNS/CNAME instructions + verify status, "Publish site" toggle, "Deploy dedicated Vercel" option), `src/lib/site.js` (`addPartnerDomain`/`verifyPartnerDomain`/`publishSite`), `supabase/functions/partner-domain/index.ts` (admin: add domain to the Vercel project + check verification via Vercel API; record `verified`/`vercel_project_id`), `docs/partner-site/own-domain-deploy.md` (the multi-tenant CNAME flow + the dedicated-Vercel-per-partner runbook).
+**Approach:** **Multi-tenant (default):** founder adds the partner's hostname → `partner_domains(kind:'cname')`; the edge fn adds it to the existing Vercel project (Vercel domains API) and returns the CNAME target + verification; once Vercel reports verified, set `verified=true`; the site is live on that domain via U12 host resolution + Vercel-managed TLS. **Dedicated Vercel (option):** documented runbook — new Vercel project from the same repo with env `VITE_PARTNER_ID=<id>` (app boots straight into that partner's `PartnerSite`), partner domain on that project; `partner_domains(kind:'vercel', vercel_project_id)`. **Publish gate:** `site_config.published` flips the site live (U9/U12).
+**Execution note:** Use the Vercel MCP / API for domain add + verification; keep the dedicated-project path as a runbook (manual create) for v1, automate later.
+**Patterns to follow:** existing admin edge-fn boilerplate + Vercel MCP (`mcp__vercel__*`); `vercel-staging-setup` memory (branch→env, DNS at Hostpoint).
+**Test scenarios:**
+- Happy: founder adds `cars.example.ch`, gets the CNAME, Vercel verifies, the published site serves on it with TLS.
+- Edge: unverified domain → site not served on it (no half-live); removing a domain unmaps it.
+- Error: Vercel API failure → clear admin error, domain stays unverified; duplicate hostname rejected (unique).
+- Integration: after verify + publish, U12 resolves the host to the partner site.
+**Verification:** A partner site is reachable on the partner's own domain via the multi-tenant flow; the dedicated-Vercel runbook is documented.
+
+---
+
 ## Dependencies / Prerequisites
 
 - **Firecrawl** account → `FIRECRAWL_API_KEY` Supabase secret (cloud API; free 500 credits, Hobby $16/3k). Rich homepage scrape ≈ 5 credits/page; crawl ≈ 1 credit/page — set per-run caps.
 - **Google Drive MCP** (already connected) + a configured **luumos.io Drive root folder** the agent creates per-partner subfolders under.
 - **impeccable** skill (available) for the brand audit.
 - `brand-assets` Storage bucket (screenshots/logos) + reuse `listing-photos` for car images.
+- **Vercel** (Phase 7): custom-domain add + verification via the Vercel API / `mcp__vercel__*` MCP on the existing project for the multi-tenant flow; a Vercel account seat per dedicated-project partner (optional path). DNS at the partner's registrar (CNAME → our deploy); see `vercel-staging-setup` memory for the airluxo DNS/branch model.
+- **Partner legal-entity data** (Phase 6): company, address, UID/CHE, VAT, contact — mostly already captured in the prospect pipeline; the founder completes gaps before publishing.
 - Reuse the deploy flow (Management API migrations, CLI functions, `git push origin staging:main`). Service-role bearer for the poll/agent-update fns (`--no-verify-jwt`).
 
 ---
@@ -260,6 +356,10 @@ A vision pass proposes per-car grouping + hero/interior type; the founder fixes 
 - **Rights / consent (medium).** Ingesting a partner's site + images is *for building their own AIRLUXO presence*, but only do it for prospects the founder is actively pitching (partner-authorized). Don't surface scraped marketing copy as AIRLUXO marketplace content; copy informs the pitch only.
 - **Font loading (low).** Partner fonts load from a URL with a safe fallback; never block render on a missing font.
 - **Theming scope creep (low).** Only `--color-*` + `--font-*` + logo change; AIRLUXO components/layout stay — enforced by KTD-3.
+- **Legal accuracy / liability (medium).** Generated Impressum/privacy/terms are CH **templates**, explicitly flagged for the partner's own review — not legal advice; AIRLUXO is named as data processor, not the legal publisher. Don't auto-publish legal copy without the founder/partner confirming.
+- **Multi-tenant routing + host security (medium).** Host/slug resolution must only serve **published + verified** sites; the main/admin hosts are never treated as a tenant; unknown host → AIRLUXO default, never an error leak. Custom-domain TLS is Vercel-managed; an unverified domain never serves.
+- **Public-read surface (medium).** `public_partner_site` (anon) must expose only published, non-sensitive site/brand/legal data — never partner PII, pricing internals, or unpublished drafts. SECURITY DEFINER scoped to published rows only.
+- **Per-partner Vercel ops (low).** The dedicated-project path adds ops per partner (env, domain, project) — kept as an opt-in runbook; multi-tenant is the default so the common case needs zero new infra.
 
 ---
 
@@ -283,8 +383,10 @@ A vision pass proposes per-car grouping + hero/interior type; the founder fixes 
 
 ## Operational / Rollout Notes
 
-- Founder-admin only until Apply; partners only touch Design post-claim.
-- Phase order: U1–U3 (theming + multi-image, demoable on a hand-set kit) → U4 (ingest) → U5 (agent audit + Drive) → U6 (review/apply) → U7 (Design tab) → U8 (branded preview). Each phase demoable on staging before promote.
+- Founder-admin only until Apply; partners only touch Design + their site content post-claim.
+- Phase order: **P1** U1–U3 (theming + multi-image, demoable on a hand-set kit ✅ shipped) → **P2** U4 (ingest) → **P2** U5 (agent audit + Drive) → **P3** U6 (review/apply) → **P3** U7 (Design tab) → **P4** U8 (branded preview) → **P5** U9–U10 (content pages + site shell) → **P6** U11 (Swiss legal) → **P7** U12–U13 (public routing + own-domain deploy). Each phase demoable on staging before promote.
+- P5–P7 depend on P1–P4 (the themed fleet + applied brand kit); they can start once U2/U6/U8 land. U9 schema can land alongside U6.
+- Publishing a partner site is founder-gated (`published` flag + verified domain) — nothing goes public until the founder flips it.
 - Reuse the content pipeline's async-poll cron shape for the crawl finalize.
 
 ---
