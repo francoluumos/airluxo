@@ -10,7 +10,7 @@ depth: deep
 
 ## Summary
 
-The acquisition front-half of the partner pipeline. Given a partner's website URL, **Firecrawl** (backend edge function) extracts their **USP + page copy**, a **brand kit** (colours, fonts, logo — via Firecrawl's `branding` format), and their **car images**. The **impeccable** skill audits/refines the kit (vision on a full-page screenshot), car images export to a **per-partner luumos.io Google Drive folder** (Drive MCP, agent-side) and into Supabase Storage. The founder reviews it in the admin and applies it — which themes the existing **token-gated prospect preview** and a partner-dashboard **Design** section with the partner's **fonts + colours + logo only** (AIRLUXO's UI/UX is kept; CSS variables over our components). The preview shows the partner's **real car images** — a hero "whole car" shot that opens an interior/detail gallery on click — with the existing **manual video slot** retained.
+The acquisition front-half of the partner pipeline. Given a partner's website URL, **Firecrawl** (backend edge function) extracts their **USP + page copy**, a **brand kit** (colours, fonts, logo — via Firecrawl's `branding` format), their **car images**, and a **tech-stack read** (CMS, payment integrations, booking tool — sales intel for the pitch). The **impeccable** skill audits/refines the kit (vision on a full-page screenshot), car images export to a **per-partner luumos.io Google Drive folder** (Drive MCP, agent-side) and into Supabase Storage. The founder reviews it in the admin and applies it — which themes the existing **token-gated prospect preview** and a partner-dashboard **Design** section with the partner's **fonts + colours + logo only** (AIRLUXO's UI/UX is kept; CSS variables over our components). The preview shows the partner's **real car images** — a hero "whole car" shot that opens an interior/detail gallery on click — with the existing **manual video slot** retained.
 
 This makes the sales pitch concrete ("here's your storefront, on our engine, in your brand") and sets up the long-run goal: claim the prospect live and pull their listings via the partner dashboard into airluxo.ch.
 
@@ -115,7 +115,7 @@ A vision pass proposes per-car grouping + hero/interior type; the founder fixes 
 
 ## Data Model
 
-- **`partners`** (new columns): `brand_kit jsonb` (live: `{colors:{primary,accent,bg,text,...}, fonts:{display,body,url}, logo_url}`), `brand_kit_raw jsonb` (Firecrawl/impeccable proposal), `partner_pages jsonb` (`{usp, pages:[{title,url,copy}]}`), `drive_folder_url text`.
+- **`partners`** (new columns): `brand_kit jsonb` (live: `{colors:{primary,accent,bg,text,...}, fonts:{display,body,url}, logo_url}`), `brand_kit_raw jsonb` (Firecrawl/impeccable proposal), `partner_pages jsonb` (`{usp, pages:[{title,url,copy}]}`), `tech_stack jsonb` (`{cms, booking, payments:[], ecommerce, analytics:[], other:[]}`), `drive_folder_url text`.
 - **`listings`** (new column): `photos jsonb` default `[]` (`[{url,type,caption}]`).
 - **`partner_ingest_jobs`** — `id, partner_id, url, status (queued|scraping|crawling|enriching|ready|failed), firecrawl_crawl_id, screenshot_url, error, created_at` — tracks the async ingest.
 
@@ -171,10 +171,12 @@ A vision pass proposes per-car grouping + hero/interior type; the founder fixes 
 **Requirements:** Goals (ingest); KTD-1, KTD-5, KTD-6.
 **Dependencies:** U1.
 **Files:** `supabase/functions/partner-ingest/index.ts` (Firecrawl map+scrape+crawl, store to `brand-assets`/`listing-photos`, write `brand_kit_raw`/`partner_pages`/job), `supabase/functions/partner-ingest-poll/index.ts` + `supabase/migrations/20260617-002-partner-ingest-cron.sql` (poll the async crawl, finalize), `src/components/FounderDashboard.jsx` (Pipeline "Analyze website" action + job status), `src/lib/brandkit.js` (`startIngest`, `ingestStatus`).
-**Approach:** admin-gated. `map` → pick homepage + fleet path; **sync `scrape`** homepage (`branding` + `json` USP/copy + fullPage `screenshot` + `images`) → store screenshot to `brand-assets`, write `brand_kit_raw` + `partner_pages`; **async `crawl`** fleet path (`images`,`markdown`) → store `firecrawl_crawl_id`; the poll fn (cron) fetches completed crawl pages, downloads images to `listing-photos`, records them on the job. Persist all assets immediately (24h Firecrawl expiry). Per-run caps; request only needed formats (cost: ~5 credits/page for the rich homepage call).
+**Approach:** admin-gated. `map` → pick homepage + fleet path; **sync `scrape`** homepage (`branding` + `json` USP/copy + fullPage `screenshot` + `images` + **`rawHtml`/`links`**) → store screenshot to `brand-assets`, write `brand_kit_raw` + `partner_pages`; **async `crawl`** fleet path (`images`,`markdown`) → store `firecrawl_crawl_id`; the poll fn (cron) fetches completed crawl pages, downloads images to `listing-photos`, records them on the job. Persist all assets immediately (24h Firecrawl expiry). Per-run caps; request only needed formats (cost: ~5 credits/page for the rich homepage call).
+- **Tech-stack detection:** from the homepage `rawHtml` + `links` + `metadata.generator` + script srcs, detect and write `tech_stack`: **CMS** (WordPress `/wp-content/`, Wix, Squarespace, Webflow, Framer, Shopify, Jimdo, Joomla, generator meta), **payments** (Stripe `js.stripe.com`, PayPal, Datatrans/Wallee/Payrexx for CH, Klarna), **booking tool** (known rental/booking widgets + booking-path links), plus ecommerce/analytics signals. Combine signature heuristics with a small Gemini/Claude classify over the markers; null when unknown. This is sales intel for the pitch (e.g. "replace your current booking plugin").
 **Patterns to follow:** `content-scrape` (dual auth + async + cron poll), `studio-shot` (media handling), admin edge-fn boilerplate.
 **Test scenarios:**
-- Happy: a real partner URL yields `brand_kit_raw` (colours/fonts/logo), `partner_pages.usp`, a stored screenshot, and (after crawl polls) car images in Storage on the job.
+- Happy: a real partner URL yields `brand_kit_raw` (colours/fonts/logo), `partner_pages.usp`, `tech_stack` (e.g. cms=WordPress, payments=[Stripe], booking detected), a stored screenshot, and (after crawl polls) car images in Storage on the job.
+- Edge: an unrecognised stack → `tech_stack` fields null (not a failure); a custom/headless site → cms null, payments still detected from scripts.
 - Edge: a thin/one-page site → homepage scrape still yields a kit; no fleet path → no crawl, images empty (not an error).
 - Error: missing `FIRECRAWL_API_KEY` → 500 clear message; Firecrawl 4xx/timeout → job `failed` with the error; crawl >wall-clock → handled by async poll, not a blocked request.
 - Integration: the Pipeline action starts a job; status advances queued→…→ready; assets persisted before any Firecrawl URL expires.
@@ -201,7 +203,7 @@ A vision pass proposes per-car grouping + hero/interior type; the founder fixes 
 **Requirements:** Goals; KTD-5, KTD-6.
 **Dependencies:** U4, U5.
 **Files:** `src/components/FounderDashboard.jsx` (prospect sheet → "Brand & pitch" review: colour swatches + font + logo editable; USP/copy; car-image grid with hero/interior toggles + assign-to-car; **Apply**), `src/lib/brandkit.js` (`applyBrandKit`).
-**Approach:** Show `brand_kit_raw` editable (swatches, font picker, logo); list scraped images grouped per car with hero/interior toggles + a car assignment; **Apply** sets `partners.brand_kit`, and creates/updates listings with `photos` (+ `photo_url`=hero). Re-uses the preview link to open the themed result.
+**Approach:** Show `brand_kit_raw` editable (swatches, font picker, logo); the extracted **USP/copy** and a **tech-stack panel** (CMS · payments · booking tool — read-only sales intel for the pitch); list scraped images grouped per car with hero/interior toggles + a car assignment; **Apply** sets `partners.brand_kit`, and creates/updates listings with `photos` (+ `photo_url`=hero). Re-uses the preview link to open the themed result.
 **Patterns to follow:** `ProspectInfoModal` (edit + save), the content approval queue (image grid + actions), `usePager`.
 **Test scenarios:**
 - Happy: editing a colour + setting heroes + assigning images, then Apply, themes the preview and gives each car a `photos` gallery.
