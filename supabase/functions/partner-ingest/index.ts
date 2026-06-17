@@ -287,9 +287,11 @@ Deno.serve(async (req) => {
       } catch { /* crawl is optional */ }
     }
 
-    const status = crawlId ? "crawling" : "ready";
+    // Ready immediately — the homepage scrape + car extraction are the reviewable data.
+    // The fleet crawl only augments images later (poll); crawl_done=false means "pending".
     const { data: updated } = await admin.from("partner_ingest_jobs").update({
-      status, firecrawl_crawl_id: crawlId, fleet_url: fleetUrl, screenshot_url: screenshotUrl, images, cars,
+      status: "ready", firecrawl_crawl_id: crawlId, fleet_url: fleetUrl,
+      screenshot_url: screenshotUrl, images, cars, crawl_done: !crawlId,
     }).eq("id", jobId).select().single();
 
     return json({ job: updated });

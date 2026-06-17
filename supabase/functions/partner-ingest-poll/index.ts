@@ -63,8 +63,9 @@ Deno.serve(async (req) => {
     if (!fcKey) return json({ error: "FIRECRAWL_API_KEY is not configured" }, 500);
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
+    // Jobs whose fleet crawl hasn't been folded in yet (status is already 'ready').
     const { data: jobs } = await admin.from("partner_ingest_jobs")
-      .select("*").eq("status", "crawling").not("firecrawl_crawl_id", "is", null).limit(10);
+      .select("*").eq("crawl_done", false).not("firecrawl_crawl_id", "is", null).limit(10);
 
     const fcHeaders = { Authorization: `Bearer ${fcKey}` };
     let finalized = 0;
@@ -74,13 +75,13 @@ Deno.serve(async (req) => {
       try {
         const res = await fetch(`${FC}/v2/crawl/${job.firecrawl_crawl_id}`, { headers: fcHeaders });
         if (!res.ok) {
-          if (ageMin > CRAWL_TIMEOUT_MIN) await admin.from("partner_ingest_jobs").update({ status: "ready", error: `crawl poll ${res.status}` }).eq("id", job.id);
+          if (ageMin > CRAWL_TIMEOUT_MIN) await admin.from("partner_ingest_jobs").update({ crawl_done: true }).eq("id", job.id);
           continue;
         }
         const cj = await res.json();
         const st = cj.status || cj.data?.status;
         if (st !== "completed") {
-          if (ageMin > CRAWL_TIMEOUT_MIN) await admin.from("partner_ingest_jobs").update({ status: "ready", error: "crawl timed out" }).eq("id", job.id);
+          if (ageMin > CRAWL_TIMEOUT_MIN) await admin.from("partner_ingest_jobs").update({ crawl_done: true }).eq("id", job.id);
           continue;
         }
 
@@ -102,10 +103,10 @@ Deno.serve(async (req) => {
           i++;
         }
 
-        await admin.from("partner_ingest_jobs").update({ status: "ready", images: stored }).eq("id", job.id);
+        await admin.from("partner_ingest_jobs").update({ images: stored, crawl_done: true }).eq("id", job.id);
         finalized++;
       } catch (e) {
-        if (ageMin > CRAWL_TIMEOUT_MIN) await admin.from("partner_ingest_jobs").update({ status: "failed", error: String((e as Error)?.message || e) }).eq("id", job.id);
+        if (ageMin > CRAWL_TIMEOUT_MIN) await admin.from("partner_ingest_jobs").update({ crawl_done: true, error: String((e as Error)?.message || e) }).eq("id", job.id);
       }
     }
 

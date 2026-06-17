@@ -1146,7 +1146,7 @@ function IngestPanel({ partnerId, website, onReview }) {
               Review &amp; apply
             </button>
           )}
-          <button type="button" onClick={analyze} disabled={busy || isIngestRunning(status)}
+          <button type="button" onClick={analyze} disabled={busy || ['queued', 'scraping'].includes(status)}
             className="ring-lux rounded-full bg-ink px-4 py-1.5 text-xs font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">
             {busy ? 'Starting…' : (job ? 'Re-analyze website' : 'Analyze website')}
           </button>
