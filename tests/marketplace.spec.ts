@@ -26,3 +26,18 @@ test('opening a car shows its booking detail', async ({ page }) => {
   // The detail modal is open: its "Back to fleet" control is present.
   await expect(page.getByRole('button', { name: /Back to fleet/i })).toBeVisible();
 });
+
+test('car gallery: photos button opens the lightbox (cars with multiple photos)', async ({ page }) => {
+  const home = new HomePage(page);
+  await home.goto();
+  await page.waitForTimeout(500);
+  test.skip(await home.cards().count() === 0, 'no listings loaded');
+
+  await home.openFirstCar();
+  const photosBtn = page.getByRole('button', { name: /\d+ photos/ });
+  test.skip(await photosBtn.count() === 0, 'no multi-photo car in the loaded data');
+
+  await photosBtn.first().click();
+  // The lightbox shows a "<n> / <total>" frame counter.
+  await expect(page.getByText(/^\d+ \/ \d+$/)).toBeVisible();
+});
