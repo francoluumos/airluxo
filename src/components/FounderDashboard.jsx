@@ -17,6 +17,22 @@ import { LEGAL_FIELDS, seedLegal, buildLegalPages } from '../lib/legal.js';
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
 
+// Breadcrumb trail for the in-dashboard drill-down views (lead → brand & pitch).
+function Crumbs({ items }) {
+  return (
+    <nav className="mb-5 flex flex-wrap items-center gap-1.5 text-sm">
+      {items.map((it, i) => (
+        <Fragment key={i}>
+          {i > 0 && <span className="text-mist">/</span>}
+          {it.onClick
+            ? <button type="button" onClick={it.onClick} className="font-semibold text-stone transition-colors hover:text-ink">{it.label}</button>
+            : <span className="font-semibold text-ink">{it.label}</span>}
+        </Fragment>
+      ))}
+    </nav>
+  );
+}
+
 // AIRLUXO founder / admin back office. Rendered on admin.airluxo.ch (or ?admin
 // while the subdomain DNS isn't wired). The security boundary is server-side:
 // every admin read/write goes through is_admin()-checked RLS / edge functions —
@@ -929,6 +945,7 @@ function Pipeline() {
   const [creating, setCreating] = useState(false);
   const [claiming, setClaiming] = useState(null);
   const [dragOver, setDragOver] = useState(null); // stage key being dragged over
+  const [open, setOpen] = useState(null); // prospect opened as a full view (drill-down)
   const [err, setErr] = useState('');
 
   const load = () => listProspects().then(setRows).catch((e) => { setErr(e.message); setRows([]); });
@@ -942,6 +959,10 @@ function Pipeline() {
   if (rows === null) {
     return <div className="grid place-items-center py-20"><span className="h-6 w-6 animate-spin rounded-full border-2 border-mist border-t-ink" /></div>;
   }
+
+  // A lead opened from the board takes over the main area (next to the menu), with
+  // breadcrumbs back to the pipeline — instead of a modal.
+  if (open) return <LeadDetailView p={open} onBack={() => { setOpen(null); load(); }} />;
 
   return (
     <div>
@@ -976,7 +997,7 @@ function Pipeline() {
               </div>
               <div className={`mt-2 min-h-[5rem] space-y-2 rounded-2xl p-1 transition-colors ${over ? 'bg-gold/10 outline-dashed outline-2 outline-gold/40' : ''}`}>
                 {cards.map((p) => (
-                  <ProspectCard key={p.id} p={p} onClaim={setClaiming} onDeleted={load} onChanged={load} onDragEnd={() => setDragOver(null)} />
+                  <ProspectCard key={p.id} p={p} onClaim={setClaiming} onDeleted={load} onOpen={setOpen} onDragEnd={() => setDragOver(null)} />
                 ))}
                 {cards.length === 0 && <div className="rounded-2xl border border-dashed border-mist py-8 text-center text-xs text-stone/40">—</div>}
               </div>
@@ -991,13 +1012,12 @@ function Pipeline() {
   );
 }
 
-function ProspectCard({ p, onClaim, onDeleted, onChanged, onDragEnd }) {
+function ProspectCard({ p, onClaim, onDeleted, onOpen, onDragEnd }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [dragging, setDragging] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [delBusy, setDelBusy] = useState(false);
-  const [info, setInfo] = useState(false);
   const previewLink = `${siteOrigin()}/?embed=${p.id}&preview=${p.preview_token}`;
   const contact = [p.prospect_contact_name, p.prospect_contact_email].filter(Boolean).join(' · ');
 
@@ -1027,8 +1047,8 @@ function ProspectCard({ p, onClaim, onDeleted, onChanged, onDragEnd }) {
     >
       <button
         type="button"
-        onClick={() => setInfo(true)}
-        title="Lead details"
+        onClick={() => onOpen(p)}
+        title="Open lead"
         className="ring-lux absolute right-8 top-1.5 z-10 grid h-6 w-6 place-items-center rounded-md text-stone/50 opacity-0 transition-all hover:rotate-45 hover:text-ink group-hover:opacity-100"
       ><Icon.Gear width={15} height={15} /></button>
       <button
@@ -1051,7 +1071,7 @@ function ProspectCard({ p, onClaim, onDeleted, onChanged, onDragEnd }) {
           </div>
         </div>
       )}
-      <div className="font-display text-sm leading-tight">{p.company_name}</div>
+      <button type="button" onClick={() => onOpen(p)} className="ring-lux block text-left font-display text-sm leading-tight hover:underline">{p.company_name}</button>
       {contact && <div className="mt-0.5 truncate text-xs text-stone">{contact}</div>}
       <div className="mt-1.5 text-xs text-stone">{p.car_count} {Number(p.car_count) === 1 ? 'car' : 'cars'}</div>
       <div className="mt-2 flex items-center gap-2">
@@ -1068,7 +1088,6 @@ function ProspectCard({ p, onClaim, onDeleted, onChanged, onDragEnd }) {
       <button onClick={() => onClaim(p)} className="ring-lux mt-2 w-full text-center text-[0.7rem] font-semibold text-go transition-colors hover:underline">
         Go live →
       </button>
-      {info && <ProspectInfoModal p={p} onClose={() => setInfo(false)} onSaved={() => { setInfo(false); onChanged?.(); }} />}
     </div>
   );
 }
@@ -1085,11 +1104,10 @@ const isIngestRunning = (s) => ['queued', 'scraping', 'crawling', 'enriching'].i
 // 'scraping'); the fleet crawl only adds more images in the background.
 const isReviewable = (s) => ['crawling', 'enriching', 'ready'].includes(s);
 
-function IngestPanel({ partnerId, website }) {
+function IngestPanel({ partnerId, website, onReview }) {
   const [job, setJob] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const [review, setReview] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -1122,8 +1140,8 @@ function IngestPanel({ partnerId, website }) {
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs font-semibold text-stone">Brand &amp; site ingest</span>
         <div className="flex items-center gap-2">
-          {job && isReviewable(status) && (
-            <button type="button" onClick={() => setReview(true)}
+          {job && isReviewable(status) && onReview && (
+            <button type="button" onClick={onReview}
               className="ring-lux rounded-full border border-ink px-4 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-cloud">
               Review &amp; apply
             </button>
@@ -1134,7 +1152,6 @@ function IngestPanel({ partnerId, website }) {
           </button>
         </div>
       </div>
-      {review && <BrandReviewModal partnerId={partnerId} onClose={() => setReview(false)} />}
       {job && (
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone">
           <span className={`rounded-full px-2 py-0.5 font-semibold ${status === 'failed' ? 'bg-red-50 text-red-600' : status === 'ready' ? 'bg-go/10 text-go' : 'bg-cloud text-ink'}`}>
@@ -1187,7 +1204,7 @@ function cleanKit(k) {
 // U6: founder reviews the extracted brand kit + USP + tech stack + scraped car images,
 // edits, and applies — setting the live brand_kit (themes the preview/storefront) and
 // attaching photo galleries to the partner's cars.
-function BrandReviewModal({ partnerId, onClose }) {
+function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
   const [data, setData] = useState(null);
   const [kit, setKit] = useState({ colors: {}, fonts: {}, logo_url: '' });
   const [assigns, setAssigns] = useState([]); // parallel to data.job.images
@@ -1307,11 +1324,12 @@ function BrandReviewModal({ partnerId, onClose }) {
   const selectedCount = assigns.filter((a) => a.selected).length;
 
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-ink/60 p-5 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+    <div className="mx-auto max-w-4xl">
+      <Crumbs items={[{ label: 'Pipeline', onClick: toPipeline }, { label: companyName || data?.company_name || 'Lead', onClick: onBack }, { label: 'Brand & pitch' }]} />
+      <div className="rounded-[var(--radius-card)] border border-mist bg-paper p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-display text-xl">Brand &amp; pitch — {data?.company_name || ''}</h2>
+            <h2 className="font-display text-xl">Brand &amp; pitch — {data?.company_name || companyName || ''}</h2>
             <p className="mt-1 text-xs text-stone">Review the extracted brand kit, USP and car images, then apply. Applying the kit themes the preview live.</p>
           </div>
           <a href={previewLink} target="_blank" rel="noreferrer" className="ring-lux shrink-0 rounded-lg border border-mist px-2.5 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-ink">Preview ↗</a>
@@ -1499,7 +1517,7 @@ function BrandReviewModal({ partnerId, onClose }) {
         )}
 
         <div className="mt-6 flex justify-end">
-          <button type="button" onClick={onClose} className="ring-lux rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink">Close</button>
+          <button type="button" onClick={onBack} className="ring-lux rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink">← Back to lead</button>
         </div>
       </div>
     </div>
@@ -1508,7 +1526,9 @@ function BrandReviewModal({ partnerId, onClose }) {
 
 // The gear on a pipeline card: full lead info, editable. Reads the prospect_* fields
 // the pipeline already loaded; saves through admin-update-partner.
-function ProspectInfoModal({ p, onClose, onSaved }) {
+function LeadDetailView({ p, onBack }) {
+  const [review, setReview] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [f, setF] = useState({
     company_name: p.company_name || '',
     contact_name: p.prospect_contact_name || '',
@@ -1541,13 +1561,17 @@ function ProspectInfoModal({ p, onClose, onSaved }) {
         street: f.street, street_number: f.street_number, zip: f.zip, city: f.city,
         country: f.country, lat: f.lat, lng: f.lng, links: f.links,
       });
-      onSaved();
+      setBusy(false); setSaved(true);
     } catch (e2) { setErr(e2.message || 'Could not save.'); setBusy(false); }
   }
 
+  // Drill one level deeper into the brand & pitch review (own breadcrumb back to here).
+  if (review) return <ReviewView partnerId={p.id} companyName={f.company_name || p.company_name} onBack={() => setReview(false)} toPipeline={onBack} />;
+
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/50 p-5 backdrop-blur-sm" onClick={onClose}>
-      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+    <div className="mx-auto max-w-3xl">
+      <Crumbs items={[{ label: 'Pipeline', onClick: onBack }, { label: p.company_name || 'Lead' }]} />
+      <form onSubmit={submit} className="rounded-[var(--radius-card)] border border-mist bg-paper p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-display text-xl">{p.company_name}</h2>
@@ -1589,7 +1613,7 @@ function ProspectInfoModal({ p, onClose, onSaved }) {
           </div>
 
           <div className="border-t border-mist pt-3 md:col-span-2">
-            <IngestPanel partnerId={p.id} website={f.website} />
+            <IngestPanel partnerId={p.id} website={f.website} onReview={() => setReview(true)} />
           </div>
 
           <div className="grid gap-5 border-t border-mist pt-3 md:col-span-2 md:grid-cols-2">
@@ -1603,9 +1627,10 @@ function ProspectInfoModal({ p, onClose, onSaved }) {
         </div>
 
         {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
-        <div className="mt-5 flex gap-3">
-          <button type="button" onClick={onClose} className="ring-lux rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink">Close</button>
+        <div className="mt-5 flex items-center gap-3">
+          <button type="button" onClick={onBack} className="ring-lux rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink">← Back</button>
           <button type="submit" disabled={busy} className="ring-lux flex-1 rounded-full bg-ink py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">{busy ? 'Saving…' : 'Save'}</button>
+          {saved && <span className="shrink-0 text-sm font-semibold text-go">Saved ✓</span>}
         </div>
       </form>
     </div>
