@@ -175,6 +175,7 @@ export function mapListing(row) {
     gearbox: row.gearbox,
     fuel: row.fuel,
     image: row.photo_url || null,
+    photos: Array.isArray(row.photos) ? row.photos : [],
     video: row.video_url || null,
     tint: '#191a1e',
     host: { name: row.host_name || 'AIRLUXO partner', rating, trips: row.trips ?? 0, since: null },

@@ -45,6 +45,12 @@ export default function CarDetail({ car, onClose }) {
   const [protection, setProtection] = useState(false);
   const [usePoints, setUsePoints] = useState(false);
   const [booked, setBooked] = useState(false);
+  const [gallery, setGallery] = useState(false);
+  const [galleryIdx, setGalleryIdx] = useState(0);
+  // Multi-image gallery: real partner photos (hero + interior/detail). Falls back to the hero.
+  const photos = (Array.isArray(car.photos) && car.photos.length
+    ? car.photos.map((p) => (typeof p === 'string' ? p : p?.url)).filter(Boolean)
+    : (car.image ? [car.image] : []));
   const [phase, setPhase] = useState('idle'); // idle | details | licence | payment
   const [guest, setGuest] = useState({ email: '', phone: '' });
   // Newsletter opt-in. Unchecked by default — affirmative consent (revDSG/GDPR-safe).
@@ -412,6 +418,12 @@ export default function CarDetail({ car, onClose }) {
             {car.video && !reduceMotion && (
               <video src={car.video} autoPlay muted loop playsInline preload="auto" className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
             )}
+            {photos.length > 1 && (
+              <button type="button" onClick={() => { setGalleryIdx(0); setGallery(true); }}
+                className="ring-lux absolute right-4 top-4 z-10 rounded-full bg-ink/55 px-3 py-1.5 text-xs font-semibold text-cloud backdrop-blur transition-colors hover:bg-ink/75">
+                ⤢ {photos.length} photos
+              </button>
+            )}
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/65 via-transparent to-transparent" />
             <div className="absolute bottom-5 left-5 right-5 flex items-end justify-between text-cloud sm:left-7 sm:right-7">
               <div>
@@ -425,6 +437,20 @@ export default function CarDetail({ car, onClose }) {
               </div>
             </div>
           </div>
+
+          {gallery && photos[galleryIdx] && (
+            <div className="fixed inset-0 z-[80] grid place-items-center bg-ink/85 p-4 backdrop-blur-sm" onClick={() => setGallery(false)}>
+              <img src={photos[galleryIdx]} alt={`${car.make} ${car.model}`} className="max-h-[88vh] max-w-[94vw] rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+              <button type="button" onClick={() => setGallery(false)} className="ring-lux absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-cloud/90 text-ink">✕</button>
+              {photos.length > 1 && (
+                <div className="absolute inset-x-0 bottom-6 flex items-center justify-center gap-3" onClick={(e) => e.stopPropagation()}>
+                  <button type="button" onClick={() => setGalleryIdx((i) => (i - 1 + photos.length) % photos.length)} className="ring-lux grid h-9 w-9 place-items-center rounded-full bg-cloud/90 text-ink">‹</button>
+                  <span className="text-xs font-semibold text-cloud">{galleryIdx + 1} / {photos.length}</span>
+                  <button type="button" onClick={() => setGalleryIdx((i) => (i + 1) % photos.length)} className="ring-lux grid h-9 w-9 place-items-center rounded-full bg-cloud/90 text-ink">›</button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* body */}
           <div className="grid gap-8 p-5 sm:p-7 lg:grid-cols-[1.5fr_1fr]">

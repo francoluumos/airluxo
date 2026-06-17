@@ -3,6 +3,7 @@ import { AnimatePresence } from 'motion/react';
 import CarCard from './CarCard.jsx';
 import CarDetail from './CarDetail.jsx';
 import { fetchPartnerListings, fetchPreviewListings } from '../lib/listings.js';
+import { fetchBrandKit, brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
 
 // Dark theme: override the palette CSS variables; every Tailwind token
 // (bg-paper, text-ink, …) re-skins automatically, including the booking modal.
@@ -22,6 +23,7 @@ export default function Embed({ partnerId, previewToken }) {
   const dark = new URLSearchParams(window.location.search).get('theme') === 'dark';
   const [cars, setCars] = useState(null);
   const [active, setActive] = useState(null);
+  const [kit, setKit] = useState(null); // partner brand kit (colours/fonts/logo)
 
   useEffect(() => {
     let on = true;
@@ -33,8 +35,16 @@ export default function Embed({ partnerId, previewToken }) {
     load
       .then((r) => { if (on) setCars(r); })
       .catch(() => { if (on) setCars([]); });
+    fetchBrandKit(partnerId).then((k) => { if (on) setKit(k || {}); }).catch(() => { if (on) setKit({}); });
     return () => { on = false; };
   }, [partnerId, previewToken]);
+
+  // Load the partner's font (if any) once the kit arrives.
+  useEffect(() => { if (kit?.fonts?.url) loadBrandFont(kit.fonts.url); }, [kit]);
+
+  // Theme = dark override (if requested) + the partner's brand-kit colours/fonts.
+  const themeVars = { ...(dark ? DARK_VARS : {}), ...(brandKitToVars(kit) || {}) };
+  const rootStyle = Object.keys(themeVars).length ? themeVars : undefined;
 
   useEffect(() => {
     document.body.style.overflow = active ? 'hidden' : '';
@@ -42,7 +52,12 @@ export default function Embed({ partnerId, previewToken }) {
   }, [active]);
 
   return (
-    <div style={dark ? DARK_VARS : undefined} className="min-h-screen bg-paper text-ink px-4 py-6 sm:px-6">
+    <div style={rootStyle} className="min-h-screen bg-paper text-ink px-4 py-6 sm:px-6">
+      {kit?.logo_url && (
+        <div className="mb-5 flex justify-center">
+          <img src={kit.logo_url} alt="" className="h-10 max-w-[60%] object-contain" />
+        </div>
+      )}
       {previewToken && (
         <div className="mx-auto mb-5 max-w-md rounded-full border border-gold/30 bg-gold/10 px-4 py-2 text-center text-xs font-semibold text-gold">
           Sales preview — this storefront isn’t live yet
