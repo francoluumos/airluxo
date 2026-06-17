@@ -48,6 +48,33 @@ export async function fetchPublicSite(key) {
   return data || null;
 }
 
+// Public read of a published site by a verified custom hostname (anon-safe).
+export async function fetchPublicSiteByHost(host) {
+  const { data, error } = await supabase.rpc('public_partner_site_by_host', { p_host: host });
+  if (error) return null;
+  return data || null;
+}
+
+// Admin: own-domain management (multi-tenant CNAME + dedicated-Vercel record).
+export async function addPartnerDomain(partnerId, hostname, kind = 'cname') {
+  const { data, error } = await supabase.rpc('admin_add_partner_domain', { p_partner_id: partnerId, p_hostname: hostname, p_kind: kind });
+  if (error) throw error;
+  return data;
+}
+export async function listPartnerDomains(partnerId) {
+  const { data, error } = await supabase.rpc('admin_list_partner_domains', { p_partner_id: partnerId });
+  if (error) throw error;
+  return data ?? [];
+}
+export async function setDomainVerified(id, verified, vercelProjectId = null) {
+  const { error } = await supabase.rpc('admin_set_domain_verified', { p_id: id, p_verified: verified, p_vercel_project_id: vercelProjectId });
+  if (error) throw error;
+}
+export async function removePartnerDomain(id) {
+  const { error } = await supabase.rpc('admin_remove_partner_domain', { p_id: id });
+  if (error) throw error;
+}
+
 // Admin: save a partner's legal-entity data + generated Impressum/privacy/terms.
 export async function setPartnerLegal(partnerId, legal, legalPages) {
   const { error } = await supabase.rpc('admin_set_partner_legal', { p_id: partnerId, p_legal: legal, p_legal_pages: legalPages });

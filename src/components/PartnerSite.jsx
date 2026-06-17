@@ -4,14 +4,14 @@ import CarCard from './CarCard.jsx';
 import CarDetail from './CarDetail.jsx';
 import { fetchPartnerListings } from '../lib/listings.js';
 import { brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
-import { fetchPublicSite, mapSiteConfig } from '../lib/site.js';
+import { fetchPublicSite, fetchPublicSiteByHost, mapSiteConfig } from '../lib/site.js';
 import { LEGAL_TABS } from '../lib/legal.js';
 
 // Public white-label partner site: a partner's full home (hero/USP, about, benefits,
 // contact) + their fleet + the AIRLUXO booking flow, themed by their brand kit over
 // AIRLUXO's UI/UX (only colours/fonts/logo change). Served at /p/<slug> (and on the
 // partner's own domain via host resolution, U12). Only published sites resolve.
-export default function PartnerSite({ slugOrKey }) {
+export default function PartnerSite({ slugOrKey, host }) {
   const [site, setSite] = useState(undefined); // undefined = loading, null = not found
   const [cars, setCars] = useState(null);
   const [active, setActive] = useState(null);
@@ -19,13 +19,14 @@ export default function PartnerSite({ slugOrKey }) {
 
   useEffect(() => {
     let on = true;
-    fetchPublicSite(slugOrKey).then((s) => {
+    const load = host ? fetchPublicSiteByHost(host) : fetchPublicSite(slugOrKey);
+    load.then((s) => {
       if (!on) return;
       setSite(s);
       if (s?.partner_id) fetchPartnerListings(s.partner_id).then((r) => on && setCars(r)).catch(() => on && setCars([]));
     }).catch(() => on && setSite(null));
     return () => { on = false; };
-  }, [slugOrKey]);
+  }, [slugOrKey, host]);
 
   useEffect(() => { if (site?.brand_kit?.fonts?.url) loadBrandFont(site.brand_kit.fonts.url); }, [site]);
   useEffect(() => { document.body.style.overflow = active ? 'hidden' : ''; return () => { document.body.style.overflow = ''; }; }, [active]);

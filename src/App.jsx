@@ -88,9 +88,13 @@ export default function App() {
   // White-label embed for partner sites: ?embed=<partnerId>.
   const embedPartner = params.get('embed');
   if (embedPartner) return <Embed partnerId={embedPartner} previewToken={params.get('preview')} />;
-  // Public white-label partner site: /p/<slug> (the multi-tenant host route, U12, resolves here too).
+  // Public white-label partner site: /p/<slug>.
   const siteSlug = window.location.pathname.match(/^\/p\/([^/]+)\/?$/)?.[1];
   if (siteSlug) return <PartnerSite slugOrKey={decodeURIComponent(siteSlug)} />;
+  // Multi-tenant own-domain (U12): any host that isn't ours resolves to its partner site.
+  const host = window.location.hostname;
+  const isOurHost = /(^|\.)airluxo\.ch$/i.test(host) || host.endsWith('.vercel.app') || host === 'localhost' || host === '127.0.0.1';
+  if (!isOurHost) return <PartnerSite host={host} />;
   // Partner guide + changelog (opened in a new tab from Settings): ?docs.
   if (params.has('docs')) return <Docs which={params.get('docs') || 'partner'} />;
   // Password-recovery landing from the reset email: ?reset=1 (token in the URL hash).

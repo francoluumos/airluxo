@@ -11,7 +11,7 @@ import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
 import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, setPartnerBrandKit, normalizeKit, brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
-import { setPartnerSite, slugify, mapSiteConfig, setPartnerLegal } from '../lib/site.js';
+import { setPartnerSite, slugify, mapSiteConfig, setPartnerLegal, addPartnerDomain, listPartnerDomains, setDomainVerified, removePartnerDomain } from '../lib/site.js';
 import { LEGAL_FIELDS, seedLegal, buildLegalPages } from '../lib/legal.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
@@ -1201,6 +1201,9 @@ function BrandReviewModal({ partnerId, onClose }) {
   const [savingSite, setSavingSite] = useState(false);
   const [legal, setLegal] = useState({});
   const [savingLegal, setSavingLegal] = useState(false);
+  const [domains, setDomains] = useState([]);
+  const [newHost, setNewHost] = useState('');
+  const [busyDomain, setBusyDomain] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -1216,6 +1219,7 @@ function BrandReviewModal({ partnerId, onClose }) {
       setLegal(seedLegal(d?.legal, d?.company_name, (d?.partner_pages || {}).contact));
       setLoading(false);
     }).catch((e) => { setErr(e.message || 'Could not load.'); setLoading(false); });
+    listPartnerDomains(partnerId).then((r) => alive && setDomains(r)).catch(() => {});
     return () => { alive = false; };
   }, [partnerId]);
 
@@ -1265,6 +1269,26 @@ function BrandReviewModal({ partnerId, onClose }) {
   }
 
   const siteUrl = `${siteOrigin()}/p/${slug || '…'}`;
+
+  async function addDomain() {
+    if (!newHost.trim()) return;
+    setBusyDomain(true); setErr(''); setMsg('');
+    try { await addPartnerDomain(partnerId, newHost.trim()); setNewHost(''); setDomains(await listPartnerDomains(partnerId)); setMsg('Domain added — point its DNS, then mark verified.'); }
+    catch (e) { setErr(/duplicate|unique/i.test(e.message || '') ? 'That domain is already registered.' : (e.message || 'Could not add the domain.')); }
+    finally { setBusyDomain(false); }
+  }
+  async function toggleVerified(d) {
+    setBusyDomain(true); setErr('');
+    try { await setDomainVerified(d.id, !d.verified); setDomains(await listPartnerDomains(partnerId)); }
+    catch (e) { setErr(e.message || 'Could not update.'); }
+    finally { setBusyDomain(false); }
+  }
+  async function dropDomain(d) {
+    setBusyDomain(true); setErr('');
+    try { await removePartnerDomain(d.id); setDomains(await listPartnerDomains(partnerId)); }
+    catch (e) { setErr(e.message || 'Could not remove.'); }
+    finally { setBusyDomain(false); }
+  }
 
   async function saveLegal() {
     setSavingLegal(true); setErr(''); setMsg('');
@@ -1440,6 +1464,33 @@ function BrandReviewModal({ partnerId, onClose }) {
                   {siteUrl.replace(/^https?:\/\//, '')} <Icon.ArrowUpRight width={13} height={13} />
                 </a>
               </div>
+            </section>
+
+            {/* Own-domain (multi-tenant CNAME) */}
+            <section className="border-t border-mist pt-4">
+              <h3 className="text-sm font-bold text-ink">Own domain</h3>
+              <p className="mt-1 text-xs text-stone">Point the partner&apos;s domain here: add it, set a <span className="font-semibold text-ink">CNAME → cname.vercel-dns.com</span> at their registrar + add it in the Vercel project, then mark verified. Verified domains serve the published site.</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input value={newHost} onChange={(e) => setNewHost(e.target.value.toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, ''))} placeholder="cars.partner.ch"
+                  className="ring-lux rounded-xl border border-mist bg-cloud px-3 py-2 text-sm outline-none transition-colors focus:border-ink" />
+                <button type="button" onClick={addDomain} disabled={busyDomain || !newHost.trim()}
+                  className="ring-lux rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">Add domain</button>
+              </div>
+              {domains.length > 0 && (
+                <ul className="mt-3 space-y-2">
+                  {domains.map((d) => (
+                    <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-mist bg-cloud px-3 py-2 text-sm">
+                      <span className="font-semibold text-ink">{d.hostname}</span>
+                      <span className="flex items-center gap-2">
+                        <span className={`rounded-full px-2 py-0.5 text-[0.7rem] font-semibold ${d.verified ? 'bg-go/10 text-go' : 'bg-paper text-stone'}`}>{d.verified ? 'Verified' : 'Pending DNS'}</span>
+                        <button type="button" onClick={() => toggleVerified(d)} disabled={busyDomain} className="ring-lux rounded-lg border border-mist px-2 py-1 text-xs font-semibold text-ink hover:border-ink disabled:opacity-60">{d.verified ? 'Unverify' : 'Mark verified'}</button>
+                        <button type="button" onClick={() => dropDomain(d)} disabled={busyDomain} className="ring-lux rounded-lg border border-mist px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">Remove</button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-2 text-[0.7rem] text-stone">For full isolation a partner can get a dedicated Vercel project — see docs/partner-site/own-domain-deploy.md.</p>
             </section>
 
             {err && <p className="text-sm text-red-600">{err}</p>}
