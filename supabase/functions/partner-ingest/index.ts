@@ -34,13 +34,37 @@ function normUrl(raw: string): string | null {
 // Fleet/inventory path heuristics across CH languages (DE/FR/IT/EN).
 const FLEET_RE = /\/(fleet|cars?|vehicles?|fahrzeuge?|flotte|autos?|veicoli|voitures?|rent(al)?|miete?n|location|noleggio|collection|garage|modelle?|models?)\b/i;
 
-// Skip logos/icons/sprites/tiny assets when collecting car images.
+// Skip logos/icons/sprites/tiny assets when collecting car images. Also drops Wix
+// lazy-load placeholders (blur_*) and small thumbnails (w_<400) that are not real photos.
 function isLikelyPhoto(u: string): boolean {
   if (!u || u.startsWith("data:")) return false;
   if (/\.svg(\?|$)/i.test(u)) return false;
   if (/(sprite|icon|logo|favicon|placeholder|avatar|badge|flag|pixel|spacer)/i.test(u)) return false;
+  if (/blur_\d/i.test(u)) return false;                 // Wix lazy-load placeholder
+  const w = u.match(/[/_,]w_(\d{2,4})/i);                // Wix width param → drop small thumbs
+  if (w && Number(w[1]) < 400) return false;
   return /\.(jpe?g|png|webp|avif)(\?|$)/i.test(u) || /(format=|fit=|w=\d|width=)/i.test(u);
 }
+
+// AI-extraction schema for the fleet page → a structured car list.
+const CARS_SCHEMA = {
+  type: "object",
+  properties: {
+    cars: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          make: { type: "string" }, model: { type: "string" }, year: { type: "string" },
+          price_per_day: { type: "string", description: "Daily rental price as a number, CHF" },
+          power: { type: "string", description: "Horsepower" }, seats: { type: "string" },
+          transmission: { type: "string" }, fuel: { type: "string" },
+          image_url: { type: "string", description: "Main photo URL of the car" },
+        },
+      },
+    },
+  },
+};
 
 // Best-effort tech-stack read from the homepage rawHtml + links + metadata.
 function detectTechStack(html: string, links: string[], generator: string): Record<string, unknown> {
@@ -228,6 +252,25 @@ Deno.serve(async (req) => {
       brand_kit_raw: brandKitRaw, partner_pages: partnerPages, tech_stack: techStack,
     }).eq("id", partnerId);
 
+    // 2b) Structured car extraction over the fleet page (AI json) → a real car list.
+    let cars: any[] = [];
+    if (fleetUrl) {
+      try {
+        const carRes = await fetch(`${FC}/v2/scrape`, {
+          method: "POST", headers: fcHeaders,
+          body: JSON.stringify({
+            url: fleetUrl,
+            formats: [{ type: "json", schema: CARS_SCHEMA, prompt: "Extract every rental car offered on this page. For each car return make, model, year, price per day (number, CHF), power (hp), seats, transmission, fuel, and the main image URL." }],
+          }),
+        });
+        if (carRes.ok) {
+          const cj = await carRes.json();
+          const cd = cj.data || cj;
+          cars = Array.isArray(cd.json?.cars) ? cd.json.cars.slice(0, 40) : [];
+        }
+      } catch { /* extraction is best-effort */ }
+    }
+
     // 3) Kick off the async fleet crawl (finalized by partner-ingest-poll).
     let crawlId: string | null = null;
     if (fleetUrl) {
@@ -246,7 +289,7 @@ Deno.serve(async (req) => {
 
     const status = crawlId ? "crawling" : "ready";
     const { data: updated } = await admin.from("partner_ingest_jobs").update({
-      status, firecrawl_crawl_id: crawlId, fleet_url: fleetUrl, screenshot_url: screenshotUrl, images,
+      status, firecrawl_crawl_id: crawlId, fleet_url: fleetUrl, screenshot_url: screenshotUrl, images, cars,
     }).eq("id", jobId).select().single();
 
     return json({ job: updated });

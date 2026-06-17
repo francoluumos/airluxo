@@ -1244,12 +1244,17 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
   const [busyDomain, setBusyDomain] = useState(false);
   const [newCar, setNewCar] = useState(null); // null = closed; else the car-form fields
   const [savingCar, setSavingCar] = useState(false);
+  const [carRows, setCarRows] = useState([]); // editable copy of the extracted car table
+  const [carSel, setCarSel] = useState(new Set());
+  const [creatingCars, setCreatingCars] = useState(false);
 
   // Re-pull the review payload (after creating/attaching cars) and reset image selection.
   async function reloadReview() {
     const d = await partnerBrandReview(partnerId);
     setData(d);
     setAssigns((d?.job?.images || []).map(() => ({ selected: false, listingId: '', type: 'interior' })));
+    setCarRows(d?.job?.cars || []);
+    setCarSel(new Set());
     return d;
   }
 
@@ -1262,6 +1267,7 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
       setKit(normalizeKit(live ? d.brand_kit : d?.brand_kit_raw));
       const imgs = d?.job?.images || [];
       setAssigns(imgs.map(() => ({ selected: false, listingId: '', type: 'interior' })));
+      setCarRows(d?.job?.cars || []);
       setSlug(d?.slug || slugify(d?.company_name || ''));
       setPublished(!!d?.site_published);
       setLegal(seedLegal(d?.legal, d?.company_name, (d?.partner_pages || {}).contact));
@@ -1324,6 +1330,30 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
       setMsg('Car added to the fleet.');
     } catch (e) { setErr(e.message || 'Could not create the car.'); }
     finally { setSavingCar(false); }
+  }
+
+  // Editable extracted-car table → bulk-create listings.
+  const setCarRow = (i, patch) => setCarRows((s) => s.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+  const toggleCar = (i) => setCarSel((s) => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n; });
+
+  async function createCarsBulk() {
+    const idxs = [...carSel];
+    if (!idxs.length) { setErr('Select cars to create.'); return; }
+    setCreatingCars(true); setErr(''); setMsg('');
+    try {
+      for (const i of idxs) {
+        const c = carRows[i];
+        const fields = {
+          make: c.make, model: c.model, year: c.year, price_per_day: c.price_per_day,
+          power: c.power, seats: c.seats, gearbox: c.transmission || c.gearbox, fuel: c.fuel, category: 'Sport',
+        };
+        const photos = c.image_url ? [{ url: c.image_url, type: 'hero', caption: '' }] : [];
+        await createPartnerListing(partnerId, fields, photos);
+      }
+      setMsg(`Created ${idxs.length} ${idxs.length === 1 ? 'car' : 'cars'} from the scraped table.`);
+      await reloadReview();
+    } catch (e) { setErr(e.message || 'Could not create the cars.'); }
+    finally { setCreatingCars(false); }
   }
 
   async function savePublish(makeLive) {
@@ -1452,6 +1482,51 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
                 <h3 className="text-sm font-bold text-ink">Cars &amp; images <span className="font-normal text-stone">({listings.length} {listings.length === 1 ? 'car' : 'cars'} · {images.length} images · {selectedCount} selected)</span></h3>
                 {data?.job?.status === 'crawling' && <span className="text-xs text-stone animate-pulse">fetching more…</span>}
               </div>
+
+              {/* Scraped car table — AI-extracted from the fleet page; edit then bulk-create */}
+              {carRows.length > 0 && (
+                <div className="mt-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-stone">Scraped cars ({carRows.length}) — edit, select, create</span>
+                    <button type="button" onClick={createCarsBulk} disabled={creatingCars || carSel.size === 0}
+                      className="ring-lux rounded-full bg-ink px-4 py-1.5 text-xs font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-50">
+                      {creatingCars ? 'Creating…' : `Create ${carSel.size || ''} selected`}
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto rounded-xl border border-mist">
+                    <table className="w-full text-sm">
+                      <thead className="bg-cloud text-left text-[0.7rem] uppercase tracking-wide text-stone">
+                        <tr>
+                          <th className="p-2"><input type="checkbox" checked={carSel.size === carRows.length && carRows.length > 0} onChange={(e) => setCarSel(e.target.checked ? new Set(carRows.map((_, i) => i)) : new Set())} /></th>
+                          <th className="p-2">Photo</th><th className="p-2">Make</th><th className="p-2">Model</th>
+                          <th className="p-2">Year</th><th className="p-2">CHF/day</th><th className="p-2">Power</th>
+                          <th className="p-2">Seats</th><th className="p-2">Gearbox</th><th className="p-2">Fuel</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {carRows.map((c, i) => {
+                          const tin = 'w-full min-w-[4.5rem] rounded border border-mist bg-paper px-1.5 py-1 text-xs outline-none focus:border-ink';
+                          return (
+                            <tr key={i} className={`border-t border-mist ${carSel.has(i) ? 'bg-cloud/40' : ''}`}>
+                              <td className="p-2 align-middle"><input type="checkbox" checked={carSel.has(i)} onChange={() => toggleCar(i)} /></td>
+                              <td className="p-2">{c.image_url ? <img src={c.image_url} alt="" className="h-9 w-14 rounded object-cover" onError={(e) => { e.currentTarget.style.opacity = '0.3'; }} /> : <span className="text-stone">—</span>}</td>
+                              <td className="p-1"><input value={c.make || ''} onChange={(e) => setCarRow(i, { make: e.target.value })} className={tin} /></td>
+                              <td className="p-1"><input value={c.model || ''} onChange={(e) => setCarRow(i, { model: e.target.value })} className={tin} /></td>
+                              <td className="p-1"><input value={c.year || ''} onChange={(e) => setCarRow(i, { year: e.target.value })} className={`${tin} min-w-[3.5rem]`} /></td>
+                              <td className="p-1"><input value={c.price_per_day || ''} onChange={(e) => setCarRow(i, { price_per_day: e.target.value })} className={`${tin} min-w-[4rem]`} /></td>
+                              <td className="p-1"><input value={c.power || ''} onChange={(e) => setCarRow(i, { power: e.target.value })} className={`${tin} min-w-[3.5rem]`} /></td>
+                              <td className="p-1"><input value={c.seats || ''} onChange={(e) => setCarRow(i, { seats: e.target.value })} className={`${tin} min-w-[3rem]`} /></td>
+                              <td className="p-1"><input value={c.transmission || c.gearbox || ''} onChange={(e) => setCarRow(i, { transmission: e.target.value })} className={tin} /></td>
+                              <td className="p-1"><input value={c.fuel || ''} onChange={(e) => setCarRow(i, { fuel: e.target.value })} className={tin} /></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="mt-1.5 text-[0.7rem] text-stone">AI-extracted from the fleet page — review/fix, select, then create. Each becomes a listing (its photo = card image) in the preview &amp; website. Re-analyze to refresh.</p>
+                </div>
+              )}
 
               {/* Existing fleet */}
               {listings.length > 0 && (

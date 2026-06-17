@@ -26,6 +26,9 @@ function isLikelyPhoto(u: string): boolean {
   if (!u || u.startsWith("data:")) return false;
   if (/\.svg(\?|$)/i.test(u)) return false;
   if (/(sprite|icon|logo|favicon|placeholder|avatar|badge|flag|pixel|spacer)/i.test(u)) return false;
+  if (/blur_\d/i.test(u)) return false;
+  const w = u.match(/[/_,]w_(\d{2,4})/i);
+  if (w && Number(w[1]) < 400) return false;
   return /\.(jpe?g|png|webp|avif)(\?|$)/i.test(u) || /(format=|fit=|w=\d|width=)/i.test(u);
 }
 
