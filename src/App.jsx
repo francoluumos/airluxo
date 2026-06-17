@@ -18,10 +18,11 @@ import FounderApp from './components/FounderDashboard.jsx';
 
 function Shell() {
   const { session, loading, authModal, closeAuth } = useAuth();
-  // ?partner deep-link lands directly in the partner area (used by the founder
-  // dashboard's "Build fleet" impersonation magic link).
+  // The partner subdomain (partner.airluxo.ch) lands directly in the partner area;
+  // so does the ?partner deep-link (the founder "Build fleet" impersonation magic link).
   const [route, setRoute] = useState(() =>
-    new URLSearchParams(window.location.search).has('partner') ? 'partner' : 'home',
+    (window.location.hostname.startsWith('partner.') || new URLSearchParams(window.location.search).has('partner'))
+      ? 'partner' : 'home',
   ); // home | partner | account
   const [accountTab, setAccountTab] = useState('trips');
   const [activeCar, setActiveCar] = useState(null);
