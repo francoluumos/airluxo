@@ -9,6 +9,7 @@ import AuthModal from './components/AuthModal.jsx';
 import { AuthProvider, useAuth } from './lib/auth.jsx';
 import MobileLicence from './components/MobileLicence.jsx';
 import Embed from './components/Embed.jsx';
+import PartnerSite from './components/PartnerSite.jsx';
 import Docs from './components/Docs.jsx';
 import ResetPassword from './components/ResetPassword.jsx';
 import PrivacyPolicy from './components/PrivacyPolicy.jsx';
@@ -87,6 +88,9 @@ export default function App() {
   // White-label embed for partner sites: ?embed=<partnerId>.
   const embedPartner = params.get('embed');
   if (embedPartner) return <Embed partnerId={embedPartner} previewToken={params.get('preview')} />;
+  // Public white-label partner site: /p/<slug> (the multi-tenant host route, U12, resolves here too).
+  const siteSlug = window.location.pathname.match(/^\/p\/([^/]+)\/?$/)?.[1];
+  if (siteSlug) return <PartnerSite slugOrKey={decodeURIComponent(siteSlug)} />;
   // Partner guide + changelog (opened in a new tab from Settings): ?docs.
   if (params.has('docs')) return <Docs which={params.get('docs') || 'partner'} />;
   // Password-recovery landing from the reset email: ?reset=1 (token in the URL hash).

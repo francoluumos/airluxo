@@ -11,6 +11,7 @@ import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
 import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, setPartnerBrandKit, normalizeKit, brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
+import { setPartnerSite, slugify, mapSiteConfig } from '../lib/site.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -1194,6 +1195,9 @@ function BrandReviewModal({ partnerId, onClose }) {
   const [msg, setMsg] = useState('');
   const [savingKit, setSavingKit] = useState(false);
   const [savingImgs, setSavingImgs] = useState(false);
+  const [slug, setSlug] = useState('');
+  const [published, setPublished] = useState(false);
+  const [savingSite, setSavingSite] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -1204,6 +1208,8 @@ function BrandReviewModal({ partnerId, onClose }) {
       setKit(normalizeKit(live ? d.brand_kit : d?.brand_kit_raw));
       const imgs = d?.job?.images || [];
       setAssigns(imgs.map(() => ({ selected: false, listingId: '', type: 'interior' })));
+      setSlug(d?.slug || slugify(d?.company_name || ''));
+      setPublished(!!d?.site_published);
       setLoading(false);
     }).catch((e) => { setErr(e.message || 'Could not load.'); setLoading(false); });
     return () => { alive = false; };
@@ -1241,6 +1247,20 @@ function BrandReviewModal({ partnerId, onClose }) {
     } catch (e) { setErr(e.message || 'Could not apply photos.'); }
     finally { setSavingImgs(false); }
   }
+
+  async function savePublish(makeLive) {
+    if (!slug.trim()) { setErr('Set a site address (slug) first.'); return; }
+    setSavingSite(true); setErr(''); setMsg('');
+    try {
+      const siteCfg = mapSiteConfig(data?.site_config, pages, data?.company_name);
+      await setPartnerSite(partnerId, slug.trim(), siteCfg, makeLive);
+      setPublished(makeLive);
+      setMsg(makeLive ? 'Site published — live at the public address.' : 'Site unpublished.');
+    } catch (e) { setErr(/duplicate|unique/i.test(e.message || '') ? 'That address is taken — pick another slug.' : (e.message || 'Could not update the site.')); }
+    finally { setSavingSite(false); }
+  }
+
+  const siteUrl = `${siteOrigin()}/p/${slug || '…'}`;
 
   const techChips = [
     tech.cms && `CMS: ${tech.cms}`,
@@ -1354,6 +1374,35 @@ function BrandReviewModal({ partnerId, onClose }) {
                       <p className="mt-1.5 text-[0.7rem] text-stone">Replaces each selected car&apos;s gallery with its assigned images; the “Hero” shot becomes the card image.</p>
                     </>
                   )}
+            </section>
+
+            {/* Publish the white-label site */}
+            <section className="border-t border-mist pt-4">
+              <h3 className="text-sm font-bold text-ink">Website {published ? <span className="ml-1 rounded-full bg-go/10 px-2 py-0.5 text-[0.7rem] font-semibold text-go">Live</span> : <span className="ml-1 rounded-full bg-cloud px-2 py-0.5 text-[0.7rem] font-semibold text-stone">Draft</span>}</h3>
+              <p className="mt-1 text-xs text-stone">Publishes a full site (home · fleet · about · contact) themed with the brand kit, seeded from the extracted copy. Edit the text later in the partner dashboard.</p>
+              <div className="mt-2 flex flex-wrap items-end gap-3">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-stone">Public address</span>
+                  <div className="flex items-center gap-1 text-sm">
+                    <span className="text-stone">/p/</span>
+                    <input value={slug} onChange={(e) => setSlug(slugify(e.target.value))} placeholder="company-name"
+                      className="ring-lux rounded-xl border border-mist bg-cloud px-3 py-2 outline-none transition-colors focus:border-ink" />
+                  </div>
+                </label>
+                <button type="button" onClick={() => savePublish(true)} disabled={savingSite}
+                  className="ring-lux rounded-full bg-ink px-5 py-2 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">
+                  {savingSite ? 'Saving…' : (published ? 'Update & republish' : 'Publish site')}
+                </button>
+                {published && (
+                  <button type="button" onClick={() => savePublish(false)} disabled={savingSite}
+                    className="ring-lux rounded-full border border-mist px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-60">
+                    Unpublish
+                  </button>
+                )}
+                <a href={siteUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-ink hover:underline">
+                  {siteUrl.replace(/^https?:\/\//, '')} <Icon.ArrowUpRight width={13} height={13} />
+                </a>
+              </div>
             </section>
 
             {err && <p className="text-sm text-red-600">{err}</p>}
