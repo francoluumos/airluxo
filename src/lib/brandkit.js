@@ -46,6 +46,46 @@ export async function latestIngestJob(partnerId) {
   return Array.isArray(data) ? (data[0] ?? null) : (data ?? null);
 }
 
+// Full review payload for the admin review/apply screen (live + proposed kit, USP/copy,
+// tech stack, the partner's listings, and the latest job's scraped images).
+export async function partnerBrandReview(partnerId) {
+  const { data, error } = await supabase.rpc('admin_partner_brand_review', { p_partner_id: partnerId });
+  if (error) throw error;
+  return data;
+}
+
+// Attach a photos gallery (hero + interior/detail) to one listing.
+export async function applyListingPhotos(listingId, photos) {
+  const { error } = await supabase.rpc('admin_apply_listing_photos', { p_listing_id: listingId, p_photos: photos });
+  if (error) throw error;
+}
+
+// Normalize a raw Firecrawl/impeccable brand kit into the editable shape the review UI
+// + brandKitToVars use: { colors:{primary,accent,bg,text}, fonts:{display,body,url}, logo_url }.
+// Firecrawl returns colors with varied keys and fonts as a [{role,family}] array.
+export function normalizeKit(kit) {
+  const k = kit && typeof kit === 'object' ? kit : {};
+  const c = k.colors || {};
+  let display = '', body = '';
+  if (Array.isArray(k.fonts)) {
+    display = (k.fonts.find((f) => /head|display|title/i.test(f.role || ''))?.family) || k.fonts[0]?.family || '';
+    body = (k.fonts.find((f) => /body|text|para/i.test(f.role || ''))?.family) || k.fonts[1]?.family || display;
+  } else if (k.fonts && typeof k.fonts === 'object') {
+    display = k.fonts.display || k.fonts.heading || '';
+    body = k.fonts.body || k.fonts.text || '';
+  }
+  return {
+    colors: {
+      primary: c.primary || c.brand || '',
+      accent: c.accent || c.link || c.secondary || '',
+      bg: c.bg || c.background || '',
+      text: c.text || c.textPrimary || c.foreground || '',
+    },
+    fonts: { display, body, url: (k.fonts && k.fonts.url) || '' },
+    logo_url: k.logo_url || k.logo || '',
+  };
+}
+
 // --- Validation: brand-kit values are partner-controllable, so never interpolate
 // them raw into CSS / a <link href>. Drop anything that doesn't match a strict shape.
 const HEX = /^#[0-9a-fA-F]{3,8}$/;

@@ -49,7 +49,10 @@ Deno.serve(async (req) => {
 
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) return json({ error: "GEMINI_API_KEY is not configured" }, 500);
-    const model = Deno.env.get("GEMINI_TEXT_MODEL") || "gemini-2.5-flash";
+    const primary = Deno.env.get("GEMINI_TEXT_MODEL") || "gemini-2.5-flash";
+    // Try the primary model, then fall back to another on persistent overload.
+    const models = [...new Set([primary, "gemini-2.0-flash"])];
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
     const body = await req.json().catch(() => ({}));
     const url = normUrl(body.url);
@@ -72,26 +75,43 @@ Return ONLY a JSON object (no prose, no markdown) with these keys; use null when
   "socials": { "instagram": string|null, "linkedin": string|null, "facebook": string|null, "tiktok": string|null, "youtube": string|null, "x": string|null }
 }`;
 
-    let resp: Response;
-    try {
-      resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            tools: [{ url_context: {} }, { google_search: {} }],
-            // 2.5-flash is a thinking model — give it enough room so reasoning doesn't
-            // eat the whole budget and leave no answer.
-            generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
-          }),
-        },
-      );
-    } catch (e) {
-      return json({ error: `Network error calling Gemini: ${String((e as Error)?.message || e)}` }, 502);
+    const payload = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      tools: [{ url_context: {} }, { google_search: {} }],
+      // 2.5-flash is a thinking model — give it enough room so reasoning doesn't
+      // eat the whole budget and leave no answer.
+      generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
+    });
+    const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+
+    // Try each model with a short backoff; transient overload (503/429) is common and
+    // usually clears on retry, so don't fail the whole fill on the first spike.
+    let resp: Response | null = null;
+    let lastErr = "";
+    outer:
+    for (const model of models) {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const r = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            { method: "POST", headers: { "Content-Type": "application/json" }, body: payload },
+          );
+          if (r.ok) { resp = r; break outer; }
+          lastErr = `${r.status}: ${(await r.text()).slice(0, 200)}`;
+          if (!RETRYABLE.has(r.status)) break; // non-transient → try next model
+          await sleep(600 * (attempt + 1)); // 0.6s, 1.2s
+        } catch (e) {
+          lastErr = String((e as Error)?.message || e);
+          await sleep(600 * (attempt + 1));
+        }
+      }
     }
-    if (!resp.ok) return json({ error: `Gemini error ${resp.status}: ${(await resp.text()).slice(0, 300)}` }, 502);
+    if (!resp) {
+      const overloaded = /\b(429|503)\b/.test(lastErr);
+      return json({ error: overloaded
+        ? "The AI is busy right now (high demand). Give it a few seconds and try again, or fill manually."
+        : `Gemini error ${lastErr}` }, 503);
+    }
 
     const gem = await resp.json();
     const cand = gem?.candidates?.[0];

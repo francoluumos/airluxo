@@ -10,7 +10,7 @@ import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addIn
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
-import { startIngest, latestIngestJob } from '../lib/brandkit.js';
+import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, setPartnerBrandKit, normalizeKit, brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -1075,15 +1075,19 @@ function ProspectCard({ p, onClaim, onDeleted, onChanged, onDragEnd }) {
 // website" → extract brand kit + USP + tech stack + car images. Polls the async fleet
 // crawl until ready. The founder reviews + applies the result in U6 (review/apply).
 const INGEST_LABELS = {
-  queued: 'Queued', scraping: 'Reading homepage…', crawling: 'Finding car images…',
+  queued: 'Queued', scraping: 'Reading homepage…', crawling: 'Homepage ready — fetching more car images…',
   enriching: 'Refining…', ready: 'Ready to review', failed: 'Failed',
 };
 const isIngestRunning = (s) => ['queued', 'scraping', 'crawling', 'enriching'].includes(s);
+// The brand kit + USP are reviewable as soon as the homepage scrape lands (status past
+// 'scraping'); the fleet crawl only adds more images in the background.
+const isReviewable = (s) => ['crawling', 'enriching', 'ready'].includes(s);
 
 function IngestPanel({ partnerId, website }) {
   const [job, setJob] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [review, setReview] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -1115,11 +1119,20 @@ function IngestPanel({ partnerId, website }) {
     <div>
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs font-semibold text-stone">Brand &amp; site ingest</span>
-        <button type="button" onClick={analyze} disabled={busy || isIngestRunning(status)}
-          className="ring-lux rounded-full bg-ink px-4 py-1.5 text-xs font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">
-          {busy ? 'Starting…' : (job ? 'Re-analyze website' : 'Analyze website')}
-        </button>
+        <div className="flex items-center gap-2">
+          {job && isReviewable(status) && (
+            <button type="button" onClick={() => setReview(true)}
+              className="ring-lux rounded-full border border-ink px-4 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-cloud">
+              Review &amp; apply
+            </button>
+          )}
+          <button type="button" onClick={analyze} disabled={busy || isIngestRunning(status)}
+            className="ring-lux rounded-full bg-ink px-4 py-1.5 text-xs font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">
+            {busy ? 'Starting…' : (job ? 'Re-analyze website' : 'Analyze website')}
+          </button>
+        </div>
       </div>
+      {review && <BrandReviewModal partnerId={partnerId} onClose={() => setReview(false)} />}
       {job && (
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone">
           <span className={`rounded-full px-2 py-0.5 font-semibold ${status === 'failed' ? 'bg-red-50 text-red-600' : status === 'ready' ? 'bg-go/10 text-go' : 'bg-cloud text-ink'}`}>
@@ -1138,6 +1151,220 @@ function IngestPanel({ partnerId, website }) {
       )}
       <p className="mt-1.5 text-[0.7rem] text-stone">Extracts brand colours, fonts, logo, USP, tech stack &amp; car images. Review &amp; apply in the prospect&apos;s brand panel.</p>
       {err && <p className="mt-1 text-[0.7rem] text-red-600">{err}</p>}
+    </div>
+  );
+}
+
+function ColorField({ label, value, onChange }) {
+  const safe = /^#[0-9a-fA-F]{6}$/.test(value || '') ? value : '#000000';
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-semibold text-stone">{label}</span>
+      <div className="flex items-center gap-2">
+        <input type="color" value={safe} onChange={(e) => onChange(e.target.value)} className="h-9 w-10 shrink-0 cursor-pointer rounded border border-mist bg-cloud" />
+        <input value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder="#RRGGBB"
+          className="ring-lux w-full rounded-xl border border-mist bg-cloud px-3 py-2 text-sm outline-none transition-colors focus:border-ink" />
+      </div>
+    </label>
+  );
+}
+
+// Strip empty fields → the kit shape brandKitToVars/Embed expect.
+function cleanKit(k) {
+  const colors = {};
+  for (const key of ['primary', 'accent', 'bg', 'text']) if (k.colors?.[key]) colors[key] = k.colors[key].trim();
+  const fonts = {};
+  if (k.fonts?.display) fonts.display = k.fonts.display.trim();
+  if (k.fonts?.body) fonts.body = k.fonts.body.trim();
+  if (k.fonts?.url) fonts.url = k.fonts.url.trim();
+  const out = { colors, fonts };
+  if (k.logo_url) out.logo_url = k.logo_url.trim();
+  return out;
+}
+
+// U6: founder reviews the extracted brand kit + USP + tech stack + scraped car images,
+// edits, and applies — setting the live brand_kit (themes the preview/storefront) and
+// attaching photo galleries to the partner's cars.
+function BrandReviewModal({ partnerId, onClose }) {
+  const [data, setData] = useState(null);
+  const [kit, setKit] = useState({ colors: {}, fonts: {}, logo_url: '' });
+  const [assigns, setAssigns] = useState([]); // parallel to data.job.images
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+  const [msg, setMsg] = useState('');
+  const [savingKit, setSavingKit] = useState(false);
+  const [savingImgs, setSavingImgs] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    partnerBrandReview(partnerId).then((d) => {
+      if (!alive) return;
+      setData(d);
+      const live = d?.brand_kit && Object.keys(d.brand_kit).length;
+      setKit(normalizeKit(live ? d.brand_kit : d?.brand_kit_raw));
+      const imgs = d?.job?.images || [];
+      setAssigns(imgs.map(() => ({ selected: false, listingId: '', type: 'interior' })));
+      setLoading(false);
+    }).catch((e) => { setErr(e.message || 'Could not load.'); setLoading(false); });
+    return () => { alive = false; };
+  }, [partnerId]);
+
+  useEffect(() => { if (kit.fonts?.url) loadBrandFont(kit.fonts.url); }, [kit.fonts?.url]);
+
+  const setColor = (key) => (v) => setKit((s) => ({ ...s, colors: { ...s.colors, [key]: v } }));
+  const setFont = (key) => (e) => setKit((s) => ({ ...s, fonts: { ...s.fonts, [key]: e.target.value } }));
+  const setAssign = (i, patch) => setAssigns((s) => s.map((a, j) => (j === i ? { ...a, ...patch } : a)));
+
+  const images = data?.job?.images || [];
+  const listings = data?.listings || [];
+  const pages = data?.partner_pages || {};
+  const tech = data?.tech_stack || {};
+  const previewLink = data ? `${siteOrigin()}/?embed=${partnerId}&preview=${data.preview_token}` : '#';
+  const previewVars = brandKitToVars(cleanKit(kit)) || {};
+
+  async function applyKit() {
+    setSavingKit(true); setErr(''); setMsg('');
+    try { await setPartnerBrandKit(partnerId, cleanKit(kit)); setMsg('Brand kit applied — live on the preview.'); }
+    catch (e) { setErr(e.message || 'Could not apply the brand kit.'); }
+    finally { setSavingKit(false); }
+  }
+
+  async function applyImages() {
+    const groups = {};
+    assigns.forEach((a, i) => { if (a.selected && a.listingId && images[i]) (groups[a.listingId] ||= []).push({ url: images[i].url, type: a.type, caption: '' }); });
+    const carIds = Object.keys(groups);
+    if (carIds.length === 0) { setErr('Select images and assign each to a car first.'); return; }
+    setSavingImgs(true); setErr(''); setMsg('');
+    try {
+      for (const lid of carIds) await applyListingPhotos(lid, groups[lid]);
+      setMsg(`Photos applied to ${carIds.length} ${carIds.length === 1 ? 'car' : 'cars'}.`);
+    } catch (e) { setErr(e.message || 'Could not apply photos.'); }
+    finally { setSavingImgs(false); }
+  }
+
+  const techChips = [
+    tech.cms && `CMS: ${tech.cms}`,
+    Array.isArray(tech.payments) && tech.payments.length && `Pay: ${tech.payments.join(', ')}`,
+    tech.booking && `Booking: ${tech.booking}`,
+    tech.ecommerce && `Shop: ${tech.ecommerce}`,
+    Array.isArray(tech.analytics) && tech.analytics.length && `Analytics: ${tech.analytics.join(', ')}`,
+  ].filter(Boolean);
+  const selectedCount = assigns.filter((a) => a.selected).length;
+
+  return (
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-ink/60 p-5 backdrop-blur-sm" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl">Brand &amp; pitch — {data?.company_name || ''}</h2>
+            <p className="mt-1 text-xs text-stone">Review the extracted brand kit, USP and car images, then apply. Applying the kit themes the preview live.</p>
+          </div>
+          <a href={previewLink} target="_blank" rel="noreferrer" className="ring-lux shrink-0 rounded-lg border border-mist px-2.5 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-ink">Preview ↗</a>
+        </div>
+
+        {loading ? <p className="mt-6 text-sm text-stone">Loading…</p> : (
+          <div className="mt-5 space-y-6">
+            {/* Brand kit */}
+            <section className="grid gap-5 md:grid-cols-2">
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-ink">Brand kit</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <ColorField label="Primary" value={kit.colors.primary} onChange={setColor('primary')} />
+                  <ColorField label="Accent" value={kit.colors.accent} onChange={setColor('accent')} />
+                  <ColorField label="Background" value={kit.colors.bg} onChange={setColor('bg')} />
+                  <ColorField label="Text" value={kit.colors.text} onChange={setColor('text')} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <AdminField label="Display font" value={kit.fonts.display || ''} onChange={setFont('display')} placeholder="Montserrat" />
+                  <AdminField label="Body font" value={kit.fonts.body || ''} onChange={setFont('body')} placeholder="Inter" />
+                </div>
+                <AdminField label="Font stylesheet URL" value={kit.fonts.url || ''} onChange={setFont('url')} placeholder="https://fonts.googleapis.com/css2?…" />
+                <AdminField label="Logo URL" value={kit.logo_url || ''} onChange={(e) => setKit((s) => ({ ...s, logo_url: e.target.value }))} placeholder="https://…/logo.svg" />
+                <button type="button" onClick={applyKit} disabled={savingKit}
+                  className="ring-lux w-full rounded-full bg-ink py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">
+                  {savingKit ? 'Applying…' : 'Apply brand kit (go live)'}
+                </button>
+              </div>
+
+              {/* Live preview + intel */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-ink">Preview</h3>
+                <div style={previewVars} className="overflow-hidden rounded-xl border border-mist">
+                  <div className="bg-paper p-4">
+                    {kit.logo_url
+                      ? <img src={kit.logo_url} alt="logo" className="mb-3 h-7 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                      : <div className="mb-3 font-display text-lg text-ink">{data?.company_name}</div>}
+                    <div className="font-display text-2xl text-gold">Drive something extraordinary</div>
+                    <p className="mt-1 text-sm text-ink/70">{pages.usp || 'Your fleet, on the AIRLUXO engine.'}</p>
+                    <button className="mt-3 rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-paper">Book now</button>
+                  </div>
+                </div>
+                {pages.usp && <p className="text-xs text-stone"><span className="font-semibold text-ink">USP:</span> {pages.usp}</p>}
+                {techChips.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {techChips.map((c, i) => <span key={i} className="rounded-full bg-cloud px-2 py-0.5 text-[0.7rem] font-semibold text-ink">{c}</span>)}
+                  </div>
+                )}
+                {data?.job?.screenshot_url && (
+                  <a href={data.job.screenshot_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-ink hover:underline">
+                    Original site screenshot <Icon.ArrowUpRight width={13} height={13} />
+                  </a>
+                )}
+              </div>
+            </section>
+
+            {/* Car images */}
+            <section className="border-t border-mist pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-ink">Car images <span className="font-normal text-stone">({images.length} found · {selectedCount} selected)</span></h3>
+                {isReviewable(data?.job?.status) && data?.job?.status === 'crawling' && <span className="text-xs text-stone animate-pulse">fetching more…</span>}
+              </div>
+              {listings.length === 0
+                ? <p className="mt-2 text-xs text-stone">No cars yet — build the fleet first (Build fleet ↗ on the card), then attach photos here.</p>
+                : images.length === 0
+                  ? <p className="mt-2 text-xs text-stone">No images extracted yet.</p>
+                  : (
+                    <>
+                      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                        {images.map((im, i) => (
+                          <div key={i} className={`overflow-hidden rounded-xl border ${assigns[i]?.selected ? 'border-ink' : 'border-mist'}`}>
+                            <button type="button" onClick={() => setAssign(i, { selected: !assigns[i]?.selected })} className="block w-full">
+                              <img src={im.url} alt="" loading="lazy" className="aspect-[4/3] w-full object-cover" onError={(e) => { e.currentTarget.style.opacity = '0.3'; }} />
+                            </button>
+                            <div className="space-y-1 p-1.5">
+                              <select value={assigns[i]?.listingId || ''} onChange={(e) => setAssign(i, { listingId: e.target.value, selected: !!e.target.value })}
+                                className="ring-lux w-full rounded-md border border-mist bg-cloud px-1.5 py-1 text-[0.7rem] outline-none focus:border-ink">
+                                <option value="">— assign to car —</option>
+                                {listings.map((l) => <option key={l.id} value={l.id}>{[l.make, l.model].filter(Boolean).join(' ') || 'Car'}</option>)}
+                              </select>
+                              <select value={assigns[i]?.type || 'interior'} onChange={(e) => setAssign(i, { type: e.target.value })}
+                                className="ring-lux w-full rounded-md border border-mist bg-cloud px-1.5 py-1 text-[0.7rem] outline-none focus:border-ink">
+                                <option value="hero">Hero (whole car)</option>
+                                <option value="interior">Interior</option>
+                                <option value="detail">Detail</option>
+                              </select>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <button type="button" onClick={applyImages} disabled={savingImgs}
+                        className="ring-lux mt-3 rounded-full border border-ink px-5 py-2 text-sm font-semibold text-ink transition-colors hover:bg-cloud disabled:opacity-60">
+                        {savingImgs ? 'Applying…' : 'Apply car photos'}
+                      </button>
+                      <p className="mt-1.5 text-[0.7rem] text-stone">Replaces each selected car&apos;s gallery with its assigned images; the “Hero” shot becomes the card image.</p>
+                    </>
+                  )}
+            </section>
+
+            {err && <p className="text-sm text-red-600">{err}</p>}
+            {msg && <p className="text-sm text-go">{msg}</p>}
+          </div>
+        )}
+
+        <div className="mt-6 flex justify-end">
+          <button type="button" onClick={onClose} className="ring-lux rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink">Close</button>
+        </div>
+      </div>
     </div>
   );
 }
