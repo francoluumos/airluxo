@@ -1684,7 +1684,7 @@ function LeadDetailView({ p, onBack }) {
   if (review) return <ReviewView partnerId={p.id} companyName={f.company_name || p.company_name} onBack={() => setReview(false)} toPipeline={onBack} />;
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="w-full">
       <Crumbs items={[{ label: 'Pipeline', onClick: onBack }, { label: p.company_name || 'Lead' }]} />
       <form onSubmit={submit} className="rounded-[var(--radius-card)] border border-mist bg-paper p-6">
         <div className="flex items-start justify-between gap-3">
