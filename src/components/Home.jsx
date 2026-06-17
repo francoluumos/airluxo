@@ -5,7 +5,8 @@ import CarCard from './CarCard.jsx';
 import CarImage from './CarImage.jsx';
 import { Icon } from './Icons.jsx';
 import { CARS, CATEGORIES, CITIES, STEPS, FEES } from '../lib/data.js';
-import { fetchPublicListings, mapListing, fetchFleetPins } from '../lib/listings.js';
+import { fetchPublicListings, mapListing, fetchFleetPins, fetchPartnerListings } from '../lib/listings.js';
+import { LEGAL_TABS } from '../lib/legal.js';
 import { fetchFleetAvailability } from '../lib/bookings.js';
 import { chf } from '../lib/format.js';
 import { useT } from '../lib/i18n.jsx';
@@ -43,8 +44,12 @@ const rise = {
   show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
 };
 
-export default function Home({ onOpenCar, onPartner, onAccount }) {
+// When `partner` is set, this same homepage powers a partner's white-label site:
+// scoped to their cars, branded with their logo/legal, AIRLUXO host-recruitment hidden.
+// Theming (colours/fonts) is applied by the wrapping themed root (PartnerSite).
+export default function Home({ onOpenCar, onPartner, onAccount, partner = null }) {
   const t = useT();
+  const [legalView, setLegalView] = useState(null); // partner footer legal overlay
   const [cat, setCat] = useState('All');
   const [q, setQ] = useState('');
   const [cars, setCars] = useState(null); // null = loading
@@ -79,16 +84,21 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
 
   useEffect(() => {
     let active = true;
-    Promise.all([fetchPublicListings(), fetchFleetPins().catch(() => [])])
+    // A partner site shows only that partner's cars (already mapped); the marketplace
+    // shows all public listings (raw rows → mapListing).
+    const carsP = partner
+      ? fetchPartnerListings(partner.id)
+      : fetchPublicListings().then((rows) => rows.map(mapListing));
+    Promise.all([carsP, fetchFleetPins().catch(() => [])])
       .then(([rows, pins]) => {
         if (!active) return;
         const byId = Object.fromEntries((pins || []).map((p) => [p.listing_id, p]));
-        setCars(rows.map(mapListing).map((c) => (byId[c.id] ? { ...c, lat: byId[c.id].lat, lng: byId[c.id].lng } : c)));
+        setCars(rows.map((c) => (byId[c.id] ? { ...c, lat: byId[c.id].lat, lng: byId[c.id].lng } : c)));
       })
       .catch(() => { if (active) setCars([]); });
     fetchFleetAvailability().then((m) => { if (active) setAvail(m); }).catch(() => {});
     return () => { active = false; };
-  }, []);
+  }, [partner]);
 
   const setFilter = (k, v) => setFilters((p) => ({ ...p, [k]: v }));
 
@@ -183,7 +193,7 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
 
   return (
     <div className="min-h-screen">
-      <Nav onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })} onPartner={onPartner} onAccount={onAccount} />
+      <Nav onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })} onPartner={onPartner} onAccount={onAccount} partner={partner} />
 
       {/* ============ HERO ============ */}
       <section className="relative overflow-hidden">
@@ -423,6 +433,7 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
       </section>
 
       {/* ============ HOW IT WORKS (dark) ============ */}
+      {!partner && (
       <section id="how" className="relative bg-void text-cloud spotlight">
         <div className="mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
           <div className="max-w-2xl">
@@ -471,8 +482,10 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
           </div>
         </div>
       </section>
+      )}
 
       {/* ============ PARTNER CTA ============ */}
+      {!partner && (
       <section id="partner" className="mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <div>
@@ -535,8 +548,20 @@ export default function Home({ onOpenCar, onPartner, onAccount }) {
           </div>
         </div>
       </section>
+      )}
 
-      <Footer onPartner={onPartner} />
+      <Footer onPartner={onPartner} partner={partner} onLegal={setLegalView} />
+
+      {partner && legalView && (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-ink/60 p-5 backdrop-blur-sm" onClick={() => setLegalView(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+            <pre className="whitespace-pre-wrap font-sans text-sm text-ink/85">{(partner.legal_pages || {})[legalView] || ''}</pre>
+            <div className="mt-4 text-right">
+              <button type="button" onClick={() => setLegalView(null)} className="ring-lux rounded-full border border-mist px-5 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -565,8 +590,33 @@ function Stat({ k, v }) {
   );
 }
 
-function Footer({ onPartner }) {
+function Footer({ onPartner, partner = null, onLegal }) {
   const t = useT();
+
+  // White-label partner footer: their brand + legal links + "Powered by AIRLUXO".
+  if (partner) {
+    const lp = partner.legal_pages || {};
+    const legalTabs = LEGAL_TABS.filter(([k]) => (lp[k] || '').trim());
+    return (
+      <footer className="border-t border-mist bg-paper">
+        <div className="mx-auto max-w-[1240px] px-5 py-12 text-center sm:px-8">
+          {partner.logo_url
+            ? <img src={partner.logo_url} alt={partner.company_name} className="mx-auto h-8 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            : <div className="font-display text-xl text-ink">{partner.company_name}</div>}
+          {legalTabs.length > 0 && (
+            <div className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-1 text-sm">
+              {legalTabs.map(([key, label]) => (
+                <button key={key} type="button" onClick={() => onLegal?.(key)} className="font-semibold text-stone transition-colors hover:text-ink">{label}</button>
+              ))}
+            </div>
+          )}
+          <div className="mt-5 text-xs text-stone">© {new Date().getFullYear()} {partner.company_name}</div>
+          <div className="mt-1 text-xs text-stone">Powered by <span className="wordmark text-ink">AIR<span className="text-gold">LUXO</span></span></div>
+        </div>
+      </footer>
+    );
+  }
+
   return (
     <footer className="border-t border-mist bg-paper">
       <div className="mx-auto max-w-[1240px] px-5 py-14 sm:px-8">

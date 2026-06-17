@@ -89,13 +89,14 @@ export default function App() {
   // White-label embed for partner sites: ?embed=<partnerId>.
   const embedPartner = params.get('embed');
   if (embedPartner) return <Embed partnerId={embedPartner} previewToken={params.get('preview')} />;
-  // Public white-label partner site: /p/<slug>.
+  // Public white-label partner site: /p/<slug>. Wrapped in AuthProvider — it reuses the
+  // full Home (booking flow needs customer auth via the AuthModal).
   const siteSlug = window.location.pathname.match(/^\/p\/([^/]+)\/?$/)?.[1];
-  if (siteSlug) return <PartnerSite slugOrKey={decodeURIComponent(siteSlug)} />;
+  if (siteSlug) return <AuthProvider><PartnerSite slugOrKey={decodeURIComponent(siteSlug)} /></AuthProvider>;
   // Multi-tenant own-domain (U12): any host that isn't ours resolves to its partner site.
   const host = window.location.hostname;
   const isOurHost = /(^|\.)airluxo\.ch$/i.test(host) || host.endsWith('.vercel.app') || host === 'localhost' || host === '127.0.0.1';
-  if (!isOurHost) return <PartnerSite host={host} />;
+  if (!isOurHost) return <AuthProvider><PartnerSite host={host} /></AuthProvider>;
   // Partner guide + changelog (opened in a new tab from Settings): ?docs.
   if (params.has('docs')) return <Docs which={params.get('docs') || 'partner'} />;
   // Password-recovery landing from the reset email: ?reset=1 (token in the URL hash).
