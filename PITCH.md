@@ -65,6 +65,24 @@ quiet engine behind it. One clear CTA at the end.
 - **Source:** real AIRLUXO content drafts/posts + marketplace stats once available.
 - **Motion/feel:** a tasteful carousel/reel showcase; social-proof numbers when we have them.
 
+## Slide 5 — "More ways to delight & earn" (roadmap)
+- **Goal:** show AIRLUXO keeps adding revenue + convenience the partner won't build alone —
+  the relationship grows after go-live.
+- **Content:** the value-adds layered on top of the storefront + booking:
+  - **Delivery service through AIRLUXO** — the car delivered to the guest (airport, hotel,
+    home) and collected after; AIRLUXO coordinates + prices the delivery, the partner just
+    confirms. A premium convenience that lifts conversion + average order value.
+  - **Discount & promo campaigns** — seasonal / last-minute / loyalty discount codes and
+    featured-deal placements across the marketplace + the partner's own site, managed centrally.
+  - **Add-ons / extras** — upsells attached at booking: **chauffeur / driver**, additional
+    driver, child seat, extra insurance / lower excess, delivery, extended mileage, airport
+    meet-&-greet. The partner picks which to offer; AIRLUXO handles the upsell UX + the split.
+- **Through-line:** "Your storefront is day one — AIRLUXO keeps adding services that earn you
+  more per booking and make guests choose you again."
+- **Motion/feel:** a light, optimistic 'roadmap' reveal; frame as *coming / available soon*
+  so it inspires without over-promising live status (same posture as the integrations slide).
+- **Note:** roadmap — keep each item editable per pitch; don't claim live until it ships.
+
 ## Closing — CTA
 - One decisive action: **Go live** (claim → real partner account) or **Book a call**.
 - Reassure: "Your preview stays private until you say go." (matches the prospect-preview model.)
@@ -74,7 +92,7 @@ quiet engine behind it. One clear CTA at the end.
 ## Build notes
 - Brand theming = the partner's `brand_kit` (colours + fonts + logo) over AIRLUXO
   components via CSS variables (same mechanism as the storefront preview). UI/UX stays ours.
-- Slide 1 reuses the branded preview directly; slides 2–4 are AIRLUXO-authored, brand-tinted.
+- Slide 1 reuses the branded preview directly; slides 2–5 are AIRLUXO-authored, brand-tinted.
 - Slide 2's animation is the signature moment — invest in it (SVG/Canvas or a motion lib;
   `motion/react` is already in the stack). Respect `prefers-reduced-motion`.
 - Keep an editable per-pitch config: which integrations to show, which plan to highlight,

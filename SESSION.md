@@ -6,17 +6,21 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 
 ---
 
-## ▶ Pick up here — as of 2026-06-16
+## ▶ Pick up here — as of 2026-06-17
 
-**Immediate next — finish content automation (mine ✅ → generate ⏳ → approve ✅ → publish ⏳):**
-1. **Higgsfield credits** — account is on **free plan, 0 credits left** (the generation test used them). Top up / upgrade (PLUS/ULTRA) → then I generate real **Seedance video reels** (+ virality scoring). Images cost ~2 credits each; video needs the upgrade.
-2. **Train a Higgsfield Soul ID** (`higgsfield-soul-id`, ~20 photos of the recurring couple/models) → consistent AI people across scenes. Send me the `reference_id`.
-3. **Set the Vault service-role key** (one line in the SQL editor) → activates the **daily `content-scrape` cron** + the marketing crons: `select vault.create_secret('<SERVICE_ROLE_KEY>', 'sb_service_role_key');`
-4. **Self-host Postiz on the Hostinger VPS** → follow `docs/content-automation/postiz-hostinger.md`, connect IG/TikTok/YouTube, add `POSTIZ_API_KEY` + `POSTIZ_BASE_URL` secrets → I build **U8** (publish). (Confirm Hostinger is a VPS.)
-5. **⚠️ Rotate the Supabase personal access token** — a `sbp_…` token was pasted into chat + used all session: https://supabase.com/dashboard/account/tokens
-6. Older threads: human-review AI DE/FR/IT (Translations, still `auto=true` 536/536); Stripe test-payment E2E; deferred exact Stripe billing for Finance.
+**THE next topic — partner-site operating-cost model (for pricing / P&L):**
+- Build a **cost calculation for running the custom partner sites + dashboards**: Vercel (bandwidth/builds/seats, multi-tenant vs dedicated project), **Supabase** (DB/storage/egress/edge-fn invocations), **Firecrawl** credits per ingest (~5/homepage + ~1/crawl page), **Gemini** (enrich), **Apify**, **Resend**, **Higgsfield**, **Drive**, domains/TLS. Output a **per-partner monthly opex** + fixed platform overhead → a base for pricing + P&L.
+- **Deliverable: an Excel file in a new `finance/` folder in the repo** (e.g. `finance/partner-opex-model.xlsx`) — assumptions sheet + per-partner unit cost + scenarios (10 / 100 / 1000 partners), tied to the real plan tiers in `src/lib/plans.js` (Free/Pro/Max) so margins are visible.
 
-**Decisions locked:** mining = **backend REST** (`content-scrape` + `APIFY_API` secret, primary) ; generation = **home 24/7 machine** runs the agent via the **Higgsfield MCP**, logged (routine `docs/content-automation/generation-agent.md`) ; publishing = **Postiz on Hostinger** ; approval gate stays (nothing auto-posts).
+**Other immediate items:**
+1. **Promote the white-label work to prod** — all on `staging` (tip `79d56f7`), not yet on `main`. `git push origin staging:main` when ready (prod still password-gated).
+2. **Google Drive account mismatch** — the ingest Drive export (U5) created `AIRLUXO Partners / Edition Rent` under **`franco.steiner@dancingqueens.ch`** (what the Drive MCP is authed as), NOT **luumos.io** as the plan intends. Reconnect the Drive MCP as a luumos.io account (or move the folder) before real use.
+3. **Vercel domain automation (U13 optional)** — add a `VERCEL_TOKEN` Supabase secret + a `partner-domain` edge fn to auto-add/verify custom domains via the Vercel API; today it's the manual dashboard + "Mark verified" flow (runbook `docs/partner-site/own-domain-deploy.md`).
+4. **Content editor for partner sites (deferred)** — hero/about/benefits text is seeded from ingest + editable only via data; add a Site/Content editor to the partner Design tab.
+5. **Content automation still paused** — Higgsfield credits (0 left → upgrade for video reels), Soul ID training, Vault `sb_service_role_key` for the daily crons, Postiz on Hostinger (U8). See the 2026-06-16 entry.
+6. **⚠️ Rotate the Supabase personal access token** — a `sbp_…` token was pasted into chat + used across sessions: https://supabase.com/dashboard/account/tokens
+
+**Decisions locked (partner white-label):** keep AIRLUXO UI/UX, only **colours/fonts/logo** theme via brand kit ; ingest = **Firecrawl** backend edge fn + agent refine (impeccable/vision) ; site = **fixed-section content shell** (no drag-drop builder) over the themed fleet ; legal = **CH templates flagged for review** ; deploy = **multi-tenant host resolution by default** (one Vercel deploy, CNAME) + **dedicated Vercel per partner** as an upsell ; publish is **founder-gated**.
 
 **State (all committed + pushed to `staging` AND promoted to `main`/prod; tip `ab1b288`). Prod still password-gated.**
 - **Deploy flow this session:** migrations via the Supabase **Management API** (`/database/query` with the `sbp_` token), edge functions via `supabase functions deploy --project-ref shoeopxxjawmusgnjxfh` (CLI token), frontend promote `git push origin staging:main`. Captured in memory `airluxo-deploy-mechanics`. Prod = `main` branch; remove `SITE_PASSWORD` from Production scope to go live.
@@ -29,6 +33,18 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 ---
 
 ## Log (newest first)
+
+### 2026-06-17 — Partner white-label site, end to end (ingest → site → own domain)
+- **Built + shipped to `staging` the whole partner-acquisition engine** (plan `docs/plans/2026-06-17-001-feat-partner-ingest-brandkit-plan.md`, expanded mid-session to add content pages + legal + deploy). Phases 1–7 complete.
+- **U4 — website ingest** (`partner-ingest` + `partner-ingest-poll` edge fns, `brand-assets` bucket, `partner_ingest_jobs`, 2-min poll cron): Firecrawl map→scrape→crawl extracts brand kit (colours/fonts/logo), USP/copy, **tech-stack** (CMS/payments/booking), full-page screenshot, and fleet car images. **SSRF-guarded** image fetch (`_shared/safefetch.ts`: https-only, public-host, image/*, size-cap, no-redirect) after a security-review flag. "Analyze website" in the lead sheet with live status.
+- **U5 — agent refine + Drive** (`partner-ingest-update` contract fn + `docs/partner-site/ingest-agent.md`): vision audit fixes Firecrawl's wrong defaults; car images export to a per-partner Drive folder. **Ran live on Edition Rent** → corrected dark `#0E0E0F` + yellow `#FCCC10` + Montserrat kit (Firecrawl had wrongly given `#0000EE` link-blue + white bg). ⚠️ Drive folder landed under **dancingqueens.ch** (MCP account), not luumos.io — see Pick-up #2.
+- **U6 — review/apply** (`admin_partner_brand_review`, `admin_apply_listing_photos`): Brand & pitch modal — edit colours/fonts/logo with **live themed preview**, USP + tech chips + screenshot, **Apply brand kit** (live), assign scraped images to cars (hero/interior/detail) → galleries.
+- **U7/U8 already covered** by earlier brand-kit theming (Embed) + CarDetail gallery + the partner Design tab.
+- **U9/U10 — white-label site**: `partners.slug/site_published/site_config/legal/legal_pages` + `partner_domains`; `public_partner_site`; `PartnerSite.jsx` (themed home — hero/USP · fleet · about · benefits · contact · footer) at **`/p/<slug>`**; **Publish** panel (founder-gated) seeds content from the ingested copy.
+- **U11 — Swiss legal**: `src/lib/legal.js` builds **Impressum · Datenschutz · AGB** (DE/CH templates, flagged "rechtlich prüfen") from legal-entity fields; footer links + reader overlay; `admin_set_partner_legal`/`partner_update_legal`.
+- **U12/U13 — own domain**: `public_partner_site_by_host` + multi-tenant host resolution in `App.jsx` (any non-AIRLUXO host → its partner site); Own-domain panel (add/verify/remove, CNAME → cname.vercel-dns.com); runbook `docs/partner-site/own-domain-deploy.md` (multi-tenant default + dedicated-Vercel option).
+- **Also:** `enrich-prospect` now **retries + falls back** (gemini-2.5-flash → 2.0-flash) on Gemini 503 overload (Franco hit it on AI-fill). PITCH.md gained **Slide 5** (delivery via AIRLUXO, discount campaigns, add-ons like driver). Firecrawl CLI skill installed; `FIRECRAWL_API_KEY` confirmed as an edge secret. Seeded a demo brand kit on Autolux earlier.
+- **Deploy:** migrations via Management API (all 201), edge fns via CLI (`--no-verify-jwt` for service-role/cron fns), frontend pushed to **`staging`** (tips `f3ce200`→`79d56f7`). **Not yet promoted to `main`/prod.** Changelog (`src/lib/docs.js`) updated every feature.
 
 ### 2026-06-16 (cont.) — Content automation build-out: mining live, generation test, docs backfill
 - **Mining live (U3):** `content-scrape` edge fn (Apify Instagram Reel Scraper REST, `APIFY_API` secret, dual auth: service-role cron + admin) → ranks by recency-decayed `work_score` → upserts `content_inspiration`. **Scan now** button (Settings) + daily `content-scrape-daily` cron (needs Vault `sb_service_role_key`). Verified: a real scan pulled ~20 reels from a watchlist (e.g. @itisbainz). Hardened field-mapping + a sample-keys diagnostic.
