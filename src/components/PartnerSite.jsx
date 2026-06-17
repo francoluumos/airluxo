@@ -5,6 +5,7 @@ import CarDetail from './CarDetail.jsx';
 import { fetchPartnerListings } from '../lib/listings.js';
 import { brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
 import { fetchPublicSite, mapSiteConfig } from '../lib/site.js';
+import { LEGAL_TABS } from '../lib/legal.js';
 
 // Public white-label partner site: a partner's full home (hero/USP, about, benefits,
 // contact) + their fleet + the AIRLUXO booking flow, themed by their brand kit over
@@ -14,6 +15,7 @@ export default function PartnerSite({ slugOrKey }) {
   const [site, setSite] = useState(undefined); // undefined = loading, null = not found
   const [cars, setCars] = useState(null);
   const [active, setActive] = useState(null);
+  const [legalView, setLegalView] = useState(null); // 'impressum' | 'privacy' | 'terms'
 
   useEffect(() => {
     let on = true;
@@ -44,6 +46,8 @@ export default function PartnerSite({ slugOrKey }) {
   const rootStyle = brandKitToVars(kit) || undefined;
   const navLabels = { fleet: 'Fleet', about: 'About', contact: 'Contact' };
   const hasContact = contact?.email || contact?.phone || contact?.address;
+  const lp = site.legal_pages || {};
+  const legalPages = LEGAL_TABS.filter(([k]) => (lp[k] || '').trim());
 
   return (
     <div style={rootStyle} className="min-h-screen bg-paper text-ink">
@@ -104,9 +108,27 @@ export default function PartnerSite({ slugOrKey }) {
       )}
 
       <footer className="mt-8 border-t border-mist px-5 py-8 text-center text-xs text-stone sm:px-8">
+        {legalPages.length > 0 && (
+          <div className="mb-2 flex flex-wrap justify-center gap-x-4 gap-y-1">
+            {legalPages.map(([key, label]) => (
+              <button key={key} type="button" onClick={() => setLegalView(key)} className="font-semibold text-ink/70 transition-colors hover:text-ink">{label}</button>
+            ))}
+          </div>
+        )}
         <div>© {new Date().getFullYear()} {site.company_name}</div>
         <div className="mt-2">Powered by <span className="wordmark text-ink">AIR<span className="text-gold">LUXO</span></span></div>
       </footer>
+
+      {legalView && (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-ink/60 p-5 backdrop-blur-sm" onClick={() => setLegalView(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[var(--radius-card)] border border-mist bg-paper p-6">
+            <pre className="whitespace-pre-wrap font-sans text-sm text-ink/85">{(site.legal_pages || {})[legalView] || ''}</pre>
+            <div className="mt-4 text-right">
+              <button type="button" onClick={() => setLegalView(null)} className="ring-lux rounded-full border border-mist px-5 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AnimatePresence>{active && <CarDetail car={active} onClose={() => setActive(null)} />}</AnimatePresence>
     </div>

@@ -11,7 +11,8 @@ import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
 import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, setPartnerBrandKit, normalizeKit, brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
-import { setPartnerSite, slugify, mapSiteConfig } from '../lib/site.js';
+import { setPartnerSite, slugify, mapSiteConfig, setPartnerLegal } from '../lib/site.js';
+import { LEGAL_FIELDS, seedLegal, buildLegalPages } from '../lib/legal.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -1198,6 +1199,8 @@ function BrandReviewModal({ partnerId, onClose }) {
   const [slug, setSlug] = useState('');
   const [published, setPublished] = useState(false);
   const [savingSite, setSavingSite] = useState(false);
+  const [legal, setLegal] = useState({});
+  const [savingLegal, setSavingLegal] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -1210,6 +1213,7 @@ function BrandReviewModal({ partnerId, onClose }) {
       setAssigns(imgs.map(() => ({ selected: false, listingId: '', type: 'interior' })));
       setSlug(d?.slug || slugify(d?.company_name || ''));
       setPublished(!!d?.site_published);
+      setLegal(seedLegal(d?.legal, d?.company_name, (d?.partner_pages || {}).contact));
       setLoading(false);
     }).catch((e) => { setErr(e.message || 'Could not load.'); setLoading(false); });
     return () => { alive = false; };
@@ -1261,6 +1265,13 @@ function BrandReviewModal({ partnerId, onClose }) {
   }
 
   const siteUrl = `${siteOrigin()}/p/${slug || '…'}`;
+
+  async function saveLegal() {
+    setSavingLegal(true); setErr(''); setMsg('');
+    try { await setPartnerLegal(partnerId, legal, buildLegalPages(legal)); setMsg('Legal pages generated & saved (Impressum · Datenschutz · AGB).'); }
+    catch (e) { setErr(e.message || 'Could not save legal pages.'); }
+    finally { setSavingLegal(false); }
+  }
 
   const techChips = [
     tech.cms && `CMS: ${tech.cms}`,
@@ -1374,6 +1385,25 @@ function BrandReviewModal({ partnerId, onClose }) {
                       <p className="mt-1.5 text-[0.7rem] text-stone">Replaces each selected car&apos;s gallery with its assigned images; the “Hero” shot becomes the card image.</p>
                     </>
                   )}
+            </section>
+
+            {/* Legal (Swiss Impressum / privacy / terms) */}
+            <section className="border-t border-mist pt-4">
+              <h3 className="text-sm font-bold text-ink">Legal (Impressum)</h3>
+              <p className="mt-1 text-xs text-stone">Swiss Impressum · Datenschutz · AGB, generated from these fields. A starting template — review legally before publishing.</p>
+              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+                {LEGAL_FIELDS.map(([key, label]) => (
+                  <label key={key} className="block">
+                    <span className="mb-1 block text-[0.7rem] font-semibold text-stone">{label}</span>
+                    <input value={legal[key] || ''} onChange={(e) => setLegal((s) => ({ ...s, [key]: e.target.value }))}
+                      className="ring-lux w-full rounded-lg border border-mist bg-cloud px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-ink" />
+                  </label>
+                ))}
+              </div>
+              <button type="button" onClick={saveLegal} disabled={savingLegal}
+                className="ring-lux mt-3 rounded-full border border-ink px-5 py-2 text-sm font-semibold text-ink transition-colors hover:bg-cloud disabled:opacity-60">
+                {savingLegal ? 'Saving…' : 'Generate & save legal pages'}
+              </button>
             </section>
 
             {/* Publish the white-label site */}

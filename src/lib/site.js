@@ -47,3 +47,16 @@ export async function fetchPublicSite(key) {
   if (error) return null;
   return data || null;
 }
+
+// Admin: save a partner's legal-entity data + generated Impressum/privacy/terms.
+export async function setPartnerLegal(partnerId, legal, legalPages) {
+  const { error } = await supabase.rpc('admin_set_partner_legal', { p_id: partnerId, p_legal: legal, p_legal_pages: legalPages });
+  if (error) throw error;
+}
+
+// Partner self-edit of their own legal data + pages.
+export async function updateMyLegal(legal, legalPages) {
+  const { data, error } = await supabase.rpc('partner_update_legal', { p_legal: legal, p_legal_pages: legalPages });
+  if (error) throw error;
+  return data;
+}
