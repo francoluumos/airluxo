@@ -24,6 +24,7 @@ export const en = {
   'nav.calendar': 'Calendar',
   'nav.earnings': 'Earnings',
   'nav.plans': 'Plans',
+  'nav.design': 'Design',
   'nav.settings': 'Settings',
   'partner.listCar': 'List a car',
   'partner.signOut': 'Sign out',

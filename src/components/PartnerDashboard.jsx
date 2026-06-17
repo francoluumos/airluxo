@@ -14,6 +14,7 @@ import { fetchMyBookings, updateBookingStatus } from '../lib/bookings.js';
 import { fetchMyBlocks, createBlock, deleteBlock } from '../lib/blocks.js';
 import { startPayoutOnboarding, refreshPayoutStatus, partnerSettle } from '../lib/stripe.js';
 import { updatePartner, fetchLocations, createLocation, deleteLocation } from '../lib/partner.js';
+import { brandKitToVars, loadBrandFont, updateMyBrandKit } from '../lib/brandkit.js';
 import { chf, num } from '../lib/format.js';
 import { useT, useI18n } from '../lib/i18n.jsx';
 import Tour from './Tour.jsx';
@@ -60,6 +61,7 @@ const NAV = [
   { id: 'calendar', label: 'Calendar', icon: Icon.Calendar },
   { id: 'earnings', label: 'Earnings', icon: Icon.Wallet },
   { id: 'plans', label: 'Plans', icon: Icon.Bolt },
+  { id: 'design', label: 'Design', icon: Icon.Star },
   { id: 'settings', label: 'Settings', icon: Icon.Gear },
 ];
 
@@ -231,6 +233,7 @@ export default function PartnerDashboard({ onExit }) {
               {view === 'calendar' && <Calendar bookings={bookings} blocks={blocks} />}
               {view === 'earnings' && <Earnings bookings={bookings} />}
               {view === 'plans' && <Plans listings={listings} />}
+              {view === 'design' && <DesignView />}
               {view === 'settings' && <SettingsView onReplayTour={() => setTourOpen(true)} />}
             </motion.div>
           </AnimatePresence>
@@ -441,6 +444,106 @@ function EmbedCard() {
         <a href={url} target="_blank" rel="noreferrer" className="ring-lux text-sm font-semibold text-stone transition-colors hover:text-ink">{t('partner.embed.preview')}</a>
       </div>
     </Panel>
+  );
+}
+
+/* ---------------- Design (brand kit) ---------------- */
+// Curated fonts (allowlisted hosts → safe with brandkit's loadBrandFont).
+const DESIGN_FONTS = [
+  { name: 'AIRLUXO default', display: '', body: '', url: '' },
+  { name: 'Inter', display: 'Inter', body: 'Inter', url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap' },
+  { name: 'Playfair Display + Inter', display: 'Playfair Display', body: 'Inter', url: 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;600&display=swap' },
+  { name: 'Poppins', display: 'Poppins', body: 'Poppins', url: 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap' },
+  { name: 'Montserrat', display: 'Montserrat', body: 'Montserrat', url: 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap' },
+  { name: 'Cormorant + Inter', display: 'Cormorant Garamond', body: 'Inter', url: 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;700&family=Inter:wght@400;600&display=swap' },
+];
+
+function DesignView() {
+  const { partner } = useAuth();
+  const t = useT();
+  const init = (partner?.brand_kit && typeof partner.brand_kit === 'object') ? partner.brand_kit : {};
+  const [primary, setPrimary] = useState(init.colors?.primary || '#b89150');
+  const [accent, setAccent] = useState(init.colors?.accent || '#d8b878');
+  const [fontIdx, setFontIdx] = useState(() => {
+    const i = DESIGN_FONTS.findIndex((f) => f.display === (init.fonts?.display || ''));
+    return i >= 0 ? i : 0;
+  });
+  const [logoUrl, setLogoUrl] = useState(init.logo_url || '');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const font = DESIGN_FONTS[fontIdx];
+  const kit = {
+    colors: { primary, accent },
+    fonts: font.display ? { display: font.display, body: font.body, url: font.url } : {},
+    logo_url: logoUrl || undefined,
+  };
+  useEffect(() => { if (font.url) loadBrandFont(font.url); }, [font]);
+  const previewVars = brandKitToVars(kit) || {};
+
+  async function save() {
+    setBusy(true); setMsg('');
+    try { await updateMyBrandKit(kit); setMsg('Saved — your storefront now uses this brand.'); }
+    catch (e) { setMsg(e.message || 'Could not save.'); }
+    finally { setBusy(false); }
+  }
+  async function reset() {
+    setBusy(true); setMsg('');
+    try { await updateMyBrandKit({}); setPrimary('#b89150'); setAccent('#d8b878'); setFontIdx(0); setLogoUrl(''); setMsg('Reset to the AIRLUXO default.'); }
+    catch (e) { setMsg(e.message); } finally { setBusy(false); }
+  }
+
+  const field = 'ring-lux rounded-xl border border-mist bg-paper px-3 py-2.5 text-sm outline-none transition-colors focus:border-ink';
+  return (
+    <div className="max-w-2xl">
+      <h2 className="font-display text-xl">Design — your brand</h2>
+      <p className="mt-1 text-sm text-stone">Your colours, fonts and logo style your AIRLUXO storefront & booking page. The layout stays AIRLUXO; only the brand changes.</p>
+
+      <div className="mt-6 grid gap-5 sm:grid-cols-2">
+        <div className="space-y-4">
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-stone">Brand colour</span>
+            <div className="flex items-center gap-2">
+              <input type="color" value={primary} onChange={(e) => setPrimary(e.target.value)} className="h-10 w-14 cursor-pointer rounded-lg border border-mist bg-paper" />
+              <input value={primary} onChange={(e) => setPrimary(e.target.value)} className={`${field} w-28`} />
+            </div>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-stone">Accent</span>
+            <div className="flex items-center gap-2">
+              <input type="color" value={accent} onChange={(e) => setAccent(e.target.value)} className="h-10 w-14 cursor-pointer rounded-lg border border-mist bg-paper" />
+              <input value={accent} onChange={(e) => setAccent(e.target.value)} className={`${field} w-28`} />
+            </div>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-stone">Font</span>
+            <select value={fontIdx} onChange={(e) => setFontIdx(Number(e.target.value))} className={`${field} w-full`}>
+              {DESIGN_FONTS.map((f, i) => <option key={f.name} value={i}>{f.name}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-stone">Logo URL</span>
+            <input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/logo.svg" className={`${field} w-full`} />
+          </label>
+        </div>
+
+        {/* Live preview */}
+        <div style={previewVars} className="rounded-[var(--radius-card)] border border-mist bg-paper p-5">
+          <div className="text-[0.62rem] font-semibold uppercase tracking-wider text-stone">Live preview</div>
+          {logoUrl && <img src={logoUrl} alt="" className="mt-2 h-8 object-contain" />}
+          <div className="font-display mt-3 text-2xl text-ink" style={{ fontFamily: 'var(--font-display)' }}>Your storefront</div>
+          <p className="mt-1 text-sm text-stone" style={{ fontFamily: 'var(--font-sans)' }}>Extraordinary cars, your brand — on the AIRLUXO engine.</p>
+          <button className="mt-4 rounded-full bg-gold px-4 py-2 text-sm font-semibold text-cloud">Reserve</button>
+          <span className="ml-2 text-sm font-bold text-gold">CHF 1’290 / day</span>
+        </div>
+      </div>
+
+      {msg && <p className="mt-4 text-sm text-go">{msg}</p>}
+      <div className="mt-5 flex gap-3">
+        <button onClick={save} disabled={busy} className="ring-lux rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-cloud transition-colors hover:bg-void disabled:opacity-60">{busy ? 'Saving…' : 'Save brand'}</button>
+        <button onClick={reset} disabled={busy} className="ring-lux rounded-full border border-mist px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:opacity-60">Reset to default</button>
+      </div>
+    </div>
   );
 }
 
