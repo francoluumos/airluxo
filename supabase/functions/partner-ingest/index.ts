@@ -11,8 +11,15 @@
 // Body: { partner_id, url }  →  { job }
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { encodeBase64 } from "jsr:@std/encoding/base64";
 import { fetchImageSafe } from "../_shared/safefetch.ts";
+
+// Base64-encode bytes in chunks (String.fromCharCode(...big) overflows the call stack).
+function toBase64(bytes: Uint8Array): string {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  return btoa(bin);
+}
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -132,13 +139,15 @@ function googleFontsUrl(families: (string | undefined)[]): string {
 // often grabs the default link-blue as "primary" and a light section as the background;
 // vision reads the real palette (e.g. dark hero + yellow accent). Returns null on failure.
 async function visionKit(bytes: Uint8Array, mime: string, apiKey: string | undefined): Promise<{ colors: Record<string, string>; fonts: { display: string; body: string } } | null> {
-  if (!bytes || !apiKey) return null;
+  if (!bytes || !apiKey || bytes.length > 5_000_000) return null; // skip oversized images
   const prompt = `This is a full-page screenshot of a car-rental company's website. Identify its brand identity. Return ONLY JSON: {"colors":{"primary":"#hex","accent":"#hex","bg":"#hex","text":"#hex"},"fonts":{"display":"Family","body":"Family"}}. primary = the dominant brand/accent colour (logo or main button colour); bg = the MAIN page background (the header/hero background — ignore secondary light sections); text = the main body text colour; fonts = heading and body font families if identifiable (else ""). Use 6-digit hex.`;
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 25000); // never hang the function
   try {
     const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl.signal,
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: mime, data: encodeBase64(bytes) } }] }],
+        contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: mime, data: toBase64(bytes) } }] }],
         generationConfig: { temperature: 0.1, responseMimeType: "application/json", maxOutputTokens: 1024 },
       }),
     });
@@ -152,7 +161,7 @@ async function visionKit(bytes: Uint8Array, mime: string, apiKey: string | undef
     const colors: Record<string, string> = {};
     for (const k of ["primary", "accent", "bg", "text"]) { const c = hex(o.colors?.[k]); if (c) colors[k] = c; }
     return { colors, fonts: { display: String(o.fonts?.display || ""), body: String(o.fonts?.body || "") } };
-  } catch { return null; }
+  } catch { return null; } finally { clearTimeout(to); }
 }
 
 async function persistAsset(admin: any, bucket: string, path: string, srcUrl: string): Promise<string | null> {
