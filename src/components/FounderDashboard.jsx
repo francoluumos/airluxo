@@ -196,7 +196,7 @@ function Developer() {
     try { await navigator.clipboard.writeText('npm run test:report'); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* ignore */ }
   };
   return (
-    <div className="max-w-3xl">
+    <div className="w-full">
       <h1 className="font-display text-2xl">Developer</h1>
       <p className="mt-1 text-sm text-stone">Internal tooling. Not shown to partners or customers.</p>
 
