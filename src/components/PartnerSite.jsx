@@ -47,7 +47,7 @@ export default function PartnerSite({ slugOrKey, host }) {
   };
 
   return (
-    <div style={rootStyle}>
+    <div style={rootStyle} className="min-h-screen bg-paper text-ink">
       <Home partner={partner} onOpenCar={setActive} onPartner={() => {}} onAccount={() => {}} />
       <AnimatePresence>
         {active && <CarDetail car={active} onClose={() => setActive(null)} />}
