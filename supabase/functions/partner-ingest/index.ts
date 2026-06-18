@@ -11,6 +11,7 @@
 // Body: { partner_id, url }  →  { job }
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { encodeBase64 } from "jsr:@std/encoding/base64";
 import { fetchImageSafe } from "../_shared/safefetch.ts";
 
 const cors = {
@@ -118,6 +119,42 @@ function detectTechStack(html: string, links: string[], generator: string): Reco
   };
 }
 
+// Build a Google Fonts stylesheet URL from family names so the partner's fonts actually
+// load on the storefront (allowlisted host; a non-Google family just 404s → safe fallback).
+function googleFontsUrl(families: (string | undefined)[]): string {
+  const uniq = [...new Set(families.filter((f): f is string => !!f && f.trim().length > 0).map((f) => f.trim()))];
+  if (!uniq.length) return "";
+  const params = uniq.map((f) => "family=" + encodeURIComponent(f).replace(/%20/g, "+") + ":wght@400;600;700").join("&");
+  return "https://fonts.googleapis.com/css2?" + params + "&display=swap";
+}
+
+// Auto-refine the brand kit from the SCREENSHOT with Gemini vision — Firecrawl's branding
+// often grabs the default link-blue as "primary" and a light section as the background;
+// vision reads the real palette (e.g. dark hero + yellow accent). Returns null on failure.
+async function visionKit(bytes: Uint8Array, mime: string, apiKey: string | undefined): Promise<{ colors: Record<string, string>; fonts: { display: string; body: string } } | null> {
+  if (!bytes || !apiKey) return null;
+  const prompt = `This is a full-page screenshot of a car-rental company's website. Identify its brand identity. Return ONLY JSON: {"colors":{"primary":"#hex","accent":"#hex","bg":"#hex","text":"#hex"},"fonts":{"display":"Family","body":"Family"}}. primary = the dominant brand/accent colour (logo or main button colour); bg = the MAIN page background (the header/hero background — ignore secondary light sections); text = the main body text colour; fonts = heading and body font families if identifiable (else ""). Use 6-digit hex.`;
+  try {
+    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: mime, data: encodeBase64(bytes) } }] }],
+        generationConfig: { temperature: 0.1, responseMimeType: "application/json", maxOutputTokens: 1024 },
+      }),
+    });
+    if (!r.ok) return null;
+    const g = await r.json();
+    const txt = (g?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "").trim();
+    const m = txt.replace(/```json|```/gi, "").match(/\{[\s\S]*\}/);
+    const o = m ? JSON.parse(m[0]) : null;
+    if (!o) return null;
+    const hex = (v: unknown) => (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v.trim()) ? v.trim() : null);
+    const colors: Record<string, string> = {};
+    for (const k of ["primary", "accent", "bg", "text"]) { const c = hex(o.colors?.[k]); if (c) colors[k] = c; }
+    return { colors, fonts: { display: String(o.fonts?.display || ""), body: String(o.fonts?.body || "") } };
+  } catch { return null; }
+}
+
 async function persistAsset(admin: any, bucket: string, path: string, srcUrl: string): Promise<string | null> {
   const img = await fetchImageSafe(srcUrl); // SSRF-guarded: https, public host, image/*, size-capped
   if (!img) return null;
@@ -210,15 +247,45 @@ Deno.serve(async (req) => {
     const sj = await scrapeRes.json();
     const d = sj.data || sj;
 
-    // Brand kit (raw, from Firecrawl branding) — refined later by the impeccable agent.
     const branding = d.branding || {};
-    const brandKitRaw = {
-      source: "firecrawl",
-      colors: branding.colors || branding.colours || branding.palette || {},
-      fonts: branding.fonts || branding.typography || {},
+
+    // Persist the screenshot (24h expiry → store now) + keep its bytes for vision refine.
+    let screenshotUrl: string | null = null;
+    let shotBytes: Uint8Array | null = null;
+    let shotMime = "image/png";
+    const shotSrc = d.screenshot || d.screenshotUrl || (Array.isArray(d.actions?.screenshots) ? d.actions.screenshots[0] : null);
+    if (shotSrc) {
+      const img = await fetchImageSafe(shotSrc);
+      if (img) {
+        shotBytes = img.bytes; shotMime = img.contentType;
+        const { error: upErr } = await admin.storage.from("brand-assets").upload(`${partnerId}/screenshot.png`, img.bytes, { contentType: img.contentType, upsert: true });
+        if (!upErr) screenshotUrl = admin.storage.from("brand-assets").getPublicUrl(`${partnerId}/screenshot.png`).data.publicUrl;
+      }
+    }
+
+    // Brand kit — auto-refined from the screenshot (vision), falling back to Firecrawl branding.
+    const geminiKey = Deno.env.get("GEMINI_API_KEY");
+    const vision = shotBytes ? await visionKit(shotBytes, shotMime, geminiKey) : null;
+    const fcColors = branding.colors || branding.colours || branding.palette || {};
+    const fcFonts = branding.fonts || branding.typography || [];
+    const fcFont = (re: RegExp) => (Array.isArray(fcFonts) ? fcFonts.find((f: any) => re.test(f.role || ""))?.family : null);
+    const display = vision?.fonts.display || fcFont(/head|display|title/i) || (Array.isArray(fcFonts) ? fcFonts[0]?.family : fcFonts.display) || "";
+    const body = vision?.fonts.body || fcFont(/body|text|para/i) || (Array.isArray(fcFonts) ? fcFonts[1]?.family : fcFonts.body) || display;
+    const brandKitRaw: any = {
+      source: vision && Object.keys(vision.colors).length ? "vision" : "firecrawl",
+      colors: vision && Object.keys(vision.colors).length ? vision.colors : {
+        primary: fcColors.primary, accent: fcColors.accent || fcColors.link,
+        bg: fcColors.background || fcColors.bg, text: fcColors.textPrimary || fcColors.text,
+      },
+      fonts: { display, body, url: googleFontsUrl([display, body]) },
       logo_url: branding.logo || branding.logoUrl || branding.logo_url || null,
-      raw: branding,
     };
+
+    // Persist the logo if branding gave one.
+    if (brandKitRaw.logo_url) {
+      const stored = await persistAsset(admin, "brand-assets", `${partnerId}/logo`, brandKitRaw.logo_url);
+      if (stored) brandKitRaw.logo_url = stored;
+    }
 
     // Pages / USP copy.
     const copy = d.json || {};
@@ -234,17 +301,6 @@ Deno.serve(async (req) => {
     // Tech stack.
     const generator = d.metadata?.generator || d.metadata?.["generator"] || "";
     const techStack = detectTechStack(d.rawHtml || d.html || "", [...(d.links || []), ...mapLinks], generator);
-
-    // Persist the screenshot (24h expiry → store now).
-    let screenshotUrl: string | null = null;
-    const shotSrc = d.screenshot || d.screenshotUrl || (Array.isArray(d.actions?.screenshots) ? d.actions.screenshots[0] : null);
-    if (shotSrc) screenshotUrl = await persistAsset(admin, "brand-assets", `${partnerId}/screenshot.png`, shotSrc);
-
-    // Persist the logo if branding gave one.
-    if (brandKitRaw.logo_url) {
-      const stored = await persistAsset(admin, "brand-assets", `${partnerId}/logo`, brandKitRaw.logo_url);
-      if (stored) brandKitRaw.logo_url = stored;
-    }
 
     // Homepage car images (best-effort; the fleet crawl finds the rest).
     const homepageImages = (Array.isArray(d.images) ? d.images : [])
