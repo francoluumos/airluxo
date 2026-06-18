@@ -9,7 +9,7 @@ import { AddressFields } from './LocationForm.jsx';
 import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addInspirationLink, deleteInspiration, runScrape, listDrafts, setDraftStatus, setDraftCaption, scheduleDraft, listContentPosts } from '../lib/content.js';
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
-import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit } from '../lib/prospects.js';
+import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit, cronStatus } from '../lib/prospects.js';
 import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, createPartnerListing, setPartnerBrandKit, normalizeKit, brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
 import { setPartnerSite, slugify, mapSiteConfig, setPartnerLegal, addPartnerDomain, listPartnerDomains, setDomainVerified, removePartnerDomain } from '../lib/site.js';
 import { LEGAL_FIELDS, seedLegal, buildLegalPages } from '../lib/legal.js';
@@ -229,6 +229,146 @@ function Developer() {
       </div>
 
       <SecurityAudit />
+      <CronJobs />
+    </div>
+  );
+}
+
+function statusPill(s) {
+  const ok = /succeed|success|ready|completed/i.test(s || '');
+  const bad = /fail|error/i.test(s || '');
+  const cls = ok ? 'bg-go/15 text-go' : bad ? 'bg-red-100 text-red-700' : 'bg-mist text-stone';
+  return <span className={`rounded-full px-2 py-0.5 text-[0.7rem] font-semibold ${cls}`}>{s || '—'}</span>;
+}
+
+// Developer → Cron & jobs: scheduled jobs, run history, and pg_net HTTP responses (catches
+// crons that "succeed" while their edge function actually failed — e.g. 401 missing Vault key).
+function CronJobs() {
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(true);
+  const load = () => { setLoading(true); setErr(''); cronStatus().then((d) => { setData(d); setLoading(false); }).catch((e) => { setErr(e.message); setLoading(false); }); };
+  useEffect(() => { load(); }, []);
+
+  const jobs = data?.jobs || [];
+  const runs = data?.runs || [];
+  const http = data?.http || [];
+  const ingest = data?.ingest || [];
+  const badHttp = http.filter((h) => h.status_code && (h.status_code < 200 || h.status_code >= 300));
+
+  return (
+    <div className="mt-7 rounded-[var(--radius-card)] border border-mist bg-cloud p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-paper text-ink"><Icon.Check width={18} height={18} /></span>
+          <div>
+            <h2 className="font-display text-lg leading-none">Cron &amp; background jobs</h2>
+            <p className="mt-1 text-xs text-stone">Scheduled jobs, run history, and HTTP responses — to surface silent failures.</p>
+          </div>
+        </div>
+        <button onClick={load} className="ring-lux rounded-full border border-mist px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink">Refresh</button>
+      </div>
+      {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+      {loading ? <p className="mt-4 text-sm text-stone">Loading…</p> : (
+        <div className="mt-5 space-y-6">
+          {badHttp.length > 0 && (
+            <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-xs text-red-700">
+              <span className="font-bold">{badHttp.length} recent non-2xx HTTP response{badHttp.length === 1 ? '' : 's'}</span> — a cron can report “succeeded” while its function fails (e.g. <b>401</b> = the Vault service-role key isn’t set). See the HTTP table below.
+            </div>
+          )}
+
+          <div>
+            <h3 className="mb-2 text-sm font-bold text-ink">Scheduled jobs ({jobs.length})</h3>
+            <div className="overflow-x-auto rounded-xl border border-mist bg-paper">
+              <table className="w-full text-sm">
+                <thead className="bg-cloud text-left text-[0.7rem] uppercase tracking-wide text-stone"><tr>
+                  <th className="p-2">Job</th><th className="p-2">Schedule</th><th className="p-2">Active</th>
+                </tr></thead>
+                <tbody>
+                  {jobs.map((j) => (
+                    <tr key={j.jobid} className="border-t border-mist">
+                      <td className="p-2 font-semibold text-ink">{j.jobname}</td>
+                      <td className="p-2 font-mono text-xs text-stone">{j.schedule}</td>
+                      <td className="p-2">{j.active ? <span className="rounded-full bg-go/15 px-2 py-0.5 text-[0.7rem] font-semibold text-go">on</span> : <span className="rounded-full bg-mist px-2 py-0.5 text-[0.7rem] font-semibold text-stone">off</span>}</td>
+                    </tr>
+                  ))}
+                  {jobs.length === 0 && <tr><td colSpan={3} className="p-3 text-center text-xs text-stone">No cron jobs.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="mb-2 text-sm font-bold text-ink">Recent runs ({runs.length})</h3>
+            <div className="max-h-72 overflow-auto rounded-xl border border-mist bg-paper">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-cloud text-left text-[0.7rem] uppercase tracking-wide text-stone"><tr>
+                  <th className="p-2">Job</th><th className="p-2">Status</th><th className="p-2">When</th><th className="p-2">Message</th>
+                </tr></thead>
+                <tbody>
+                  {runs.map((r, i) => (
+                    <tr key={i} className="border-t border-mist">
+                      <td className="p-2 text-ink">{r.jobname}</td>
+                      <td className="p-2">{statusPill(r.status)}</td>
+                      <td className="p-2 whitespace-nowrap text-xs text-stone">{fmtDateTime(r.start_time)}</td>
+                      <td className="p-2 max-w-[20rem] truncate text-xs text-stone" title={r.return_message}>{r.return_message}</td>
+                    </tr>
+                  ))}
+                  {runs.length === 0 && <tr><td colSpan={4} className="p-3 text-center text-xs text-stone">No runs recorded.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="mb-2 text-sm font-bold text-ink">HTTP responses ({http.length}) <span className="font-normal text-stone">— cron → edge-function results</span></h3>
+            <div className="max-h-72 overflow-auto rounded-xl border border-mist bg-paper">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-cloud text-left text-[0.7rem] uppercase tracking-wide text-stone"><tr>
+                  <th className="p-2">Code</th><th className="p-2">When</th><th className="p-2">Error</th>
+                </tr></thead>
+                <tbody>
+                  {http.map((h, i) => {
+                    const ok = h.status_code >= 200 && h.status_code < 300;
+                    return (
+                      <tr key={i} className="border-t border-mist">
+                        <td className="p-2"><span className={`rounded-full px-2 py-0.5 text-[0.7rem] font-bold ${ok ? 'bg-go/15 text-go' : 'bg-red-100 text-red-700'}`}>{h.status_code || '—'}</span></td>
+                        <td className="p-2 whitespace-nowrap text-xs text-stone">{fmtDateTime(h.created)}</td>
+                        <td className="p-2 max-w-[24rem] truncate text-xs text-stone" title={h.error_msg}>{h.error_msg}</td>
+                      </tr>
+                    );
+                  })}
+                  {http.length === 0 && <tr><td colSpan={3} className="p-3 text-center text-xs text-stone">No HTTP responses recorded.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {ingest.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-sm font-bold text-ink">Partner ingest jobs ({ingest.length})</h3>
+              <div className="max-h-60 overflow-auto rounded-xl border border-mist bg-paper">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-cloud text-left text-[0.7rem] uppercase tracking-wide text-stone"><tr>
+                    <th className="p-2">Status</th><th className="p-2">When</th><th className="p-2">Error</th>
+                  </tr></thead>
+                  <tbody>
+                    {ingest.map((i) => (
+                      <tr key={i.id} className="border-t border-mist">
+                        <td className="p-2">{statusPill(i.status)}</td>
+                        <td className="p-2 whitespace-nowrap text-xs text-stone">{fmtDateTime(i.created_at)}</td>
+                        <td className="p-2 max-w-[24rem] truncate text-xs text-red-600" title={i.error}>{i.error}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <p className="text-[0.7rem] text-stone">Full edge-function logs: Supabase dashboard → Edge Functions → Logs.</p>
+        </div>
+      )}
     </div>
   );
 }

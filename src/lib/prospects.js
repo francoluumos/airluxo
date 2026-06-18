@@ -77,6 +77,13 @@ export async function runSecurityAudit() {
   return data;
 }
 
+// Developer → Cron & jobs: pg_cron jobs + run history + pg_net HTTP responses + ingest jobs.
+export async function cronStatus() {
+  const { data, error } = await supabase.rpc('admin_cron_status');
+  if (error) throw error;
+  return data || { jobs: [], runs: [], http: [], ingest: [] };
+}
+
 // Founder Customers section.
 export async function listCustomers() {
   const { data, error } = await supabase.rpc('admin_list_customers');
