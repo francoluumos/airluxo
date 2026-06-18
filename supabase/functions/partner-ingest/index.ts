@@ -1,25 +1,15 @@
 // AIRLUXO — partner-ingest
 // From a prospect's website URL, extract a brand kit (colours/fonts/logo), USP + page
 // copy, a tech-stack read (CMS / payments / booking tool), a full-page screenshot, and
-// the car images — via Firecrawl (v2). The homepage is scraped synchronously; the fleet
-// path is crawled asynchronously and finalized by partner-ingest-poll. Assets are
-// persisted to Storage immediately (Firecrawl URLs expire in 24h). Admin-only; the
-// impeccable + Drive agent pass (U5) refines the result before the founder applies it.
+// the car images — via Firecrawl (v2). Ready immediately after the homepage scrape; the
+// fleet path is crawled asynchronously and folded in by partner-ingest-poll.
 //
 // verify_jwt OFF — auth checked here (admin JWT OR service-role key).
-// Secrets: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, FIRECRAWL_API_KEY.
+// Secrets: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, FIRECRAWL_API_KEY, GEMINI_API_KEY.
 // Body: { partner_id, url }  →  { job }
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { fetchImageSafe } from "../_shared/safefetch.ts";
-
-// Base64-encode bytes in chunks (String.fromCharCode(...big) overflows the call stack).
-function toBase64(bytes: Uint8Array): string {
-  let bin = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  return btoa(bin);
-}
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -42,42 +32,53 @@ function normUrl(raw: string): string | null {
 // Fleet/inventory path heuristics across CH languages (DE/FR/IT/EN).
 const FLEET_RE = /\/(fleet|cars?|vehicles?|fahrzeuge?|flotte|autos?|veicoli|voitures?|rent(al)?|miete?n|location|noleggio|collection|garage|modelle?|models?)\b/i;
 
-// Skip logos/icons/sprites/tiny assets when collecting car images. Also drops Wix
-// lazy-load placeholders (blur_*) and small thumbnails (w_<400) that are not real photos.
+// Skip logos/icons/sprites/tiny assets. Also drops Wix lazy-load placeholders (blur_*)
+// and small thumbnails (w_<400) that are not real photos.
 function isLikelyPhoto(u: string): boolean {
   if (!u || u.startsWith("data:")) return false;
   if (/\.svg(\?|$)/i.test(u)) return false;
   if (/(sprite|icon|logo|favicon|placeholder|avatar|badge|flag|pixel|spacer)/i.test(u)) return false;
-  if (/blur_\d/i.test(u)) return false;                 // Wix lazy-load placeholder
-  const w = u.match(/[/_,]w_(\d{2,4})/i);                // Wix width param → drop small thumbs
+  if (/blur_\d/i.test(u)) return false;
+  const w = u.match(/w_(\d{2,4})/i);
   if (w && Number(w[1]) < 400) return false;
   return /\.(jpe?g|png|webp|avif)(\?|$)/i.test(u) || /(format=|fit=|w=\d|width=)/i.test(u);
 }
 
-// Extract a structured car list from the scraped page TEXT with Gemini (forced JSON).
-// More reliable than Firecrawl's single-page json on JS-rendered (Wix) galleries, and
-// fully synchronous — no dependency on the crawl/cron. Returns [] on any failure.
-async function extractCars(markdown: string, apiKey: string | undefined): Promise<any[]> {
-  if (!markdown || !apiKey) return [];
-  const prompt = `You are reading a Swiss luxury car-rental company's website. List EVERY rental car offered. Return ONLY JSON of the form {"cars":[{"make":"","model":"","year":"","price_per_day":"","power":"","seats":"","transmission":"","fuel":""}]}. price_per_day = the daily price as a plain number in CHF (no currency symbol); power = horsepower number; use "" when unknown. Do not invent cars.\n\nWEBSITE CONTENT:\n${markdown.slice(0, 16000)}`;
+// Chunked base64 (String.fromCharCode(...big) overflows the call stack).
+function toBase64(bytes: Uint8Array): string {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)) as unknown as number[]);
+  }
+  return btoa(bin);
+}
+
+// Google Fonts stylesheet URL from family names (so the partner's fonts load; allowlisted host).
+function googleFontsUrl(families: string[]): string {
+  const uniq = Array.from(new Set(families.map((f) => (f || "").trim()).filter((f) => f.length > 0)));
+  if (uniq.length === 0) return "";
+  const params = uniq.map((f) => "family=" + encodeURIComponent(f).replace(/%20/g, "+") + ":wght@400;600;700").join("&");
+  return "https://fonts.googleapis.com/css2?" + params + "&display=swap";
+}
+
+// Gemini call (forced JSON). prompt-only, or with an inline image for vision.
+async function geminiJson(apiKey: string, prompt: string, image?: { mime: string; b64: string }): Promise<any | null> {
+  const parts: any[] = [{ text: prompt }];
+  if (image) parts.push({ inlineData: { mimeType: image.mime, data: image.b64 } });
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 25000);
   try {
-    const r = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey,
-      {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 4096, responseMimeType: "application/json" },
-        }),
-      },
-    );
-    if (!r.ok) return [];
+    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey, {
+      method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl.signal,
+      body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.1, maxOutputTokens: 2048, responseMimeType: "application/json" } }),
+    });
+    if (!r.ok) return null;
     const g = await r.json();
-    const txt = (g?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "").trim();
+    const txt = (g?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") || "").trim();
     const m = txt.replace(/```json|```/gi, "").match(/\{[\s\S]*\}/);
-    const obj = m ? JSON.parse(m[0]) : {};
-    return Array.isArray(obj.cars) ? obj.cars.slice(0, 40) : [];
-  } catch { return []; }
+    return m ? JSON.parse(m[0]) : null;
+  } catch { return null; } finally { clearTimeout(to); }
 }
 
 // Best-effort tech-stack read from the homepage rawHtml + links + metadata.
@@ -111,7 +112,7 @@ function detectTechStack(html: string, links: string[], generator: string): Reco
   let booking: string | null = null;
   if (has("calendly")) booking = "Calendly";
   else if (has("rentcentric") || has("rentall") || has("hq-rental") || has("rentle")) booking = "Rental booking widget";
-  else if (/\b(book(ing)?|reserv|miete|noleggi|réserv)\b/i.test(allLinks)) booking = "Custom booking flow";
+  else if (/(book|reserv|miete|noleggi)/i.test(allLinks)) booking = "Custom booking flow";
 
   const analytics: string[] = [];
   if (has("googletagmanager") || has("google-analytics") || has("gtag")) analytics.push("Google Analytics");
@@ -119,53 +120,11 @@ function detectTechStack(html: string, links: string[], generator: string): Reco
   if (has("facebook.com/tr") || has("connect.facebook.net")) analytics.push("Meta Pixel");
 
   const ecommerce = has("woocommerce") ? "WooCommerce" : (cms === "Shopify" ? "Shopify" : null);
-
-  return {
-    cms, booking, payments, analytics, ecommerce,
-    detected_at: new Date().toISOString(),
-  };
-}
-
-// Build a Google Fonts stylesheet URL from family names so the partner's fonts actually
-// load on the storefront (allowlisted host; a non-Google family just 404s → safe fallback).
-function googleFontsUrl(families: (string | undefined)[]): string {
-  const uniq = [...new Set(families.filter((f): f is string => !!f && f.trim().length > 0).map((f) => f.trim()))];
-  if (!uniq.length) return "";
-  const params = uniq.map((f) => "family=" + encodeURIComponent(f).replace(/%20/g, "+") + ":wght@400;600;700").join("&");
-  return "https://fonts.googleapis.com/css2?" + params + "&display=swap";
-}
-
-// Auto-refine the brand kit from the SCREENSHOT with Gemini vision — Firecrawl's branding
-// often grabs the default link-blue as "primary" and a light section as the background;
-// vision reads the real palette (e.g. dark hero + yellow accent). Returns null on failure.
-async function visionKit(bytes: Uint8Array, mime: string, apiKey: string | undefined): Promise<{ colors: Record<string, string>; fonts: { display: string; body: string } } | null> {
-  if (!bytes || !apiKey || bytes.length > 5_000_000) return null; // skip oversized images
-  const prompt = `This is a full-page screenshot of a car-rental company's website. Identify its brand identity. Return ONLY JSON: {"colors":{"primary":"#hex","accent":"#hex","bg":"#hex","text":"#hex"},"fonts":{"display":"Family","body":"Family"}}. primary = the dominant brand/accent colour (logo or main button colour); bg = the MAIN page background (the header/hero background — ignore secondary light sections); text = the main body text colour; fonts = heading and body font families if identifiable (else ""). Use 6-digit hex.`;
-  const ctrl = new AbortController();
-  const to = setTimeout(() => ctrl.abort(), 25000); // never hang the function
-  try {
-    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey, {
-      method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl.signal,
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: mime, data: toBase64(bytes) } }] }],
-        generationConfig: { temperature: 0.1, responseMimeType: "application/json", maxOutputTokens: 1024 },
-      }),
-    });
-    if (!r.ok) return null;
-    const g = await r.json();
-    const txt = (g?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "").trim();
-    const m = txt.replace(/```json|```/gi, "").match(/\{[\s\S]*\}/);
-    const o = m ? JSON.parse(m[0]) : null;
-    if (!o) return null;
-    const hex = (v: unknown) => (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v.trim()) ? v.trim() : null);
-    const colors: Record<string, string> = {};
-    for (const k of ["primary", "accent", "bg", "text"]) { const c = hex(o.colors?.[k]); if (c) colors[k] = c; }
-    return { colors, fonts: { display: String(o.fonts?.display || ""), body: String(o.fonts?.body || "") } };
-  } catch { return null; } finally { clearTimeout(to); }
+  return { cms, booking, payments, analytics, ecommerce, detected_at: new Date().toISOString() };
 }
 
 async function persistAsset(admin: any, bucket: string, path: string, srcUrl: string): Promise<string | null> {
-  const img = await fetchImageSafe(srcUrl); // SSRF-guarded: https, public host, image/*, size-capped
+  const img = await fetchImageSafe(srcUrl);
   if (!img) return null;
   const { error } = await admin.storage.from(bucket).upload(path, img.bytes, { contentType: img.contentType, upsert: true });
   if (error) return null;
@@ -195,6 +154,7 @@ Deno.serve(async (req) => {
 
     const fcKey = Deno.env.get("FIRECRAWL_API_KEY");
     if (!fcKey) return json({ error: "FIRECRAWL_API_KEY is not configured" }, 500);
+    const geminiKey = Deno.env.get("GEMINI_API_KEY");
 
     const body = await req.json().catch(() => ({}));
     const partnerId = String(body.partner_id || "").trim();
@@ -205,13 +165,12 @@ Deno.serve(async (req) => {
     admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
     const fcHeaders = { "Content-Type": "application/json", Authorization: `Bearer ${fcKey}` };
 
-    // Open the job.
     const { data: job, error: jErr } = await admin.from("partner_ingest_jobs")
       .insert({ partner_id: partnerId, url, status: "scraping" }).select().single();
     if (jErr) return json({ error: jErr.message }, 500);
     jobId = job.id;
 
-    // 1) Map the site → URL inventory; pick the homepage + a fleet path.
+    // 1) Map → homepage + fleet path.
     let fleetUrl: string | null = null;
     let mapLinks: string[] = [];
     try {
@@ -219,33 +178,26 @@ Deno.serve(async (req) => {
       if (mapRes.ok) {
         const mj = await mapRes.json();
         mapLinks = (mj.links || mj.data?.links || []).map((l: any) => (typeof l === "string" ? l : l.url)).filter(Boolean);
-        fleetUrl = mapLinks.find((l) => FLEET_RE.test(l)) || null;
+        fleetUrl = mapLinks.find((l: string) => FLEET_RE.test(l)) || null;
       }
-    } catch { /* map is best-effort */ }
+    } catch { /* best-effort */ }
 
-    // 2) Scrape the homepage synchronously — branding + USP/copy json + screenshot + images.
+    // 2) Scrape the homepage — branding + USP json + screenshot + images.
     const uspSchema = {
       type: "object",
       properties: {
-        usp: { type: "string", description: "The single strongest value proposition / tagline" },
-        about: { type: "string", description: "Short company/about paragraph" },
-        benefits: { type: "array", items: { type: "string" }, description: "Key selling points / benefits" },
+        usp: { type: "string" }, about: { type: "string" },
+        benefits: { type: "array", items: { type: "string" } },
         services: { type: "array", items: { type: "string" } },
-        contact: {
-          type: "object",
-          properties: { email: { type: "string" }, phone: { type: "string" }, address: { type: "string" } },
-        },
+        contact: { type: "object", properties: { email: { type: "string" }, phone: { type: "string" }, address: { type: "string" } } },
       },
     };
     const scrapeRes = await fetch(`${FC}/v2/scrape`, {
       method: "POST", headers: fcHeaders,
       body: JSON.stringify({
         url,
-        formats: [
-          "markdown", "links", "rawHtml", "branding", "images",
-          { type: "screenshot", fullPage: true },
-          { type: "json", schema: uspSchema, prompt: "Extract the company's USP, about text, key benefits, services and contact details." },
-        ],
+        formats: ["markdown", "links", "rawHtml", "branding", "images", { type: "screenshot", fullPage: true },
+          { type: "json", schema: uspSchema, prompt: "Extract the company's USP, about text, key benefits, services and contact details." }],
       }),
     });
     if (!scrapeRes.ok) {
@@ -255,42 +207,49 @@ Deno.serve(async (req) => {
     }
     const sj = await scrapeRes.json();
     const d = sj.data || sj;
-
     const branding = d.branding || {};
 
-    // Persist the screenshot (24h expiry → store now) + keep its bytes for vision refine.
+    // Persist the screenshot + keep bytes for the vision colour read.
     let screenshotUrl: string | null = null;
-    let shotBytes: Uint8Array | null = null;
+    let shotB64: string | null = null;
     let shotMime = "image/png";
     const shotSrc = d.screenshot || d.screenshotUrl || (Array.isArray(d.actions?.screenshots) ? d.actions.screenshots[0] : null);
     if (shotSrc) {
       const img = await fetchImageSafe(shotSrc);
       if (img) {
-        shotBytes = img.bytes; shotMime = img.contentType;
-        const { error: upErr } = await admin.storage.from("brand-assets").upload(`${partnerId}/screenshot.png`, img.bytes, { contentType: img.contentType, upsert: true });
-        if (!upErr) screenshotUrl = admin.storage.from("brand-assets").getPublicUrl(`${partnerId}/screenshot.png`).data.publicUrl;
+        shotMime = img.contentType;
+        if (img.bytes.length <= 5_000_000) shotB64 = toBase64(img.bytes);
+        const up = await admin.storage.from("brand-assets").upload(`${partnerId}/screenshot.png`, img.bytes, { contentType: img.contentType, upsert: true });
+        if (!up.error) screenshotUrl = admin.storage.from("brand-assets").getPublicUrl(`${partnerId}/screenshot.png`).data.publicUrl;
       }
     }
 
-    // Brand kit — auto-refined from the screenshot (vision), falling back to Firecrawl branding.
-    const geminiKey = Deno.env.get("GEMINI_API_KEY");
-    const vision = shotBytes ? await visionKit(shotBytes, shotMime, geminiKey) : null;
+    // Brand kit — vision-refined from the screenshot, else Firecrawl branding.
+    let vColors: Record<string, string> | null = null;
+    let vFonts: { display: string; body: string } | null = null;
+    if (shotB64 && geminiKey) {
+      const o = await geminiJson(geminiKey,
+        `This is a full-page screenshot of a car-rental website. Return ONLY JSON {"colors":{"primary":"#hex","accent":"#hex","bg":"#hex","text":"#hex"},"fonts":{"display":"Family","body":"Family"}}. primary=dominant brand/accent colour; bg=MAIN page background (header/hero, ignore light sub-sections); text=main text colour; fonts=heading and body families if identifiable else "". 6-digit hex.`,
+        { mime: shotMime, b64: shotB64 });
+      if (o && o.colors) {
+        const isHex = (v: any) => typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v.trim());
+        const c: Record<string, string> = {};
+        for (const k of ["primary", "accent", "bg", "text"]) if (isHex(o.colors[k])) c[k] = o.colors[k].trim();
+        if (Object.keys(c).length) vColors = c;
+        vFonts = { display: String(o.fonts?.display || ""), body: String(o.fonts?.body || "") };
+      }
+    }
     const fcColors = branding.colors || branding.colours || branding.palette || {};
     const fcFonts = branding.fonts || branding.typography || [];
-    const fcFont = (re: RegExp) => (Array.isArray(fcFonts) ? fcFonts.find((f: any) => re.test(f.role || ""))?.family : null);
-    const display = vision?.fonts.display || fcFont(/head|display|title/i) || (Array.isArray(fcFonts) ? fcFonts[0]?.family : fcFonts.display) || "";
-    const body = vision?.fonts.body || fcFont(/body|text|para/i) || (Array.isArray(fcFonts) ? fcFonts[1]?.family : fcFonts.body) || display;
+    const fontByRole = (re: RegExp) => (Array.isArray(fcFonts) ? (fcFonts.find((f: any) => re.test(f.role || "")) || {}).family : null);
+    const display = (vFonts && vFonts.display) || fontByRole(/head|display|title/i) || (Array.isArray(fcFonts) ? (fcFonts[0] || {}).family : fcFonts.display) || "";
+    const bodyFont = (vFonts && vFonts.body) || fontByRole(/body|text|para/i) || (Array.isArray(fcFonts) ? (fcFonts[1] || {}).family : fcFonts.body) || display;
     const brandKitRaw: any = {
-      source: vision && Object.keys(vision.colors).length ? "vision" : "firecrawl",
-      colors: vision && Object.keys(vision.colors).length ? vision.colors : {
-        primary: fcColors.primary, accent: fcColors.accent || fcColors.link,
-        bg: fcColors.background || fcColors.bg, text: fcColors.textPrimary || fcColors.text,
-      },
-      fonts: { display, body, url: googleFontsUrl([display, body]) },
+      source: vColors ? "vision" : "firecrawl",
+      colors: vColors || { primary: fcColors.primary, accent: fcColors.accent || fcColors.link, bg: fcColors.background || fcColors.bg, text: fcColors.textPrimary || fcColors.text },
+      fonts: { display, body: bodyFont, url: googleFontsUrl([display, bodyFont]) },
       logo_url: branding.logo || branding.logoUrl || branding.logo_url || null,
     };
-
-    // Persist the logo if branding gave one.
     if (brandKitRaw.logo_url) {
       const stored = await persistAsset(admin, "brand-assets", `${partnerId}/logo`, brandKitRaw.logo_url);
       if (stored) brandKitRaw.logo_url = stored;
@@ -299,31 +258,26 @@ Deno.serve(async (req) => {
     // Pages / USP copy.
     const copy = d.json || {};
     const partnerPages = {
-      usp: copy.usp || null,
-      about: copy.about || null,
+      usp: copy.usp || null, about: copy.about || null,
       benefits: Array.isArray(copy.benefits) ? copy.benefits : [],
       services: Array.isArray(copy.services) ? copy.services : [],
       contact: copy.contact || {},
       pages: [{ title: "Home", url, copy: (d.markdown || "").slice(0, 8000) }],
     };
 
-    // Tech stack.
-    const generator = d.metadata?.generator || d.metadata?.["generator"] || "";
+    const generator = d.metadata?.generator || "";
     const techStack = detectTechStack(d.rawHtml || d.html || "", [...(d.links || []), ...mapLinks], generator);
 
-    // Homepage car images (best-effort; the fleet crawl finds the rest).
+    // Homepage car images.
     const homepageImages = (Array.isArray(d.images) ? d.images : [])
       .map((x: any) => (typeof x === "string" ? x : x.url || x.src)).filter(isLikelyPhoto);
     const seen = new Set<string>();
     const images = homepageImages.filter((u: string) => (seen.has(u) ? false : (seen.add(u), true)))
       .slice(0, MAX_HOMEPAGE_IMAGES).map((u: string) => ({ url: u, source: "homepage" }));
 
-    // Write the proposal onto the partner (raw — applied later in review/apply, U6).
-    await admin.from("partners").update({
-      brand_kit_raw: brandKitRaw, partner_pages: partnerPages, tech_stack: techStack,
-    }).eq("id", partnerId);
+    await admin.from("partners").update({ brand_kit_raw: brandKitRaw, partner_pages: partnerPages, tech_stack: techStack }).eq("id", partnerId);
 
-    // 2b) Structured car list — Gemini reads the homepage (+ fleet page) text we scraped.
+    // 2b) Structured car list — Gemini over the homepage (+ fleet) markdown.
     let fleetMd = "";
     if (fleetUrl) {
       try {
@@ -331,26 +285,26 @@ Deno.serve(async (req) => {
         if (fr.ok) { const fj = await fr.json(); fleetMd = (fj.data || fj).markdown || ""; }
       } catch { /* best-effort */ }
     }
-    const cars = await extractCars([(d.markdown || ""), fleetMd].filter(Boolean).join("\n\n---\n\n"), Deno.env.get("GEMINI_API_KEY"));
+    let cars: any[] = [];
+    if (geminiKey) {
+      const md = [(d.markdown || ""), fleetMd].filter(Boolean).join("\n\n---\n\n").slice(0, 16000);
+      const o = await geminiJson(geminiKey,
+        `From this car-rental website content, list EVERY rental car. Return ONLY JSON {"cars":[{"make":"","model":"","year":"","price_per_day":"","power":"","seats":"","transmission":"","fuel":""}]}. price_per_day = daily price as a plain number (CHF, no symbol); use "" when unknown. Do not invent cars.\n\nCONTENT:\n${md}`);
+      if (o && Array.isArray(o.cars)) cars = o.cars.slice(0, 40);
+    }
 
-    // 3) Kick off the async fleet crawl (finalized by partner-ingest-poll).
+    // 3) Kick off the async fleet crawl (augments images via the poll).
     let crawlId: string | null = null;
     if (fleetUrl) {
       try {
         const crawlRes = await fetch(`${FC}/v2/crawl`, {
           method: "POST", headers: fcHeaders,
-          body: JSON.stringify({
-            url: fleetUrl, limit: 30, maxDiscoveryDepth: 2,
-            includePaths: [FLEET_RE.source],
-            scrapeOptions: { formats: ["images", "markdown"] },
-          }),
+          body: JSON.stringify({ url: fleetUrl, limit: 30, maxDiscoveryDepth: 2, includePaths: [FLEET_RE.source], scrapeOptions: { formats: ["images", "markdown"] } }),
         });
         if (crawlRes.ok) { const cj = await crawlRes.json(); crawlId = cj.id || cj.data?.id || null; }
-      } catch { /* crawl is optional */ }
+      } catch { /* optional */ }
     }
 
-    // Ready immediately — the homepage scrape + car extraction are the reviewable data.
-    // The fleet crawl only augments images later (poll); crawl_done=false means "pending".
     const { data: updated } = await admin.from("partner_ingest_jobs").update({
       status: "ready", firecrawl_crawl_id: crawlId, fleet_url: fleetUrl,
       screenshot_url: screenshotUrl, images, cars, crawl_done: !crawlId,
