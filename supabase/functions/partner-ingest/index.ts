@@ -286,11 +286,23 @@ Deno.serve(async (req) => {
       } catch { /* best-effort */ }
     }
     let cars: any[] = [];
-    if (geminiKey) {
-      const md = [(d.markdown || ""), fleetMd].filter(Boolean).join("\n\n---\n\n").slice(0, 16000);
+    const carSchemaHint = `{"cars":[{"make":"","model":"","year":"","price_per_day":"","power":"","seats":"","transmission":"","fuel":""}]}`;
+    // Primary: read the rendered fleet off the SCREENSHOT (JS-rendered Wix galleries are
+    // empty in markdown, but every car is visible in the screenshot with its price).
+    if (geminiKey && shotB64) {
       const o = await geminiJson(geminiKey,
-        `From this car-rental website content, list EVERY rental car. Return ONLY JSON {"cars":[{"make":"","model":"","year":"","price_per_day":"","power":"","seats":"","transmission":"","fuel":""}]}. price_per_day = daily price as a plain number (CHF, no symbol); use "" when unknown. Do not invent cars.\n\nCONTENT:\n${md}`);
+        `This is a full-page screenshot of a car-rental website. List EVERY car shown in its fleet/gallery — IGNORE manufacturer brand logos (Ferrari/BMW/etc. badge images are not cars). Return ONLY JSON ${carSchemaHint}. price_per_day = the visible daily price as a plain number (CHF, no symbol); use "" when unknown. Only cars actually pictured/listed.`,
+        { mime: shotMime, b64: shotB64 });
       if (o && Array.isArray(o.cars)) cars = o.cars.slice(0, 40);
+    }
+    // Fallback: the page text (works when the site isn't JS-only).
+    if (!cars.length && geminiKey) {
+      const md = [(d.markdown || ""), fleetMd].filter(Boolean).join("\n\n---\n\n").slice(0, 16000);
+      if (md.trim()) {
+        const o = await geminiJson(geminiKey,
+          `From this car-rental website content, list EVERY rental car. Return ONLY JSON ${carSchemaHint}. price_per_day = daily price as a plain number (CHF, no symbol); use "" when unknown. Do not invent cars.\n\nCONTENT:\n${md}`);
+        if (o && Array.isArray(o.cars)) cars = o.cars.slice(0, 40);
+      }
     }
 
     // 3) Kick off the async fleet crawl (augments images via the poll).
