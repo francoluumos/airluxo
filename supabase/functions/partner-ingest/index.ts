@@ -44,6 +44,42 @@ function isLikelyPhoto(u: string): boolean {
   return /\.(jpe?g|png|webp|avif)(\?|$)/i.test(u) || /(format=|fit=|w=\d|width=)/i.test(u);
 }
 
+// Resolve the brand logo from every place Firecrawl exposes it. The `branding` format
+// doesn't always populate `logo` (depends on the site/CMS), so we fall back to page
+// metadata (og:logo / og:image / icons) and finally parse the rawHtml header for an
+// <img> that looks like a logo. Relative URLs are resolved against the page URL.
+function absUrl(u: string | null | undefined, base: string): string | null {
+  if (!u || typeof u !== "string") return null;
+  u = u.trim();
+  if (!u || u.startsWith("data:")) return null;
+  try { return new URL(u, base).toString(); } catch { return null; }
+}
+function resolveLogo(branding: any, metadata: any, rawHtml: string, base: string): string | null {
+  const b = branding || {};
+  const m = metadata || {};
+  // 1) Firecrawl branding (several shapes: string, {url}, or logos[]).
+  const fromBranding =
+    b.logo || b.logoUrl || b.logo_url ||
+    (typeof b.logo === "object" ? b.logo?.url : null) ||
+    (Array.isArray(b.logos) ? (typeof b.logos[0] === "string" ? b.logos[0] : b.logos[0]?.url) : null);
+  // 2) Page metadata: explicit logo, then icons (brand mark), then og:image (last resort).
+  const fromMeta =
+    m["og:logo"] || m.ogLogo || m.logo ||
+    m["apple-touch-icon"] || m.appleTouchIcon || m.favicon || m.icon ||
+    m["og:image"] || m.ogImage || m.image;
+  // 3) Parse the header <img> that looks like a logo (class/id/alt/src contains "logo").
+  let fromHtml: string | null = null;
+  const html = rawHtml || "";
+  const headEnd = (() => { const i = html.search(/<\/(header|nav)>/i); return i > 0 ? i + 200 : Math.min(html.length, 6000); })();
+  const head = html.slice(0, headEnd);
+  for (const mt of head.matchAll(/<img\b[^>]*>/gi)) {
+    const tag = mt[0];
+    if (/logo/i.test(tag)) { const s = tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i); if (s) { fromHtml = s[1]; break; } }
+  }
+  if (!fromHtml) { const link = html.match(/<link[^>]+rel\s*=\s*["'][^"']*(?:apple-touch-icon|icon)[^"']*["'][^>]*>/i); if (link) { const s = link[0].match(/\bhref\s*=\s*["']([^"']+)["']/i); if (s) fromHtml = s[1]; } }
+  return absUrl(fromBranding, base) || absUrl(fromMeta, base) || absUrl(fromHtml, base);
+}
+
 // Chunked base64 (String.fromCharCode(...big) overflows the call stack).
 function toBase64(bytes: Uint8Array): string {
   let bin = "";
@@ -249,7 +285,7 @@ Deno.serve(async (req) => {
       source: vColors ? "vision" : "firecrawl",
       colors: vColors || { primary: fcColors.primary, accent: fcColors.accent || fcColors.link, bg: fcColors.background || fcColors.bg, text: fcColors.textPrimary || fcColors.text },
       fonts: { display, body: bodyFont, url: googleFontsUrl([display, bodyFont]) },
-      logo_url: branding.logo || branding.logoUrl || branding.logo_url || null,
+      logo_url: resolveLogo(branding, d.metadata, d.rawHtml || d.html || "", url),
     };
     if (brandKitRaw.logo_url) {
       const stored = await persistAsset(admin, "brand-assets", `${partnerId}/logo`, brandKitRaw.logo_url);
