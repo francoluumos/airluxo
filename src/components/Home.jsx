@@ -221,9 +221,9 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
           )}
         <div className={`relative z-10 mx-auto grid max-w-[1240px] items-center gap-10 px-5 pb-10 pt-14 sm:px-8 lg:pb-16 lg:pt-20 ${heroCentered ? 'lg:max-w-[820px] text-center' : 'lg:grid-cols-[1.05fr_0.95fr]'} ${heroMedia ? 'min-h-[76vh] text-white' : ''}`}>
           <motion.div variants={stagger} initial="hidden" animate="show" className={heroCentered ? 'mx-auto flex flex-col items-center' : ''}>
-            <motion.div variants={rise} className={`eyebrow flex items-center gap-2.5 ${heroMedia ? 'text-white/70' : 'text-stone'}`}>
-              <span className="h-1.5 w-1.5 rounded-full bg-go" />
-              {partner ? partner.company_name : 'Switzerland · 8 cantons · one marketplace'}
+            <motion.div variants={rise} className={`eyebrow flex items-center gap-2.5 ${partner ? 'text-gold' : (heroMedia ? 'text-white/70' : 'text-stone')}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${partner ? 'bg-gold' : 'bg-go'}`} />
+              {partner ? (layout.heroEyebrow || 'Drive your dream') : 'Switzerland · 8 cantons · one marketplace'}
             </motion.div>
 
             <motion.h1
@@ -338,7 +338,9 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
                       key={i}
                       src={src}
                       alt=""
-                      className="h-7 w-auto max-w-[130px] shrink-0 object-contain opacity-70"
+                      loading="eager"
+                      decoding="async"
+                      className="h-7 w-auto min-w-[64px] max-w-[130px] shrink-0 object-contain opacity-70"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   ))

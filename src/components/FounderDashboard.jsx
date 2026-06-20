@@ -1871,6 +1871,14 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
                   ))}
                 </div>
 
+                {/* Small gold kicker above the hero headline. */}
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-xs font-semibold text-stone">Hero eyebrow</span>
+                  <input value={layout.heroEyebrow || ''} onChange={(e) => setLayoutState((l) => ({ ...l, heroEyebrow: e.target.value.slice(0, 80) }))}
+                    placeholder="Drive your dream"
+                    className="ring-lux w-full max-w-xs rounded-xl border border-mist bg-cloud px-3 py-2 text-sm outline-none transition-colors focus:border-ink" />
+                </label>
+
                 {/* Centered hero can sit over a full-bleed image or video background. */}
                 {layout.hero === 'centered' && (
                   <div className="mt-3 rounded-xl border border-mist bg-paper/40 p-3">

@@ -21,6 +21,7 @@ export const DEFAULT_LAYOUT = {
     map: true,      // "fleet across Switzerland" map
   },
   hero: 'split',    // 'split' (image beside copy) | 'centered' (copy centred, no hero image)
+  heroEyebrow: '',  // small gold kicker above the headline (e.g. "Drive your dream")
   heroMedia: { type: 'none', url: '' }, // centered-hero background: 'none' | 'image' | 'video'
   marquee: 'text',  // brand strip variant: 'text' (brand names) | 'logos' (logo images)
   brandLogos: [],   // logo image URLs shown when marquee === 'logos' (same strip height)
@@ -50,6 +51,7 @@ export function mergeLayout(layout) {
   return {
     show: { ...DEFAULT_LAYOUT.show, ...(l.show && typeof l.show === 'object' ? l.show : {}) },
     hero: l.hero === 'centered' ? 'centered' : 'split',
+    heroEyebrow: typeof l.heroEyebrow === 'string' ? l.heroEyebrow.slice(0, 80) : '',
     heroMedia: cleanHeroMedia(l.heroMedia),
     marquee: l.marquee === 'logos' ? 'logos' : 'text',
     brandLogos: cleanLogoUrls(l.brandLogos),

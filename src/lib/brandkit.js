@@ -172,7 +172,10 @@ export function brandKitToVars(kit) {
   // Derive the neutral ramp coherently when we have both anchors (covers dark + light).
   if (bg && text) {
     vars['--color-cloud'] = isColor(c.card) ? c.card.trim() : mix(bg, text, 0.07); // raised surfaces / inputs / chips
-    vars['--color-void'] = mix(bg, text, 0.03);  // page-adjacent deep surface
+    // `void` is the hover shade of the primary `bg-ink` button (text on it = cloud). It must
+    // track ink (the button bg), NOT the page bg — else on a dark theme bg-ink(light) hovers
+    // to a dark void while text-cloud stays dark → the label vanishes. So: ink dimmed → bg.
+    vars['--color-void'] = mix(text, bg, 0.14);
     vars['--color-mist'] = mix(bg, text, 0.16);  // hairline borders / dividers
     vars['--color-stone'] = mix(text, bg, 0.40); // muted / secondary text
   } else if (isColor(c.card)) {
