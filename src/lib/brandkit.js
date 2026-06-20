@@ -93,6 +93,27 @@ export function normalizeKit(kit) {
   };
 }
 
+// --- Palette derivation. The storefront uses a family of neutral tokens (paper=page
+// bg, cloud=raised surface/cards/inputs/chips, mist=hairline borders, stone=muted text,
+// ink=primary text). Theming only paper+ink leaves cloud/mist/stone at AIRLUXO's LIGHT
+// defaults — so a partner with a dark bg gets white cards + white text + white lines.
+// Instead we DERIVE the neutral ramp from the partner's bg↔text pair by mixing, which
+// self-orients for dark OR light brands (cloud sits just off the bg toward text, borders
+// a bit further, muted text is the text dimmed toward the bg).
+function hexToRgb(hex) {
+  let h = hex.trim().replace('#', '');
+  if (h.length === 3) h = h.split('').map((x) => x + x).join('');
+  if (h.length >= 6) h = h.slice(0, 6);
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+const toHex = (rgb) => '#' + rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+// Mix colour a toward b by t (0..1). Both hex; returns hex.
+function mix(a, b, t) {
+  const [ar, ag, ab] = hexToRgb(a), [br, bg, bb] = hexToRgb(b);
+  return toHex([ar + (br - ar) * t, ag + (bg - ag) * t, ab + (bb - ab) * t]);
+}
+
 // --- Validation: brand-kit values are partner-controllable, so never interpolate
 // them raw into CSS / a <link href>. Drop anything that doesn't match a strict shape.
 const HEX = /^#[0-9a-fA-F]{3,8}$/;
@@ -122,9 +143,19 @@ export function brandKitToVars(kit) {
   // The champagne accent (--color-gold) is the brand highlight; map it to the partner's primary.
   if (primary) { vars['--color-gold'] = primary; vars['--color-gold-soft'] = accent || primary; }
   else if (accent) { vars['--color-gold'] = accent; vars['--color-gold-soft'] = accent; }
-  if (isColor(c.bg)) vars['--color-paper'] = c.bg.trim();
-  if (isColor(c.text)) vars['--color-ink'] = c.text.trim();
-  if (isColor(c.card)) vars['--color-cloud'] = c.card.trim();
+  const bg = isColor(c.bg) ? c.bg.trim() : null;
+  const text = isColor(c.text) ? c.text.trim() : null;
+  if (bg) vars['--color-paper'] = bg;
+  if (text) vars['--color-ink'] = text;
+  // Derive the neutral ramp coherently when we have both anchors (covers dark + light).
+  if (bg && text) {
+    vars['--color-cloud'] = isColor(c.card) ? c.card.trim() : mix(bg, text, 0.07); // raised surfaces / inputs / chips
+    vars['--color-void'] = mix(bg, text, 0.03);  // page-adjacent deep surface
+    vars['--color-mist'] = mix(bg, text, 0.16);  // hairline borders / dividers
+    vars['--color-stone'] = mix(text, bg, 0.40); // muted / secondary text
+  } else if (isColor(c.card)) {
+    vars['--color-cloud'] = c.card.trim();
+  }
   if (isFontName(f.display)) vars['--font-display'] = `"${f.display.trim()}", "Clash Display", ui-sans-serif, system-ui, sans-serif`;
   if (isFontName(f.body)) vars['--font-sans'] = `"${f.body.trim()}", "Satoshi", ui-sans-serif, system-ui, sans-serif`;
   return Object.keys(vars).length ? vars : undefined;

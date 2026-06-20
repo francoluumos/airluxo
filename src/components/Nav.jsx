@@ -19,22 +19,32 @@ export default function Nav({ onHome, onPartner, onAccount, dark = false, partne
         </button>
 
         {/* Marketplace nav — host-recruitment links are AIRLUXO-only, hidden on partner sites. */}
-        <nav className={`hidden items-center gap-8 text-sm font-medium md:flex ${tone.sub}`}>
-          <a href="#fleet" className="ring-lux transition-colors">{t('site.explore')}</a>
-          {!partner && <a href="#how" className="ring-lux transition-colors">{t('site.howItWorks')}</a>}
-          {!partner && <a href="#partner" className="ring-lux transition-colors">{t('site.forCompanies')}</a>}
-        </nav>
+        {!partner && (
+          <nav className={`hidden items-center gap-8 text-sm font-medium md:flex ${tone.sub}`}>
+            <a href="#fleet" className="ring-lux transition-colors">{t('site.explore')}</a>
+            <a href="#how" className="ring-lux transition-colors">{t('site.howItWorks')}</a>
+            <a href="#partner" className="ring-lux transition-colors">{t('site.forCompanies')}</a>
+          </nav>
+        )}
 
         <div className="flex items-center gap-2.5">
-          {!partner && (
-            <button
-              onClick={onPartner}
-              className={`ring-lux hidden rounded-full px-4 py-2 text-sm font-semibold transition-colors sm:block ${tone.btn}`}
-            >
-              {t('site.listYourCars')}
-            </button>
+          {partner ? (
+            // Partner white-label: a single, right-aligned CTA into the fleet — keeps the
+            // header balanced (logo left, action right) instead of a lone centred link.
+            <a href="#fleet" className={`ring-lux rounded-full px-5 py-2 text-sm font-semibold transition-colors ${tone.btn}`}>
+              {t('site.explore')}
+            </a>
+          ) : (
+            <>
+              <button
+                onClick={onPartner}
+                className={`ring-lux hidden rounded-full px-4 py-2 text-sm font-semibold transition-colors sm:block ${tone.btn}`}
+              >
+                {t('site.listYourCars')}
+              </button>
+              <AccountMenu onAccount={onAccount} onPartner={onPartner} dark={dark} />
+            </>
           )}
-          {!partner && <AccountMenu onAccount={onAccount} onPartner={onPartner} dark={dark} />}
         </div>
       </div>
     </header>

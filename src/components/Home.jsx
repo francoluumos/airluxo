@@ -5,7 +5,7 @@ import CarCard from './CarCard.jsx';
 import CarImage from './CarImage.jsx';
 import { Icon } from './Icons.jsx';
 import { CARS, CATEGORIES, CITIES, STEPS, FEES } from '../lib/data.js';
-import { fetchPublicListings, mapListing, fetchFleetPins, fetchPartnerListings } from '../lib/listings.js';
+import { fetchPublicListings, mapListing, fetchFleetPins, fetchPartnerSiteListings } from '../lib/listings.js';
 import { LEGAL_TABS } from '../lib/legal.js';
 import { fetchFleetAvailability } from '../lib/bookings.js';
 import { chf } from '../lib/format.js';
@@ -92,7 +92,7 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
     // A partner site shows only that partner's cars (already mapped); the marketplace
     // shows all public listings (raw rows → mapListing).
     const carsP = partner
-      ? fetchPartnerListings(partner.id)
+      ? fetchPartnerSiteListings(partner.id)
       : fetchPublicListings().then((rows) => rows.map(mapListing));
     Promise.all([carsP, fetchFleetPins().catch(() => [])])
       .then(([rows, pins]) => {
@@ -218,9 +218,12 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
                 : <>{t('home.heroLine1')}<br /><span className="italic text-gold">{t('home.heroLine2')}</span></>}
             </motion.h1>
 
-            <motion.p variants={rise} className="mt-6 max-w-md text-[1.05rem] leading-relaxed text-stone">
-              {partner && partner.hero?.sub ? partner.hero.sub : t('home.heroSubtitle')}
-            </motion.p>
+            {/* On a partner site only show their own tagline — never the AIRLUXO marketplace copy. */}
+            {(!partner || partner.hero?.sub) && (
+              <motion.p variants={rise} className={`mt-6 max-w-md text-[1.05rem] leading-relaxed text-stone ${heroCentered ? 'mx-auto' : ''}`}>
+                {partner ? partner.hero?.sub : t('home.heroSubtitle')}
+              </motion.p>
+            )}
 
             {/* search panel */}
             <motion.div

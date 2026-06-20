@@ -137,6 +137,15 @@ export async function fetchFleetPins() {
   return data ?? [];
 }
 
+// A published partner's fleet for their white-label site (/p/<slug> or own domain).
+// Uses a security-definer RPC so cars show even while the partner is still a pipeline
+// prospect (the anon listings policy hides prospect rows from the marketplace).
+export async function fetchPartnerSiteListings(partnerId) {
+  const { data, error } = await supabase.rpc('public_partner_listings', { p_partner_id: partnerId });
+  if (error) throw error;
+  return (data ?? []).map(mapListing);
+}
+
 // One partner's live cars — for the embeddable widget on their own site.
 export async function fetchPartnerListings(partnerId) {
   const { data, error } = await supabase
