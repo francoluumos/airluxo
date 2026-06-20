@@ -251,3 +251,12 @@ Plan: `docs/plans/2026-06-16-001-feat-content-automation-pipeline-plan.md` · se
 - **U6 — Brand guardrails + caption generator.** Enforce brand voice + the 3–6 hashtag rule + soft `@airluxo` tag; auto-caption per draft. (Partly in `generation-agent.md`; formalize as a step.)
 - **U8 — Postiz integration + publish cron + status sync.** Self-host Postiz on the Hostinger VPS (runbook `docs/content-automation/postiz-hostinger.md`), add `POSTIZ_API_KEY` + `POSTIZ_BASE_URL` secrets, build publish + status-sync. **Blocked:** Postiz not yet hosted.
 - **Cross-cutting blocker:** set the Vault `sb_service_role_key` so the daily `content-scrape` cron (+ marketing crons) actually fire.
+
+## Pricing review (revisit the tier model)
+Current tiers in `src/lib/plans.js`: Free (CHF 0 · 15% · 3 cars) · Pro (CHF 49 · 9% · 25 cars) · Max (CHF 199 · 3% · unlimited). Revisit holistically — and tie it to the **partner-opex cost model** (the finance Excel) so margins per tier are explicit before changing prices.
+- **Benchmark structures** — study how **Shopify** and **Webflow** tier (entry → mid → scale → enterprise), what they gate (features vs usage vs seats), trial/Free handling, and annual-vs-monthly framing. Map our equivalents.
+- **User-account / seat limits per partner dashboard** — add a seats-per-tier limit (e.g. 1 / 3 / unlimited) as a real plan dimension + enforce it; today there's no seat cap. (`Max` already lists "Team members" — formalise as a number.)
+- **Number of tiers** — second-guess 3 vs 4 (e.g. add a step between Pro and Max, or an Enterprise/Custom tier). Decide what each tier is *for*.
+- **Cars included per tier** — re-examine the 3 / 25 / unlimited breakpoints (are they the right pressure points to upsell?).
+- **Yearly pricing option** — add annual billing with a small discount (e.g. ~2 months free / 15–20% off) alongside monthly; needs a billing-interval field in `plans.js` + Stripe price + the UI (toggle monthly/yearly on the pricing surfaces: partner-landing terms slide, in-app Plans tab, pitch deck).
+- Keep the commission-rate-per-tier model in scope of the rethink (commission vs subscription balance).
