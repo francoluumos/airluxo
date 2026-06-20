@@ -45,9 +45,11 @@ function isLikelyPhoto(u: string): boolean {
 }
 
 // Resolve the brand logo from every place Firecrawl exposes it. The `branding` format
-// doesn't always populate `logo` (depends on the site/CMS), so we fall back to page
-// metadata (og:logo / og:image / icons) and finally parse the rawHtml header for an
-// <img> that looks like a logo. Relative URLs are resolved against the page URL.
+// doesn't always populate `logo` (depends on the site/CMS), so we fall back to: a header
+// <img> that looks like the site logo, then page metadata (og:logo / icons / og:image).
+// Car-rental sites show manufacturer badge strips (BMW/Audi/…) whose <img> alt/src
+// literally contain "logo" — those must NOT be mistaken for the partner's own logo.
+const CAR_MAKES = /\b(bmw|audi|mercedes|benz|maybach|ferrari|porsche|lamborghini|mclaren|bentley|rolls.?royce|aston.?martin|maserati|bugatti|tesla|jaguar|land.?rover|range.?rover|volkswagen|vw|toyota|lexus|nissan|honda|ford|chevrolet|cadillac|corvette|alfa.?romeo|fiat|peugeot|renault|citroen|volvo|mini|cupra|seat|skoda|opel|hyundai|kia|mazda|subaru|genesis|dodge|jeep|gmc|ram)\b/i;
 function absUrl(u: string | null | undefined, base: string): string | null {
   if (!u || typeof u !== "string") return null;
   u = u.trim();
@@ -62,22 +64,26 @@ function resolveLogo(branding: any, metadata: any, rawHtml: string, base: string
     b.logo || b.logoUrl || b.logo_url ||
     (typeof b.logo === "object" ? b.logo?.url : null) ||
     (Array.isArray(b.logos) ? (typeof b.logos[0] === "string" ? b.logos[0] : b.logos[0]?.url) : null);
-  // 2) Page metadata: explicit logo, then icons (brand mark), then og:image (last resort).
-  const fromMeta =
-    m["og:logo"] || m.ogLogo || m.logo ||
-    m["apple-touch-icon"] || m.appleTouchIcon || m.favicon || m.icon ||
-    m["og:image"] || m.ogImage || m.image;
-  // 3) Parse the header <img> that looks like a logo (class/id/alt/src contains "logo").
+  // 2) Header <img> that looks like a logo — skipping manufacturer-badge images.
   let fromHtml: string | null = null;
   const html = rawHtml || "";
   const headEnd = (() => { const i = html.search(/<\/(header|nav)>/i); return i > 0 ? i + 200 : Math.min(html.length, 6000); })();
   const head = html.slice(0, headEnd);
   for (const mt of head.matchAll(/<img\b[^>]*>/gi)) {
     const tag = mt[0];
-    if (/logo/i.test(tag)) { const s = tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i); if (s) { fromHtml = s[1]; break; } }
+    if (!/logo/i.test(tag)) continue;
+    const src = (tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i) || [])[1];
+    const alt = (tag.match(/\balt\s*=\s*["']([^"']*)["']/i) || [])[1] || "";
+    if (!src || CAR_MAKES.test(alt) || CAR_MAKES.test(src)) continue; // skip BMW/Audi/… badges
+    fromHtml = src; break;
   }
   if (!fromHtml) { const link = html.match(/<link[^>]+rel\s*=\s*["'][^"']*(?:apple-touch-icon|icon)[^"']*["'][^>]*>/i); if (link) { const s = link[0].match(/\bhref\s*=\s*["']([^"']+)["']/i); if (s) fromHtml = s[1]; } }
-  return absUrl(fromBranding, base) || absUrl(fromMeta, base) || absUrl(fromHtml, base);
+  // 3) Page metadata: explicit logo, then icons (brand mark), then og:image (last resort).
+  const fromMeta =
+    m["og:logo"] || m.ogLogo || m.logo ||
+    m["apple-touch-icon"] || m.appleTouchIcon || m.favicon || m.icon ||
+    m["og:image"] || m.ogImage || m.image;
+  return absUrl(fromBranding, base) || absUrl(fromHtml, base) || absUrl(fromMeta, base);
 }
 
 // Chunked base64 (String.fromCharCode(...big) overflows the call stack).
