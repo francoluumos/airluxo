@@ -5,7 +5,7 @@ import CarDetail from './CarDetail.jsx';
 import AuthModal from './AuthModal.jsx';
 import { useAuth } from '../lib/auth.jsx';
 import { brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
-import { fetchPublicSite, fetchPublicSiteByHost } from '../lib/site.js';
+import { fetchPublicSite, fetchPublicSiteByHost, mergeLayout } from '../lib/site.js';
 
 // Public white-label partner site: the FULL AIRLUXO homepage (hero + search + fleet +
 // car detail + booking), scoped to the partner's cars and re-skinned with their brand
@@ -44,6 +44,7 @@ export default function PartnerSite({ slugOrKey, host }) {
     legal_pages: site.legal_pages || {},
     slug: site.slug,
     hero: (site.site_config || {}).sections?.hero || null, // { headline (USP), sub, cta }
+    layout: mergeLayout((site.site_config || {}).layout), // per-partner section/layout flags
   };
 
   return (

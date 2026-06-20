@@ -11,7 +11,7 @@ import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit, cronStatus } from '../lib/prospects.js';
 import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, createPartnerListing, setPartnerBrandKit, normalizeKit, brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
-import { setPartnerSite, slugify, mapSiteConfig, setPartnerLegal, addPartnerDomain, listPartnerDomains, setDomainVerified, removePartnerDomain } from '../lib/site.js';
+import { setPartnerSite, slugify, mapSiteConfig, mergeLayout, setPartnerLegal, addPartnerDomain, listPartnerDomains, setDomainVerified, removePartnerDomain } from '../lib/site.js';
 import { LEGAL_FIELDS, seedLegal, buildLegalPages } from '../lib/legal.js';
 
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
@@ -1376,6 +1376,7 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
   const [savingImgs, setSavingImgs] = useState(false);
   const [slug, setSlug] = useState('');
   const [published, setPublished] = useState(false);
+  const [layout, setLayoutState] = useState(mergeLayout(null)); // per-partner section/layout flags
   const [savingSite, setSavingSite] = useState(false);
   const [legal, setLegal] = useState({});
   const [savingLegal, setSavingLegal] = useState(false);
@@ -1410,6 +1411,7 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
       setCarRows(d?.job?.cars || []);
       setSlug(d?.slug || slugify(d?.company_name || ''));
       setPublished(!!d?.site_published);
+      setLayoutState(mergeLayout((d?.site_config || {}).layout));
       setLegal(seedLegal(d?.legal, d?.company_name, (d?.partner_pages || {}).contact));
       setLoading(false);
     }).catch((e) => { setErr(e.message || 'Could not load.'); setLoading(false); });
@@ -1500,7 +1502,7 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
     if (!slug.trim()) { setErr('Set a site address (slug) first.'); return; }
     setSavingSite(true); setErr(''); setMsg('');
     try {
-      const siteCfg = mapSiteConfig(data?.site_config, pages, data?.company_name);
+      const siteCfg = { ...mapSiteConfig(data?.site_config, pages, data?.company_name), layout };
       await setPartnerSite(partnerId, slug.trim(), siteCfg, makeLive);
       setPublished(makeLive);
       setMsg(makeLive ? 'Site published — live at the public address.' : 'Site unpublished.');
@@ -1811,6 +1813,40 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
                 <a href={siteUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-ink hover:underline">
                   {siteUrl.replace(/^https?:\/\//, '')} <Icon.ArrowUpRight width={13} height={13} />
                 </a>
+              </div>
+            </section>
+
+            {/* Per-partner layout — toggles + hero variant (saved on publish/republish) */}
+            <section className="border-t border-mist pt-4">
+              <h3 className="text-sm font-bold text-ink">Layout</h3>
+              <p className="mt-1 text-xs text-stone">Tune <span className="font-semibold text-ink">this partner&apos;s</span> site only — other partners and the marketplace are unaffected. Saved when you publish / republish.</p>
+              <div className="mt-3 space-y-2">
+                {[
+                  ['stats', 'Hero stats row', 'Marketplace counts (240+ cars, 36 companies) — usually off for a single partner.'],
+                  ['marquee', 'Brand strip', 'The scrolling luxury-brand names under the hero.'],
+                  ['map', 'Fleet map', '“The fleet across Switzerland” map section.'],
+                ].map(([k, label, hint]) => (
+                  <label key={k} className="flex cursor-pointer items-start gap-3">
+                    <input type="checkbox" checked={!!layout.show[k]}
+                      onChange={() => setLayoutState((l) => ({ ...l, show: { ...l.show, [k]: !l.show[k] } }))}
+                      className="mt-0.5 h-4 w-4 accent-ink" />
+                    <span className="leading-tight">
+                      <span className="block text-sm font-semibold text-ink">{label}</span>
+                      <span className="block text-xs text-stone">{hint}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div className="mt-4">
+                <span className="mb-1.5 block text-xs font-semibold text-stone">Hero layout</span>
+                <div className="flex gap-2">
+                  {[['split', 'Split (with image)'], ['centered', 'Centered (no image)']].map(([v, label]) => (
+                    <button key={v} type="button" onClick={() => setLayoutState((l) => ({ ...l, hero: v }))}
+                      className={`ring-lux rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${layout.hero === v ? 'border-ink bg-ink text-cloud' : 'border-mist bg-cloud text-ink hover:border-ink'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </section>
 

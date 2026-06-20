@@ -10,6 +10,29 @@ export function slugify(s) {
     .replace(/[^\w\s-]/g, '').trim().replace(/[\s_]+/g, '-').replace(/-+/g, '-').slice(0, 48);
 }
 
+// Per-partner layout flags (stored in site_config.layout). These let us tune one
+// partner's white-label site — toggle generic/marketplace-flavoured sections and pick a
+// hero variant — WITHOUT touching the shared Home (so no other partner or the
+// marketplace is affected). Absent flags fall back to these defaults = today's look.
+export const DEFAULT_LAYOUT = {
+  show: {
+    stats: true,    // hero stats row (marketplace counts — usually off for a single partner)
+    marquee: true,  // generic luxury brand strip under the hero
+    map: true,      // "fleet across Switzerland" map
+  },
+  hero: 'split',    // 'split' (image beside copy) | 'centered' (copy centred, no hero image)
+};
+
+// Merge a stored layout over the defaults (shallow + nested `show`), tolerating partial
+// or missing input. Used by both the editor and the renderer so they agree on the shape.
+export function mergeLayout(layout) {
+  const l = layout && typeof layout === 'object' ? layout : {};
+  return {
+    show: { ...DEFAULT_LAYOUT.show, ...(l.show && typeof l.show === 'object' ? l.show : {}) },
+    hero: l.hero === 'centered' ? 'centered' : 'split',
+  };
+}
+
 // Normalize site_config to the editable shape, seeding empty sections from the ingested
 // copy so a freshly-analysed partner already has a draft home page.
 export function mapSiteConfig(siteConfig, partnerPages, companyName) {
@@ -24,6 +47,7 @@ export function mapSiteConfig(siteConfig, partnerPages, companyName) {
       benefits: s.benefits || (Array.isArray(pp.benefits) ? pp.benefits.map((b) => (typeof b === 'string' ? { title: b, body: '' } : b)) : []),
       contact: s.contact || { email: contact.email || '', phone: contact.phone || '', address: contact.address || '' },
     },
+    layout: mergeLayout(sc.layout),
     nav: Array.isArray(sc.nav) && sc.nav.length ? sc.nav : ['fleet', 'about', 'contact'],
   };
 }

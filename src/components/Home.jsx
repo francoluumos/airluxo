@@ -49,6 +49,11 @@ const rise = {
 // Theming (colours/fonts) is applied by the wrapping themed root (PartnerSite).
 export default function Home({ onOpenCar, onPartner, onAccount, partner = null }) {
   const t = useT();
+  // Per-partner layout flags (white-label only). On the marketplace `partner` is null, so
+  // `show.*` stays true and everything renders as before — these toggles never affect it.
+  const layout = partner?.layout || { show: { stats: true, marquee: true, map: true }, hero: 'split', density: 'comfortable' };
+  const show = layout.show;
+  const heroCentered = partner && layout.hero === 'centered';
   const [legalView, setLegalView] = useState(null); // partner footer legal overlay
   const [cat, setCat] = useState('All');
   const [q, setQ] = useState('');
@@ -197,8 +202,8 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
 
       {/* ============ HERO ============ */}
       <section className="relative overflow-hidden">
-        <div className="mx-auto grid max-w-[1240px] items-center gap-10 px-5 pb-10 pt-14 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:pb-16 lg:pt-20">
-          <motion.div variants={stagger} initial="hidden" animate="show">
+        <div className={`mx-auto grid max-w-[1240px] items-center gap-10 px-5 pb-10 pt-14 sm:px-8 lg:pb-16 lg:pt-20 ${heroCentered ? 'lg:max-w-[820px] text-center' : 'lg:grid-cols-[1.05fr_0.95fr]'}`}>
+          <motion.div variants={stagger} initial="hidden" animate="show" className={heroCentered ? 'mx-auto flex flex-col items-center' : ''}>
             <motion.div variants={rise} className="eyebrow flex items-center gap-2.5 text-stone">
               <span className="h-1.5 w-1.5 rounded-full bg-go" />
               {partner ? partner.company_name : 'Switzerland · 8 cantons · one marketplace'}
@@ -254,14 +259,17 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
               </div>
             </motion.div>
 
+            {show.stats && (
             <motion.div variants={rise} className="mt-7 flex flex-wrap items-center gap-x-8 gap-y-3">
               <Stat k="240+" v="cars listed" />
               <Stat k="36" v="rental companies" />
               <Stat k="4.96★" v="avg. trip rating" />
             </motion.div>
+            )}
           </motion.div>
 
-          {/* hero visual */}
+          {/* hero visual (hidden in the centered hero variant) */}
+          {!heroCentered && (
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -295,9 +303,11 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
               <div className="text-xs font-semibold leading-tight">{t('home.fullyInsured')}<br /><span className="text-stone font-normal">{t('home.zeroExcessOption')}</span></div>
             </motion.div>
           </motion.div>
+          )}
         </div>
 
         {/* brand marquee */}
+        {show.marquee && (
         <div className="relative border-y border-mist py-4">
           <div className="flex overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]">
             <div className="marquee-track flex shrink-0 items-center gap-12 pr-12">
@@ -307,6 +317,7 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
             </div>
           </div>
         </div>
+        )}
       </section>
 
       {/* ============ FLEET ============ */}
@@ -408,6 +419,7 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
       </section>
 
       {/* ============ MAP ============ */}
+      {show.map && (
       <section id="map" className="mx-auto max-w-[1240px] px-5 pb-16 sm:px-8 lg:pb-24">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -431,6 +443,7 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
           />
         </div>
       </section>
+      )}
 
       {/* ============ HOW IT WORKS (dark) ============ */}
       {!partner && (
