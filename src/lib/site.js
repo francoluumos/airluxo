@@ -21,7 +21,19 @@ export const DEFAULT_LAYOUT = {
     map: true,      // "fleet across Switzerland" map
   },
   hero: 'split',    // 'split' (image beside copy) | 'centered' (copy centred, no hero image)
+  marquee: 'text',  // brand strip variant: 'text' (brand names) | 'logos' (logo images)
+  brandLogos: [],   // logo image URLs shown when marquee === 'logos' (same strip height)
 };
+
+// Keep only well-formed https/relative image URLs (brand-kit values are partner-set, so
+// never trust them raw — drop javascript:/data: and anything non-string).
+function cleanLogoUrls(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((u) => (typeof u === 'string' ? u.trim() : ''))
+    .filter((u) => u && (/^https:\/\//i.test(u) || u.startsWith('/')))
+    .slice(0, 24);
+}
 
 // Merge a stored layout over the defaults (shallow + nested `show`), tolerating partial
 // or missing input. Used by both the editor and the renderer so they agree on the shape.
@@ -30,6 +42,8 @@ export function mergeLayout(layout) {
   return {
     show: { ...DEFAULT_LAYOUT.show, ...(l.show && typeof l.show === 'object' ? l.show : {}) },
     hero: l.hero === 'centered' ? 'centered' : 'split',
+    marquee: l.marquee === 'logos' ? 'logos' : 'text',
+    brandLogos: cleanLogoUrls(l.brandLogos),
   };
 }
 

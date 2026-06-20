@@ -17,6 +17,19 @@ export async function setPartnerBrandKit(partnerId, brandKit) {
   if (error) throw error;
 }
 
+// Upload a brand asset (logo / car picture) into the partner's folder in the brand-assets
+// bucket and return its public URL. Folder convention: <partnerId>/<folder>/<file>.
+// Admin-only writes are enforced by the bucket's storage policy.
+export async function uploadBrandAsset(partnerId, file, folder = 'brand-logos') {
+  const safeFolder = /^[a-z0-9/_-]+$/i.test(folder) ? folder : 'brand-logos';
+  const ext = ((file.name || '').split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5) || 'png';
+  const rand = Math.random().toString(36).slice(2, 8);
+  const path = `${partnerId}/${safeFolder}/${Date.now()}-${rand}.${ext}`;
+  const { error } = await supabase.storage.from('brand-assets').upload(path, file, { contentType: file.type || 'image/png', upsert: false });
+  if (error) throw error;
+  return supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl;
+}
+
 // Partner self-update (Design tab).
 export async function updateMyBrandKit(brandKit) {
   const { data, error } = await supabase.rpc('partner_update_brand_kit', { p_brand_kit: brandKit });

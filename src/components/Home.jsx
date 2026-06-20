@@ -51,9 +51,11 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
   const t = useT();
   // Per-partner layout flags (white-label only). On the marketplace `partner` is null, so
   // `show.*` stays true and everything renders as before — these toggles never affect it.
-  const layout = partner?.layout || { show: { stats: true, marquee: true, map: true }, hero: 'split', density: 'comfortable' };
+  const layout = partner?.layout || { show: { stats: true, marquee: true, map: true }, hero: 'split', marquee: 'text', brandLogos: [] };
   const show = layout.show;
   const heroCentered = partner && layout.hero === 'centered';
+  // Logo variant of the brand strip — partner sites can show brand logos instead of names.
+  const marqueeLogos = (partner && layout.marquee === 'logos' && Array.isArray(layout.brandLogos) ? layout.brandLogos : []);
   const [legalView, setLegalView] = useState(null); // partner footer legal overlay
   const [cat, setCat] = useState('All');
   const [q, setQ] = useState('');
@@ -314,9 +316,19 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
         <div className="relative border-y border-mist py-4">
           <div className="flex overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]">
             <div className="marquee-track flex shrink-0 items-center gap-12 pr-12">
-              {[...MARQUEE, ...MARQUEE].map((b, i) => (
-                <span key={i} className="font-display whitespace-nowrap text-lg text-stone/70">{b}</span>
-              ))}
+              {marqueeLogos.length > 0
+                ? [...marqueeLogos, ...marqueeLogos].map((src, i) => (
+                    <img
+                      key={i}
+                      src={src}
+                      alt=""
+                      className="h-7 w-auto max-w-[130px] shrink-0 object-contain opacity-70"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ))
+                : [...MARQUEE, ...MARQUEE].map((b, i) => (
+                    <span key={i} className="font-display whitespace-nowrap text-lg text-stone/70">{b}</span>
+                  ))}
             </div>
           </div>
         </div>

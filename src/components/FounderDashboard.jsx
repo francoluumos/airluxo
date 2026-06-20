@@ -10,7 +10,7 @@ import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addIn
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit, cronStatus } from '../lib/prospects.js';
-import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, createPartnerListing, setPartnerBrandKit, normalizeKit, brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
+import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, createPartnerListing, setPartnerBrandKit, normalizeKit, brandKitToVars, loadBrandFont, uploadBrandAsset } from '../lib/brandkit.js';
 import { setPartnerSite, slugify, mapSiteConfig, mergeLayout, setPartnerLegal, addPartnerDomain, listPartnerDomains, setDomainVerified, removePartnerDomain } from '../lib/site.js';
 import { LEGAL_FIELDS, seedLegal, buildLegalPages } from '../lib/legal.js';
 
@@ -1377,6 +1377,9 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
   const [slug, setSlug] = useState('');
   const [published, setPublished] = useState(false);
   const [layout, setLayoutState] = useState(mergeLayout(null)); // per-partner section/layout flags
+  const [newLogoUrl, setNewLogoUrl] = useState('');            // brand-strip: paste-a-logo-URL field
+  const [uploadingLogo, setUploadingLogo] = useState(false);  // brand-strip: file upload in flight
+  const [showLogoPicker, setShowLogoPicker] = useState(false);// brand-strip: scraped-image picker open
   const [savingSite, setSavingSite] = useState(false);
   const [legal, setLegal] = useState({});
   const [savingLegal, setSavingLegal] = useState(false);
@@ -1847,6 +1850,85 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Brand strip — text names (default) vs the partner's own logo set. */}
+              <div className="mt-4">
+                <span className="mb-1.5 block text-xs font-semibold text-stone">Brand strip</span>
+                <div className="flex gap-2">
+                  {[['text', 'Text names'], ['logos', 'Logos']].map(([v, label]) => (
+                    <button key={v} type="button" onClick={() => setLayoutState((l) => ({ ...l, marquee: v }))}
+                      className={`ring-lux rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${layout.marquee === v ? 'border-ink bg-ink text-cloud' : 'border-mist bg-cloud text-ink hover:border-ink'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {layout.marquee === 'logos' && (
+                  <div className="mt-3 space-y-3">
+                    {layout.brandLogos.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {layout.brandLogos.map((url) => (
+                          <div key={url} className="group relative flex h-12 w-20 items-center justify-center rounded-lg border border-mist bg-cloud p-1.5">
+                            <img src={url} alt="" className="max-h-full max-w-full object-contain" />
+                            <button type="button" aria-label="Remove"
+                              onClick={() => setLayoutState((l) => ({ ...l, brandLogos: l.brandLogos.filter((u) => u !== url) }))}
+                              className="absolute -right-1.5 -top-1.5 hidden h-5 w-5 items-center justify-center rounded-full bg-ink text-cloud group-hover:flex">
+                              <Icon.X width={11} height={11} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="text-xs text-stone">No logos yet — add from the scraped images, paste a URL, or upload files.</p>}
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button type="button" onClick={() => setShowLogoPicker((s) => !s)}
+                        className="ring-lux rounded-full border border-mist bg-cloud px-3 py-1.5 text-xs font-semibold text-ink hover:border-ink">
+                        {showLogoPicker ? 'Close picker' : 'Pick from scraped'}
+                      </button>
+                      <label className="ring-lux cursor-pointer rounded-full border border-mist bg-cloud px-3 py-1.5 text-xs font-semibold text-ink hover:border-ink">
+                        {uploadingLogo ? 'Uploading…' : 'Upload files'}
+                        <input type="file" accept="image/*" multiple className="hidden" disabled={uploadingLogo}
+                          onChange={async (e) => {
+                            const files = Array.from(e.target.files || []); e.target.value = '';
+                            if (!files.length) return;
+                            setUploadingLogo(true); setErr('');
+                            try {
+                              const urls = [];
+                              for (const f of files) urls.push(await uploadBrandAsset(partnerId, f, 'brand-logos'));
+                              setLayoutState((l) => ({ ...l, brandLogos: Array.from(new Set([...l.brandLogos, ...urls])) }));
+                            } catch (e2) { setErr(e2.message || 'Upload failed.'); }
+                            finally { setUploadingLogo(false); }
+                          }} />
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <input value={newLogoUrl} onChange={(e) => setNewLogoUrl(e.target.value)} placeholder="https://…/logo.png"
+                          className="ring-lux w-48 rounded-xl border border-mist bg-cloud px-3 py-1.5 text-xs outline-none transition-colors focus:border-ink" />
+                        <button type="button" disabled={!newLogoUrl.trim()}
+                          onClick={() => { const u = newLogoUrl.trim(); if (u) { setLayoutState((l) => ({ ...l, brandLogos: Array.from(new Set([...l.brandLogos, u])) })); setNewLogoUrl(''); } }}
+                          className="ring-lux rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-cloud disabled:opacity-50">Add</button>
+                      </div>
+                    </div>
+
+                    {showLogoPicker && (
+                      <div className="grid grid-cols-6 gap-2 rounded-xl border border-mist bg-paper p-2 sm:grid-cols-8">
+                        {(data?.job?.images || []).map((img, i) => {
+                          const url = typeof img === 'string' ? img : img.url;
+                          const on = layout.brandLogos.includes(url);
+                          return (
+                            <button key={i} type="button"
+                              onClick={() => setLayoutState((l) => ({ ...l, brandLogos: on ? l.brandLogos.filter((u) => u !== url) : Array.from(new Set([...l.brandLogos, url])) }))}
+                              className={`flex h-12 items-center justify-center rounded-lg border bg-cloud p-1 ${on ? 'border-ink ring-2 ring-ink' : 'border-mist hover:border-ink'}`}>
+                              <img src={url} alt="" className="max-h-full max-w-full object-contain" />
+                            </button>
+                          );
+                        })}
+                        {(data?.job?.images || []).length === 0 && <p className="col-span-full py-2 text-center text-xs text-stone">No scraped images on this partner yet.</p>}
+                      </div>
+                    )}
+                    <p className="text-[0.7rem] text-stone">Logos save when you publish / republish. They scroll in the strip under the hero (same height).</p>
+                  </div>
+                )}
               </div>
             </section>
 
