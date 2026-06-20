@@ -196,6 +196,7 @@ Deno.serve(async (req) => {
       method: "POST", headers: fcHeaders,
       body: JSON.stringify({
         url,
+        waitFor: 3500, // let JS-rendered (Wix) content + lazy images load before capture
         formats: ["markdown", "links", "rawHtml", "branding", "images", { type: "screenshot", fullPage: true },
           { type: "json", schema: uspSchema, prompt: "Extract the company's USP, about text, key benefits, services and contact details." }],
       }),
@@ -281,7 +282,10 @@ Deno.serve(async (req) => {
     let fleetMd = "";
     if (fleetUrl) {
       try {
-        const fr = await fetch(`${FC}/v2/scrape`, { method: "POST", headers: fcHeaders, body: JSON.stringify({ url: fleetUrl, formats: ["markdown"] }) });
+        const fr = await fetch(`${FC}/v2/scrape`, { method: "POST", headers: fcHeaders, body: JSON.stringify({
+          url: fleetUrl, formats: ["markdown"], waitFor: 3500,
+          actions: [{ type: "scroll", direction: "down" }, { type: "wait", milliseconds: 1500 }, { type: "scroll", direction: "down" }, { type: "wait", milliseconds: 1500 }],
+        }) });
         if (fr.ok) { const fj = await fr.json(); fleetMd = (fj.data || fj).markdown || ""; }
       } catch { /* best-effort */ }
     }
