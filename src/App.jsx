@@ -11,6 +11,7 @@ import MobileLicence from './components/MobileLicence.jsx';
 import Embed from './components/Embed.jsx';
 import PartnerSite from './components/PartnerSite.jsx';
 import PartnerLanding from './components/PartnerLanding.jsx';
+import LegalPage from './components/LegalPage.jsx';
 
 // Phase 1 = partner acquisition: airluxo.ch shows the partner value-proposition landing
 // and the consumer booking marketplace stays hidden. Flip VITE_CONSUMER_LIVE=true (Phase 2)
@@ -112,6 +113,9 @@ export default function App() {
   if (params.has('reset') || window.location.hash.includes('type=recovery')) return <ResetPassword />;
   // Privacy & cookie policy (opened from the banner + footer): ?privacy.
   if (params.has('privacy')) return <PrivacyPolicy />;
+  // AIRLUXO's own legal pages (marketing-site footer): ?impressum · ?agb.
+  if (params.has('impressum')) return <LegalPage which="impressum" />;
+  if (params.has('agb')) return <LegalPage which="agb" />;
 
   // Founder / admin back office: admin.airluxo.ch + staging.admin.airluxo.ch (or ?admin).
   // Label match (not startsWith) so the staging.* prefix resolves too. Auth + is_admin()

@@ -1,365 +1,375 @@
-import { useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { useI18n } from '../lib/i18n.jsx';
 import { PLANS, PLAN_ORDER } from '../lib/plans.js';
 
-// AIRLUXO public site — PARTNER-ACQUISITION mode (Phase 1). airluxo.ch shows this value
-// proposition aimed at luxury-car rental companies; the consumer booking marketplace is
-// hidden behind VITE_CONSUMER_LIVE until Phase 2. Bilingual DE (default) + EN — the same
-// `locale` the rest of the app uses; the toggle here flips it globally.
+// AIRLUXO public site — PARTNER-ACQUISITION mode (Phase 1). A premium, dark-editorial
+// value proposition for luxury-car rental companies; the consumer marketplace stays hidden
+// behind VITE_CONSUMER_LIVE until Phase 2. Bilingual DE (default) + EN via the global i18n
+// locale; the language switch lives in the footer; language is browser-auto-detected.
+// Design: one cohesive dark theme, controlled type scale, gold accent, restrained motion.
 
-const rise = { hidden: { opacity: 0, y: 22 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.2, 0.7, 0.2, 1] } } };
-const stagger = { show: { transition: { staggerChildren: 0.08 } } };
+const EASE = [0.23, 1, 0.32, 1];
 
 const COPY = {
   de: {
     nav: { platform: 'Plattform', terms: 'Konditionen', roadmap: 'Roadmap', login: 'Partner-Login', cta: 'Gespräch buchen' },
     hero: {
-      eyebrow: 'Für die Luxus-Autovermietungen der Schweiz',
+      eyebrow: 'Für Luxus-Autovermietungen in der Schweiz',
       h1a: 'Ihre Vermietung,', h1b: 'online in Tagen.',
-      lead: 'AIRLUXO baut Ihnen eine erstklassige Buchungs-Website, ein sicheres Payment-Gateway und ein Management-Dashboard — in Ihrer Marke, auf unserer Engine. Sie behalten die Schlüssel, wir betreiben die Technik.',
+      lead: 'Eine erstklassige Buchungs-Website, ein sicheres Payment-Gateway und ein Dashboard. In Ihrer Marke, auf unserer Engine.',
       cta1: 'Meine Website bauen', cta2: 'So funktioniert’s',
     },
     shift: {
-      eyebrow: 'Der Wandel',
-      h2: 'Ihre Autos sind aussergewöhnlich. Ihr Buchungserlebnis sollte es auch sein.',
-      big: 'Wer einen Lamborghini mietet, will keine DM, kein PDF und keine Banküberweisung.',
-      p: 'Gäste erwarten: stöbern, Daten wählen, bezahlen, bestätigen — in Minuten, auf einer Seite, die so edel wirkt wie das Auto. Die meisten Luxusvermieter arbeiten mit generischen Vorlagen, WhatsApp und manueller Administration. Diese Reibung kostet Buchungen.',
-      cards: [
-        ['Generisches Wix / Insta-DMs', 'Keine Echtzeit-Verfügbarkeit, keine Online-Zahlung, keine Vertrauenssignale.'],
+      h2a: 'Ihre Autos sind aussergewöhnlich.', h2b: 'Ihr Buchungserlebnis sollte es auch sein.',
+      lead: 'Wer einen Lamborghini mietet, will keine DM, kein PDF und keine Banküberweisung. Gäste erwarten: stöbern, Daten wählen, bezahlen, bestätigen, in Minuten.',
+      rows: [
+        ['Generische Vorlagen', 'Keine Echtzeit-Verfügbarkeit, keine Online-Zahlung, keine Vertrauenssignale.'],
         ['Manuelle Administration', 'Kalender im Kopf, Rechnungen von Hand, Kautionen am Telefon hinterhergejagt.'],
         ['Verlorene Premium-Gäste', 'Kaufbereite Fahrer springen ab, wenn die Buchung nicht sofort und sicher ist.'],
       ],
     },
     deliver: {
-      eyebrow: 'Was wir liefern',
-      h2: 'Eine komplette Luxus-Vermietungsplattform — in Ihrer Marke.',
-      cards: [
-        ['Ihre Website', 'Eine auf Luxus-Autovermietung spezialisierte Seite in Ihren Farben, Schriften und Ihrem Logo — Hero, Flotte, Fahrzeugdetail, alles. In Tagen aus Ihrer bestehenden Seite gebaut, auf Ihrer eigenen Domain.'],
-        ['Payment-Gateway', 'Sichere Online-Zahlungen & Kautionen integriert (Stripe). Gäste zahlen vorab; Auszahlungen auf Ihr IBAN nach jeder Miete. Kein Hinterherjagen von Überweisungen.'],
-        ['Partner-Dashboard', 'Ein Ort für Inserate, Preise, Verfügbarkeit, Buchungen und Auszahlungen — mit Echtzeit-Kalendersync und Analytics.'],
+      h2: 'Eine komplette Plattform, in Ihrer Marke.',
+      items: [
+        ['Ihre Website', 'Eine auf Luxus-Vermietung spezialisierte Seite in Ihren Farben, Schriften und Ihrem Logo. In Tagen gebaut, auf Ihrer eigenen Domain.'],
+        ['Payment-Gateway', 'Sichere Online-Zahlungen und Kautionen (Stripe). Gäste zahlen vorab, Auszahlungen auf Ihr IBAN nach jeder Miete.'],
+        ['Partner-Dashboard', 'Inserate, Preise, Verfügbarkeit, Buchungen und Auszahlungen an einem Ort, mit Echtzeit-Kalendersync.'],
       ],
-      note: 'Layout, Buchungsfluss und Sicherheit sind AIRLUXOs bewährtes System. Nur die Marke ist Ihre — es sieht aus wie Sie und funktioniert wie eine Plattform, die Jahre gebraucht hätte.',
+      note: 'Layout, Buchungsfluss und Sicherheit sind unser bewährtes System. Nur die Marke ist Ihre.',
     },
     dash: {
-      eyebrow: 'Das Partner-Dashboard',
       h2: 'Ihre ganze Flotte von einem Bildschirm.',
-      p: 'Alles in Selbstbedienung — kein Entwickler, keine Agentur, kein Warten auf uns.',
+      lead: 'Alles in Selbstbedienung. Kein Entwickler, keine Agentur, kein Warten.',
       feats: [
-        ['Inserate & Fotos', 'Fahrzeuge mit Spezifikationen, Galerien und Studio-Thumbnails hinzufügen — oder die ganze Flotte in einem Schritt importieren.'],
-        ['Preise & Regeln', 'Tagespreise, Kautionen, Kilometer, grenzüberschreitend und Lieferung festlegen — pro Auto, zu Ihren Bedingungen.'],
-        ['Buchungen & Kalender', 'Echtzeit-Verfügbarkeit, ICS-Sync, sofortige Bestätigungen — keine Doppelbuchungen.'],
-        ['Auszahlungen & Analytics', 'Einnahmen, Auslastung und Trends sehen; Auszahlungen auf Ihr IBAN nach jeder Miete.'],
+        ['Inserate & Fotos', 'Fahrzeuge mit Spezifikationen und Galerien anlegen, oder die Flotte in einem Schritt importieren.'],
+        ['Preise & Regeln', 'Tagespreise, Kautionen, Kilometer und Lieferung festlegen, pro Auto, zu Ihren Bedingungen.'],
+        ['Buchungen & Kalender', 'Echtzeit-Verfügbarkeit, ICS-Sync, sofortige Bestätigungen, keine Doppelbuchungen.'],
+        ['Auszahlungen & Analytics', 'Einnahmen, Auslastung und Trends sehen. Auszahlungen nach jeder Miete.'],
       ],
     },
     terms: {
-      eyebrow: 'Einfache Konditionen · Abonnemente',
-      h2: 'Fair, transparent, keine Bindung.',
+      eyebrow: 'Konditionen', h2: 'Fair, transparent, keine Bindung.',
       popular: 'Beliebteste', mo: '/Mt.', commission: 'Kommission',
-      sub: { free: 'Bis 3 Autos · Einstieg', pro: 'Bis 25 Autos · für wachsende Flotten', max: 'Unbegrenzte Autos · für grosse Anbieter' },
+      sub: { free: 'Bis 3 Autos', pro: 'Bis 25 Autos', max: 'Unbegrenzte Autos' },
       feats: {
         free: ['KI-Studio-Thumbnails', 'Kalendersync (ICS)', 'Standard-Platzierung'],
         pro: ['Priorisierte Platzierung', 'Performance-Analytics', 'Schnellere Auszahlungen'],
-        max: ['Featured-Platzierung', 'Team-Mitglieder · API', 'Dedizierter Support'],
+        max: ['Featured-Platzierung', 'Team-Mitglieder, API', 'Dedizierter Support'],
       },
-      note: 'Gäste zahlen eine kleine Servicegebühr — nicht Sie. Keine Inseratsgebühren, keine Bindung, Auszahlungen auf Ihr IBAN nach jeder Miete.',
+      note: 'Gäste zahlen eine kleine Servicegebühr, nicht Sie. Keine Inseratsgebühren, keine Bindung, Auszahlung auf Ihr IBAN nach jeder Miete.',
     },
     onboard: {
-      eyebrow: 'Von Ihrer Seite zu live — in Tagen',
-      h2: 'Vier Schritte. Den Grossteil übernehmen wir.',
+      h2: 'Von Ihrer Seite zu live, in Tagen.',
       steps: [
         ['Seite teilen', 'Wir lesen Marke, Flotte und Texte automatisch.'],
-        ['Wir bauen', 'Ihre Marken-Website + Dashboard, mit Ihren Autos befüllt.'],
-        ['Sie prüfen', 'Preise, Fotos und Texte anpassen — Freigabe per privater Vorschau.'],
-        ['Live gehen', 'Auf Ihrer eigenen Domain veröffentlichen. Buchungen & Zahlungen starten.'],
+        ['Wir bauen', 'Ihre Website und das Dashboard, mit Ihren Autos befüllt.'],
+        ['Sie prüfen', 'Preise, Fotos und Texte anpassen, Freigabe per Vorschau.'],
+        ['Live gehen', 'Auf Ihrer Domain veröffentlichen. Buchungen starten.'],
       ],
     },
     roadmap: {
-      eyebrow: 'Auf der Roadmap', soon: 'Demnächst',
-      h2: 'Nach dem Start wird’s nur stärker.',
+      h2: 'Nach dem Start wird’s nur stärker.', soon: 'Demnächst',
       cards: [
-        ['AIRLUXO-Marktplatz', 'Bald listen wir Ihre Flotte zusätzlich auf airluxo.ch — sichtbar für geprüfte Schweizer Fahrer, die etwas Selteneres als eine Limousine suchen.'],
-        ['Mobile Übergabe-App', 'Digitale Annahme & Rückgabe auf dem Handy: Foto-Schadensprotokoll, Tank & Kilometer, Führerausweis-Scan und E-Signatur — beweissicher für jede Abholung und Rückgabe.'],
-        ['Smart Pricing', 'Dynamische Tagespreise nach Nachfrage, Saison und Events — Ihre Autos erzielen automatisch den richtigen Preis.'],
+        ['AIRLUXO-Marktplatz', 'Bald listen wir Ihre Flotte zusätzlich auf airluxo.ch, sichtbar für geprüfte Schweizer Fahrer.'],
+        ['Mobile Übergabe-App', 'Digitale Annahme und Rückgabe: Foto-Schadensprotokoll, Tank, Kilometer, Führerausweis-Scan, E-Signatur.'],
+        ['Smart Pricing', 'Dynamische Tagespreise nach Nachfrage, Saison und Events, automatisch.'],
       ],
-      note: 'Ihr Abonnement wächst mit der Plattform — neue Tools kommen zu den Partnern, sobald sie live gehen.',
     },
-    cta: {
-      eyebrow: 'Lassen Sie uns bauen',
-      h2a: 'Sehen Sie Ihren Auftritt,', h2b: 'live, in Ihrer Marke.',
-      lead: 'Wir bauen eine private Vorschau Ihrer Marken-Website — Ihre Autos, Ihre Farben — bevor Sie sich zu irgendetwas verpflichten.',
-      cta1: 'Gespräch buchen', cta2: 'airluxo.ch besuchen',
+    cta: { h2a: 'Sehen Sie Ihren Auftritt,', h2b: 'live, in Ihrer Marke.', lead: 'Wir bauen eine private Vorschau Ihrer Marken-Website, bevor Sie sich zu etwas verpflichten.', cta1: 'Gespräch buchen' },
+    footer: {
+      tagline: 'Ihre Marke. Unsere Engine.',
+      colPlatform: 'Plattform', colLegal: 'Rechtliches', colContact: 'Kontakt',
+      impressum: 'Impressum', privacy: 'Datenschutz', agb: 'AGB',
+      rights: 'Alle Rechte vorbehalten.', country: 'Schweiz',
     },
-    footer: { tagline: 'Ihre Marke. Unsere Engine.', rights: 'Alle Rechte vorbehalten.' },
   },
   en: {
     nav: { platform: 'Platform', terms: 'Pricing', roadmap: 'Roadmap', login: 'Partner login', cta: 'Book a call' },
     hero: {
-      eyebrow: 'For Switzerland’s luxury-car rental companies',
+      eyebrow: 'For luxury-car rental companies in Switzerland',
       h1a: 'Your rental brand,', h1b: 'online in days.',
-      lead: 'AIRLUXO builds you a premium booking website, a secure payment gateway and a management dashboard — in your brand, on our engine. You keep the keys; we run the tech.',
+      lead: 'A premium booking website, a secure payment gateway and a dashboard. In your brand, on our engine.',
       cta1: 'Build my site', cta2: 'See how it works',
     },
     shift: {
-      eyebrow: 'The shift',
-      h2: 'Your cars are exceptional. Your booking experience should be too.',
-      big: 'Renters of a Lamborghini don’t want a DM, a PDF and a bank transfer.',
-      p: 'They expect to browse, choose dates, pay and confirm — in minutes, on a site that feels as premium as the car. Most luxury rental companies run on generic templates, WhatsApp and manual admin. That friction costs bookings.',
-      cards: [
-        ['Generic Wix / Insta DMs', 'No real-time availability, no online payment, no trust signals.'],
+      h2a: 'Your cars are exceptional.', h2b: 'Your booking experience should be too.',
+      lead: 'Renters of a Lamborghini don’t want a DM, a PDF and a bank transfer. They expect to browse, pick dates, pay and confirm, in minutes.',
+      rows: [
+        ['Generic templates', 'No real-time availability, no online payment, no trust signals.'],
         ['Manual admin', 'Calendars in your head, invoices by hand, deposits chased over the phone.'],
         ['Lost premium guests', 'High-intent drivers drop off when booking isn’t instant and secure.'],
       ],
     },
     deliver: {
-      eyebrow: 'What we deliver',
-      h2: 'A complete luxury rental platform — in your brand.',
-      cards: [
-        ['Your website', 'A luxury-car-rental-specific site in your colours, fonts and logo — hero, fleet, car detail, the lot. Built from your existing site in days, on your own domain.'],
-        ['Payment gateway', 'Secure online payments & deposits built in (Stripe). Guests pay upfront; payouts land in your IBAN after each trip. No more chasing transfers.'],
-        ['Partner dashboard', 'One place to manage listings, prices, availability, bookings and payouts — with real-time calendar sync and analytics.'],
+      h2: 'A complete platform, in your brand.',
+      items: [
+        ['Your website', 'A luxury-rental-specific site in your colours, fonts and logo. Built in days, on your own domain.'],
+        ['Payment gateway', 'Secure online payments and deposits (Stripe). Guests pay upfront, payouts to your IBAN after each trip.'],
+        ['Partner dashboard', 'Listings, prices, availability, bookings and payouts in one place, with real-time calendar sync.'],
       ],
-      note: 'The layout, booking flow and security are AIRLUXO’s proven system. Only the brand is yours — so it looks like you, and works like a platform that took years to build.',
+      note: 'The layout, booking flow and security are our proven system. Only the brand is yours.',
     },
     dash: {
-      eyebrow: 'The partner dashboard',
       h2: 'Run your whole fleet from one screen.',
-      p: 'Everything self-serve — no developer, no agency, no waiting on us.',
+      lead: 'Everything self-serve. No developer, no agency, no waiting.',
       feats: [
-        ['Listings & photos', 'Add cars with specs, galleries and studio thumbnails — or import your whole fleet in one go.'],
-        ['Pricing & rules', 'Set daily rates, deposits, mileage, cross-border and delivery — per car, your terms.'],
-        ['Bookings & calendar', 'Real-time availability, ICS sync, instant confirmations — no double-bookings.'],
-        ['Payouts & analytics', 'See earnings, utilisation and trends; payouts to your IBAN after each trip.'],
+        ['Listings & photos', 'Add cars with specs and galleries, or import your whole fleet in one go.'],
+        ['Pricing & rules', 'Set daily rates, deposits, mileage and delivery, per car, your terms.'],
+        ['Bookings & calendar', 'Real-time availability, ICS sync, instant confirmations, no double-bookings.'],
+        ['Payouts & analytics', 'See earnings, utilisation and trends. Payouts after each trip.'],
       ],
     },
     terms: {
-      eyebrow: 'Simple terms · subscriptions',
-      h2: 'Fair, transparent, no lock-in.',
+      eyebrow: 'Pricing', h2: 'Fair, transparent, no lock-in.',
       popular: 'Most popular', mo: '/mo', commission: 'commission',
-      sub: { free: 'Up to 3 cars · get started', pro: 'Up to 25 cars · for growing fleets', max: 'Unlimited cars · for large operators' },
+      sub: { free: 'Up to 3 cars', pro: 'Up to 25 cars', max: 'Unlimited cars' },
       feats: {
         free: ['AI studio thumbnails', 'Calendar sync (ICS)', 'Standard placement'],
         pro: ['Priority placement', 'Performance analytics', 'Faster payouts'],
-        max: ['Featured placement', 'Team members · API', 'Dedicated support'],
+        max: ['Featured placement', 'Team members, API', 'Dedicated support'],
       },
-      note: 'Guests pay a small service fee — not you. No listing fees, no lock-in, payouts to your IBAN after every trip.',
+      note: 'Guests pay a small service fee, not you. No listing fees, no lock-in, payouts to your IBAN after every trip.',
     },
     onboard: {
-      eyebrow: 'From your site to live — in days',
-      h2: 'Four steps. We do the heavy lifting.',
+      h2: 'From your site to live, in days.',
       steps: [
         ['Share your site', 'We read your brand, fleet and copy automatically.'],
-        ['We build it', 'Your branded site + dashboard, populated with your cars.'],
-        ['You review', 'Tweak prices, photos and text — sign off on a private preview.'],
-        ['Go live', 'Publish on your own domain. Start taking bookings & payments.'],
+        ['We build it', 'Your website and dashboard, populated with your cars.'],
+        ['You review', 'Tweak prices, photos and text, sign off on a preview.'],
+        ['Go live', 'Publish on your domain. Start taking bookings.'],
       ],
     },
     roadmap: {
-      eyebrow: 'On the roadmap', soon: 'Coming',
-      h2: 'It only gets more powerful after you’re live.',
+      h2: 'It only gets stronger after you’re live.', soon: 'Coming',
       cards: [
-        ['AIRLUXO marketplace', 'Soon we’ll also list your fleet on airluxo.ch — featured to vetted Swiss drivers looking for something rarer than a sedan.'],
-        ['Mobile handover app', 'Digital pick-up & return on your phone: photo damage log, fuel & mileage, licence scan and e-signature — a dispute-proof record for every handover.'],
-        ['Smart pricing', 'Dynamic daily rates by demand, season and events — your cars earn the right price automatically.'],
+        ['AIRLUXO marketplace', 'Soon we’ll also list your fleet on airluxo.ch, featured to vetted Swiss drivers.'],
+        ['Mobile handover app', 'Digital pick-up and return: photo damage log, fuel, mileage, licence scan, e-signature.'],
+        ['Smart pricing', 'Dynamic daily rates by demand, season and events, automatically.'],
       ],
-      note: 'Your subscription grows with the platform — new tools roll out to partners as they ship.',
     },
-    cta: {
-      eyebrow: 'Let’s build it',
-      h2a: 'See your storefront,', h2b: 'live, in your brand.',
-      lead: 'We’ll build a private preview of your branded site — your cars, your colours — before you commit a thing.',
-      cta1: 'Book a call', cta2: 'Visit airluxo.ch',
+    cta: { h2a: 'See your storefront,', h2b: 'live, in your brand.', lead: 'We’ll build a private preview of your branded site before you commit to a thing.', cta1: 'Book a call' },
+    footer: {
+      tagline: 'Your brand. Our engine.',
+      colPlatform: 'Platform', colLegal: 'Legal', colContact: 'Contact',
+      impressum: 'Imprint', privacy: 'Privacy', agb: 'Terms',
+      rights: 'All rights reserved.', country: 'Switzerland',
     },
-    footer: { tagline: 'Your brand. Our engine.', rights: 'All rights reserved.' },
   },
 };
 
 const MAILTO = 'mailto:hello@airluxo.ch?subject=AIRLUXO%20Partnership';
 
-function Section({ id, dark, children }) {
-  return (
-    <section id={id} className={dark ? 'bg-ink text-paper' : 'bg-paper text-ink'}>
-      <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }}
-        className="mx-auto max-w-[1160px] px-5 py-20 sm:px-8 lg:py-28">{children}</motion.div>
-    </section>
-  );
-}
-const Eyebrow = ({ children }) => <motion.div variants={rise} className="eyebrow text-stone">{children}</motion.div>;
-
 export default function PartnerLanding({ onPartner }) {
   const { locale, setLocale } = useI18n();
-  const lang = locale === 'en' ? 'en' : 'de'; // marketing copy is DE/EN; anything else → German (Swiss default)
+  const reduce = useReducedMotion();
+  const lang = locale === 'en' ? 'en' : 'de';
   const c = COPY[lang];
 
-  useEffect(() => { document.body.style.overflow = ''; }, []);
+  const container = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } };
+  const item = reduce
+    ? { hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0.3 } } }
+    : { hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } } };
+  const hover = reduce ? {} : { whileHover: { y: -2 }, whileTap: { scale: 0.98 } };
+
+  // Reusable dark section wrapper with scroll-reveal + stagger.
+  const Sec = ({ id, bg = 'bg-ink', children }) => (
+    <motion.section id={id} variants={container} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.25 }}
+      className={`${bg} text-paper`}>
+      <div className="mx-auto max-w-[1080px] px-6 py-24 sm:px-8 lg:py-32">{children}</div>
+    </motion.section>
+  );
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      {/* nav */}
-      <header className="sticky top-0 z-50 border-b border-graphite bg-ink/80 text-paper backdrop-blur-xl">
-        <div className="mx-auto flex h-[64px] max-w-[1240px] items-center justify-between px-5 sm:px-8">
-          <a href="#top" className="wordmark text-xl">AIR<span className="text-gold">LUXO</span></a>
-          <nav className="hidden items-center gap-7 text-sm font-medium text-ash md:flex">
-            <a href="#deliver" className="transition-colors hover:text-paper">{c.nav.platform}</a>
+    <div className="min-h-[100dvh] bg-void text-paper">
+      {/* header */}
+      <header className="sticky top-0 z-50 border-b border-graphite/70 bg-void/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-[64px] max-w-[1180px] items-center justify-between px-6 sm:px-8">
+          <a href="#top" className="wordmark text-xl text-paper">AIR<span className="text-gold">LUXO</span></a>
+          <nav className="hidden items-center gap-8 text-sm font-medium text-ash md:flex">
+            <a href="#platform" className="transition-colors hover:text-paper">{c.nav.platform}</a>
             <a href="#terms" className="transition-colors hover:text-paper">{c.nav.terms}</a>
             <a href="#roadmap" className="transition-colors hover:text-paper">{c.nav.roadmap}</a>
           </nav>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center rounded-full border border-graphite text-xs font-bold">
-              {['de', 'en'].map((lc) => (
-                <button key={lc} onClick={() => setLocale(lc)}
-                  className={`rounded-full px-2.5 py-1 uppercase transition-colors ${lang === lc ? 'bg-gold text-ink' : 'text-ash hover:text-paper'}`}>{lc}</button>
-              ))}
-            </div>
+          <div className="flex items-center gap-4">
             <button onClick={onPartner} className="ring-lux hidden text-sm font-semibold text-ash transition-colors hover:text-paper sm:block">{c.nav.login}</button>
-            <a href={MAILTO} className="ring-lux rounded-full bg-gold px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-gold-soft">{c.nav.cta}</a>
+            <motion.a {...hover} href={MAILTO} className="ring-lux rounded-full bg-gold px-4 py-2 text-sm font-bold text-ink">{c.nav.cta}</motion.a>
           </div>
         </div>
       </header>
 
       {/* hero */}
-      <section id="top" className="relative overflow-hidden bg-void text-paper">
-        <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(120% 90% at 70% 0%, #15151a 0%, #060607 60%)' }} />
-        <motion.div variants={stagger} initial="hidden" animate="show" className="relative mx-auto max-w-[1160px] px-5 py-28 sm:px-8 lg:py-36">
-          <Eyebrow>{c.hero.eyebrow}</Eyebrow>
-          <motion.h1 variants={rise} className="font-display mt-5 text-[clamp(2.7rem,6vw,5rem)] font-semibold leading-[0.96]">
+      <section id="top" className="relative flex min-h-[88vh] items-center overflow-hidden">
+        <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(110% 80% at 75% -10%, #1b1b22 0%, #060607 58%)' }} />
+        <motion.div variants={container} initial="hidden" animate="show" className="relative mx-auto w-full max-w-[1080px] px-6 sm:px-8">
+          <motion.div variants={item} className="eyebrow text-ash">{c.hero.eyebrow}</motion.div>
+          <motion.h1 variants={item} className="font-display mt-6 text-5xl font-semibold leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
             {c.hero.h1a}<br /><span className="italic text-gold">{c.hero.h1b}</span>
           </motion.h1>
-          <motion.p variants={rise} className="mt-6 max-w-2xl text-[1.05rem] leading-relaxed text-ash">{c.hero.lead}</motion.p>
-          <motion.div variants={rise} className="mt-9 flex flex-wrap gap-3">
-            <a href={MAILTO} className="ring-lux rounded-full bg-gold px-7 py-3.5 text-sm font-bold text-ink transition-transform hover:-translate-y-0.5">{c.hero.cta1} →</a>
-            <a href="#deliver" className="ring-lux rounded-full border border-graphite px-7 py-3.5 text-sm font-bold text-paper transition-colors hover:border-ash">{c.hero.cta2}</a>
+          <motion.p variants={item} className="mt-7 max-w-[46ch] text-lg leading-relaxed text-ash">{c.hero.lead}</motion.p>
+          <motion.div variants={item} className="mt-10 flex flex-wrap items-center gap-3">
+            <motion.a {...hover} href={MAILTO} className="ring-lux rounded-full bg-gold px-7 py-3.5 text-sm font-bold text-ink">{c.hero.cta1}</motion.a>
+            <motion.a {...hover} href="#platform" className="ring-lux rounded-full border border-graphite px-7 py-3.5 text-sm font-bold text-paper transition-colors hover:border-ash">{c.hero.cta2}</motion.a>
           </motion.div>
         </motion.div>
       </section>
 
-      {/* the shift */}
-      <Section id="shift">
-        <Eyebrow>{c.shift.eyebrow}</Eyebrow>
-        <motion.h2 variants={rise} className="font-display mt-3 max-w-[20ch] text-[clamp(1.9rem,4.2vw,3.2rem)] leading-[1.02]">{c.shift.h2}</motion.h2>
-        <div className="mt-12 grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
-          <motion.div variants={rise}>
-            <p className="font-display max-w-[20ch] text-[clamp(1.5rem,3vw,2.3rem)] font-semibold leading-[1.08] tracking-tight">{c.shift.big}</p>
-            <p className="mt-5 max-w-[48ch] text-stone">{c.shift.p}</p>
-          </motion.div>
-          <motion.div variants={rise} className="grid gap-3.5">
-            {c.shift.cards.map(([h, p]) => (
-              <div key={h} className="rounded-[var(--radius-card)] border border-mist bg-cloud p-6">
-                <h3 className="font-display text-lg">{h}</h3><p className="mt-1.5 text-sm text-stone">{p}</p>
-              </div>
-            ))}
-          </motion.div>
-        </div>
-      </Section>
-
-      {/* what we deliver */}
-      <Section id="deliver" dark>
-        <Eyebrow>{c.deliver.eyebrow}</Eyebrow>
-        <motion.h2 variants={rise} className="font-display mt-3 text-[clamp(1.9rem,4.2vw,3.2rem)] leading-[1.02]">{c.deliver.h2}</motion.h2>
-        <motion.div variants={rise} className="mt-11 grid gap-6 md:grid-cols-3">
-          {c.deliver.cards.map(([h, p], i) => (
-            <div key={h} className="rounded-[var(--radius-card)] border border-graphite bg-coal p-7">
-              <div className="grid h-11 w-11 place-items-center rounded-xl bg-gold/15 font-display text-lg font-bold text-gold">{['◆', '⛨', '▤'][i]}</div>
-              <h3 className="font-display mt-4 text-xl">{h}</h3>
-              <p className="mt-2.5 text-sm leading-relaxed text-ash">{p}</p>
-            </div>
+      {/* the shift — editorial statement + hairline problem list */}
+      <Sec id="shift">
+        <motion.h2 variants={item} className="font-display max-w-[18ch] text-3xl font-semibold leading-[1.08] tracking-tight sm:text-[2.7rem]">
+          {c.shift.h2a}<br /><span className="text-ash">{c.shift.h2b}</span>
+        </motion.h2>
+        <motion.p variants={item} className="mt-6 max-w-[56ch] text-lg leading-relaxed text-ash">{c.shift.lead}</motion.p>
+        <div className="mt-12 border-t border-graphite/70">
+          {c.shift.rows.map(([h, p]) => (
+            <motion.div variants={item} key={h} className="grid gap-1 border-b border-graphite/70 py-6 sm:grid-cols-[16rem_1fr] sm:gap-8">
+              <h3 className="font-display text-lg text-paper">{h}</h3>
+              <p className="text-ash">{p}</p>
+            </motion.div>
           ))}
-        </motion.div>
-        <motion.p variants={rise} className="mt-8 max-w-[64ch] text-ash">{c.deliver.note}</motion.p>
-      </Section>
-
-      {/* dashboard */}
-      <Section id="dashboard">
-        <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-          <motion.div variants={rise}>
-            <Eyebrow>{c.dash.eyebrow}</Eyebrow>
-            <h2 className="font-display mt-3 max-w-[14ch] text-[clamp(1.9rem,4.2vw,3.2rem)] leading-[1.02]">{c.dash.h2}</h2>
-            <p className="mt-4 max-w-[42ch] text-stone">{c.dash.p}</p>
-          </motion.div>
-          <motion.div variants={rise}>
-            {c.dash.feats.map(([h, p], i) => (
-              <div key={h} className="flex items-start gap-4 border-t border-mist py-5">
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold/14 font-display font-bold text-gold">{String(i + 1).padStart(2, '0')}</div>
-                <div><h3 className="font-display text-base">{h}</h3><p className="mt-1 text-sm text-stone">{p}</p></div>
-              </div>
-            ))}
-          </motion.div>
         </div>
-      </Section>
+      </Sec>
 
-      {/* terms */}
-      <Section id="terms">
-        <Eyebrow>{c.terms.eyebrow}</Eyebrow>
-        <motion.h2 variants={rise} className="font-display mt-3 text-[clamp(1.9rem,4.2vw,3.2rem)] leading-[1.02]">{c.terms.h2}</motion.h2>
-        <motion.div variants={rise} className="mt-11 grid gap-5 md:grid-cols-3">
+      {/* what we deliver — three numbered offerings (no card chrome) */}
+      <Sec id="platform" bg="bg-coal">
+        <motion.h2 variants={item} className="font-display max-w-[16ch] text-3xl font-semibold tracking-tight sm:text-[2.7rem]">{c.deliver.h2}</motion.h2>
+        <div className="mt-14 grid gap-x-10 gap-y-12 md:grid-cols-3">
+          {c.deliver.items.map(([h, p], i) => (
+            <motion.div variants={item} key={h}>
+              <div className="font-display text-2xl font-semibold text-gold">{String(i + 1).padStart(2, '0')}</div>
+              <h3 className="font-display mt-4 text-xl text-paper">{h}</h3>
+              <p className="mt-3 leading-relaxed text-ash">{p}</p>
+            </motion.div>
+          ))}
+        </div>
+        <motion.p variants={item} className="mt-14 max-w-[60ch] border-t border-graphite/70 pt-8 text-lg text-ash">{c.deliver.note}</motion.p>
+      </Sec>
+
+      {/* dashboard — split: statement + hairline feature list */}
+      <Sec id="dashboard">
+        <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
+          <motion.div variants={item}>
+            <h2 className="font-display max-w-[12ch] text-3xl font-semibold leading-[1.08] tracking-tight sm:text-[2.7rem]">{c.dash.h2}</h2>
+            <p className="mt-5 max-w-[36ch] text-lg text-ash">{c.dash.lead}</p>
+          </motion.div>
+          <div className="border-t border-graphite/70">
+            {c.dash.feats.map(([h, p], i) => (
+              <motion.div variants={item} key={h} className="flex gap-5 border-b border-graphite/70 py-5">
+                <span className="font-display text-sm font-bold text-gold">{String(i + 1).padStart(2, '0')}</span>
+                <div><h3 className="font-display text-base text-paper">{h}</h3><p className="mt-1 text-sm text-ash">{p}</p></div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </Sec>
+
+      {/* pricing */}
+      <Sec id="terms" bg="bg-coal">
+        <motion.div variants={item} className="eyebrow text-ash">{c.terms.eyebrow}</motion.div>
+        <motion.h2 variants={item} className="font-display mt-3 text-3xl font-semibold tracking-tight sm:text-[2.7rem]">{c.terms.h2}</motion.h2>
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
           {PLAN_ORDER.map((id) => {
             const p = PLANS[id]; const pop = !!p.popular;
             return (
-              <div key={id} className={`relative flex flex-col rounded-[var(--radius-card)] border p-7 ${pop ? 'border-gold shadow-[0_30px_70px_-50px_rgba(184,145,80,.7)]' : 'border-mist'} bg-cloud`}>
+              <motion.div variants={item} key={id} className={`relative flex flex-col rounded-[var(--radius-card)] border bg-ink p-7 ${pop ? 'border-gold' : 'border-graphite/70'}`}>
                 {pop && <span className="absolute -top-3 left-7 rounded-full bg-gold px-3 py-1 text-[0.62rem] font-bold uppercase tracking-wider text-ink">{c.terms.popular}</span>}
-                <div className="eyebrow text-stone">{p.name}</div>
-                <div className="font-display mt-1.5 text-[2.6rem] font-semibold leading-none">CHF&nbsp;{p.price}<span className="text-base font-medium text-stone"> {c.terms.mo}</span></div>
-                <div className="mt-1 text-sm font-bold text-gold">{p.commission}% {c.terms.commission}</div>
-                <p className="mt-3 text-sm text-stone">{c.terms.sub[id]}</p>
-                <ul className="mt-4 grid gap-2 text-sm text-stone">
-                  {c.terms.feats[id].map((f) => <li key={f}><span className="text-gold">—&nbsp;</span>{f}</li>)}
+                <div className="eyebrow text-ash">{p.name}</div>
+                <div className="font-display mt-2 text-4xl font-semibold leading-none text-paper">CHF&nbsp;{p.price}<span className="text-base font-medium text-ash"> {c.terms.mo}</span></div>
+                <div className="mt-1.5 text-sm font-bold text-gold">{p.commission}% {c.terms.commission}</div>
+                <p className="mt-3 text-sm text-ash">{c.terms.sub[id]}</p>
+                <ul className="mt-5 grid gap-2.5 border-t border-graphite/70 pt-5 text-sm text-ash">
+                  {c.terms.feats[id].map((f) => <li key={f} className="flex gap-2"><span className="text-gold">+</span>{f}</li>)}
                 </ul>
-              </div>
+              </motion.div>
             );
           })}
-        </motion.div>
-        <motion.p variants={rise} className="mt-6 text-sm text-stone">{c.terms.note}</motion.p>
-      </Section>
+        </div>
+        <motion.p variants={item} className="mt-7 max-w-[64ch] text-sm text-ash">{c.terms.note}</motion.p>
+      </Sec>
 
-      {/* onboarding */}
-      <Section id="onboard" dark>
-        <Eyebrow>{c.onboard.eyebrow}</Eyebrow>
-        <motion.h2 variants={rise} className="font-display mt-3 text-[clamp(1.9rem,4.2vw,3.2rem)] leading-[1.02]">{c.onboard.h2}</motion.h2>
-        <motion.div variants={rise} className="mt-11 grid gap-6 md:grid-cols-4">
+      {/* onboarding — four steps */}
+      <Sec id="onboard">
+        <motion.h2 variants={item} className="font-display max-w-[16ch] text-3xl font-semibold tracking-tight sm:text-[2.7rem]">{c.onboard.h2}</motion.h2>
+        <div className="mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
           {c.onboard.steps.map(([h, p], i) => (
-            <div key={h} className="rounded-[var(--radius-card)] border border-graphite bg-coal p-6">
+            <motion.div variants={item} key={h}>
               <div className="font-display text-3xl font-semibold text-gold">{i + 1}</div>
-              <h3 className="font-display mt-2 text-base">{h}</h3><p className="mt-1.5 text-sm text-ash">{p}</p>
-            </div>
+              <h3 className="font-display mt-3 text-lg text-paper">{h}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-ash">{p}</p>
+            </motion.div>
           ))}
-        </motion.div>
-      </Section>
+        </div>
+      </Sec>
 
       {/* roadmap */}
-      <Section id="roadmap">
-        <Eyebrow>{c.roadmap.eyebrow}</Eyebrow>
-        <motion.h2 variants={rise} className="font-display mt-3 max-w-[22ch] text-[clamp(1.9rem,4.2vw,3.2rem)] leading-[1.02]">{c.roadmap.h2}</motion.h2>
-        <motion.div variants={rise} className="mt-11 grid gap-6 md:grid-cols-3">
+      <Sec id="roadmap" bg="bg-coal">
+        <motion.h2 variants={item} className="font-display max-w-[20ch] text-3xl font-semibold tracking-tight sm:text-[2.7rem]">{c.roadmap.h2}</motion.h2>
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
           {c.roadmap.cards.map(([h, p]) => (
-            <div key={h} className="rounded-[var(--radius-card)] border border-mist bg-cloud p-7">
+            <motion.div variants={item} key={h} className="rounded-[var(--radius-card)] border border-graphite/70 bg-ink p-7">
               <span className="rounded-full border border-gold/40 px-2.5 py-1 text-[0.62rem] font-bold uppercase tracking-wider text-gold">{c.roadmap.soon}</span>
-              <h3 className="font-display mt-4 text-xl">{h}</h3><p className="mt-2.5 text-sm leading-relaxed text-stone">{p}</p>
-            </div>
+              <h3 className="font-display mt-5 text-xl text-paper">{h}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-ash">{p}</p>
+            </motion.div>
           ))}
-        </motion.div>
-        <motion.p variants={rise} className="mt-6 text-sm text-stone">{c.roadmap.note}</motion.p>
-      </Section>
+        </div>
+      </Sec>
 
       {/* CTA */}
-      <section className="relative overflow-hidden bg-void text-paper">
-        <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(120% 90% at 50% 0%, #15151a 0%, #060607 60%)' }} />
-        <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.4 }} className="relative mx-auto max-w-[1160px] px-5 py-28 text-center sm:px-8">
-          <Eyebrow>{c.cta.eyebrow}</Eyebrow>
-          <motion.h2 variants={rise} className="font-display mt-4 text-[clamp(2.4rem,5.5vw,4.4rem)] leading-[0.98]">{c.cta.h2a}<br /><span className="italic text-gold">{c.cta.h2b}</span></motion.h2>
-          <motion.p variants={rise} className="mx-auto mt-5 max-w-2xl text-ash">{c.cta.lead}</motion.p>
-          <motion.div variants={rise} className="mt-9 flex flex-wrap justify-center gap-3">
-            <a href={MAILTO} className="ring-lux rounded-full bg-gold px-7 py-3.5 text-sm font-bold text-ink transition-transform hover:-translate-y-0.5">{c.cta.cta1} →</a>
-            <button onClick={onPartner} className="ring-lux rounded-full border border-graphite px-7 py-3.5 text-sm font-bold text-paper transition-colors hover:border-ash">{c.nav.login}</button>
+      <section className="relative overflow-hidden bg-void">
+        <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(100% 80% at 50% 120%, #1b1b22 0%, #060607 60%)' }} />
+        <motion.div variants={container} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.35 }} className="relative mx-auto max-w-[1080px] px-6 py-28 text-center sm:px-8 lg:py-36">
+          <motion.h2 variants={item} className="font-display text-4xl font-semibold leading-[1.04] tracking-tight sm:text-6xl">{c.cta.h2a}<br /><span className="italic text-gold">{c.cta.h2b}</span></motion.h2>
+          <motion.p variants={item} className="mx-auto mt-6 max-w-[46ch] text-lg text-ash">{c.cta.lead}</motion.p>
+          <motion.div variants={item} className="mt-10 flex flex-wrap justify-center gap-3">
+            <motion.a {...hover} href={MAILTO} className="ring-lux rounded-full bg-gold px-8 py-4 text-sm font-bold text-ink">{c.cta.cta1}</motion.a>
+            <motion.button {...hover} onClick={onPartner} className="ring-lux rounded-full border border-graphite px-8 py-4 text-sm font-bold text-paper transition-colors hover:border-ash">{c.nav.login}</motion.button>
           </motion.div>
-          <motion.p variants={rise} className="mt-10 text-sm text-ash">hello@airluxo.ch · airluxo.ch · {lang === 'de' ? 'Schweiz' : 'Switzerland'}</motion.p>
         </motion.div>
       </section>
 
-      <footer className="border-t border-mist bg-paper">
-        <div className="mx-auto flex max-w-[1160px] flex-col items-center justify-between gap-3 px-5 py-8 text-xs text-stone sm:flex-row sm:px-8">
-          <span className="wordmark text-base text-ink">AIR<span className="text-gold">LUXO</span></span>
-          <span>{c.footer.tagline}</span>
-          <span>© {new Date().getFullYear()} AIRLUXO · {c.footer.rights}</span>
+      {/* footer — legal, address, language switch */}
+      <footer className="border-t border-graphite/70 bg-ink">
+        <div className="mx-auto max-w-[1080px] px-6 py-16 sm:px-8">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <div className="wordmark text-lg text-paper">AIR<span className="text-gold">LUXO</span></div>
+              <p className="mt-3 text-sm text-ash">{c.footer.tagline}</p>
+            </div>
+            <div>
+              <div className="eyebrow text-ash">{c.footer.colPlatform}</div>
+              <ul className="mt-4 grid gap-2.5 text-sm text-ash">
+                <li><a href="#platform" className="transition-colors hover:text-paper">{c.nav.platform}</a></li>
+                <li><a href="#terms" className="transition-colors hover:text-paper">{c.nav.terms}</a></li>
+                <li><a href="#roadmap" className="transition-colors hover:text-paper">{c.nav.roadmap}</a></li>
+                <li><button onClick={onPartner} className="ring-lux transition-colors hover:text-paper">{c.nav.login}</button></li>
+              </ul>
+            </div>
+            <div>
+              <div className="eyebrow text-ash">{c.footer.colLegal}</div>
+              <ul className="mt-4 grid gap-2.5 text-sm text-ash">
+                <li><a href="/?impressum" className="transition-colors hover:text-paper">{c.footer.impressum}</a></li>
+                <li><a href="/?privacy" className="transition-colors hover:text-paper">{c.footer.privacy}</a></li>
+                <li><a href="/?agb" className="transition-colors hover:text-paper">{c.footer.agb}</a></li>
+              </ul>
+            </div>
+            <div>
+              <div className="eyebrow text-ash">{c.footer.colContact}</div>
+              <ul className="mt-4 grid gap-2.5 text-sm text-ash">
+                <li><a href={MAILTO} className="transition-colors hover:text-paper">hello@airluxo.ch</a></li>
+                <li>AIRLUXO SA</li>
+                <li>Genf / Geneva, {c.footer.country}</li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-graphite/70 pt-6 text-xs text-ash sm:flex-row">
+            <span>© {new Date().getFullYear()} AIRLUXO SA · {c.footer.rights}</span>
+            <div className="flex items-center rounded-full border border-graphite text-xs font-bold">
+              {['de', 'en'].map((lc) => (
+                <button key={lc} onClick={() => setLocale(lc)}
+                  className={`rounded-full px-3 py-1 uppercase transition-colors ${lang === lc ? 'bg-gold text-ink' : 'text-ash hover:text-paper'}`}>{lc}</button>
+              ))}
+            </div>
+          </div>
         </div>
       </footer>
     </div>
