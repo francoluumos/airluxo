@@ -213,7 +213,10 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
               {heroMedia.type === 'video'
                 ? <video src={heroMedia.url} autoPlay muted loop playsInline className="h-full w-full object-cover" />
                 : <img src={heroMedia.url} alt="" className="h-full w-full object-cover" />}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/45 to-black/75" />
+              {/* Two-layer scrim: a gentle top/bottom frame + a centre-weighted radial that
+                  darkens right behind the headline (where the text contrast is weakest). */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/70" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_72%_58%_at_50%_44%,rgba(0,0,0,0.55),transparent_72%)]" />
             </div>
           )}
         <div className={`relative z-10 mx-auto grid max-w-[1240px] items-center gap-10 px-5 pb-10 pt-14 sm:px-8 lg:pb-16 lg:pt-20 ${heroCentered ? 'lg:max-w-[820px] text-center' : 'lg:grid-cols-[1.05fr_0.95fr]'} ${heroMedia ? 'min-h-[76vh] text-white' : ''}`}>
