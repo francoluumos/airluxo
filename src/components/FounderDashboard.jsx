@@ -10,7 +10,7 @@ import { listWatchlist, upsertWatchlist, deleteWatchlist, listInspiration, addIn
 import { en, SUPPORTED_LOCALES } from '../locales/en.js';
 import { fetchTranslations, saveTranslation, aiTranslate, saveTranslationsBatch, hashStr } from '../lib/translations.js';
 import { STAGES, listProspects, createProspect, setProspectStage, impersonateProspect, claimProspect, siteOrigin, listPartners, updatePartner, partnerDetail, archivePartner, deletePartner, listCustomers, customerDetail, PARTNER_STATUS, partnerStatus, enrichProspect, listProspectNotes, addProspectNote, adminOverview, adminFinancials, bookingsExport, securityStatus, runSecurityAudit, cronStatus } from '../lib/prospects.js';
-import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, createPartnerListing, setPartnerBrandKit, normalizeKit, brandKitToVars, loadBrandFont, uploadBrandAsset } from '../lib/brandkit.js';
+import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, createPartnerListing, setPartnerBrandKit, normalizeKit, brandKitToVars, loadBrandFont, uploadBrandAsset, mirrorPartnerPhotos } from '../lib/brandkit.js';
 import { setPartnerSite, slugify, mapSiteConfig, mergeLayout, setPartnerLegal, addPartnerDomain, listPartnerDomains, setDomainVerified, removePartnerDomain } from '../lib/site.js';
 import { LEGAL_FIELDS, seedLegal, buildLegalPages } from '../lib/legal.js';
 
@@ -1391,6 +1391,7 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
   const [carRows, setCarRows] = useState([]); // editable copy of the extracted car table
   const [carSel, setCarSel] = useState(new Set());
   const [creatingCars, setCreatingCars] = useState(false);
+  const [mirroring, setMirroring] = useState(false); // mirror car photos into storage
 
   // Re-pull the review payload (after creating/attaching cars) and reset image selection.
   async function reloadReview() {
@@ -1625,7 +1626,24 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
             <section className="border-t border-mist pt-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-sm font-bold text-ink">Cars &amp; images <span className="font-normal text-stone">({listings.length} {listings.length === 1 ? 'car' : 'cars'} · {images.length} images · {selectedCount} selected)</span></h3>
-                {data?.job?.status === 'crawling' && <span className="text-xs text-stone animate-pulse">fetching more…</span>}
+                <div className="flex items-center gap-3">
+                  {data?.job?.status === 'crawling' && <span className="text-xs text-stone animate-pulse">fetching more…</span>}
+                  {listings.length > 0 && (
+                    <button type="button" disabled={mirroring}
+                      onClick={async () => {
+                        setMirroring(true); setErr(''); setMsg('');
+                        try {
+                          const r = await mirrorPartnerPhotos(partnerId);
+                          setMsg(`Photos organized into storage — ${r.mirrored} mirrored across ${r.listings} car(s)${r.errors ? `, ${r.errors} skipped` : ''}.`);
+                          await reloadReview();
+                        } catch (e) { setErr(e.message || 'Could not organize photos.'); }
+                        finally { setMirroring(false); }
+                      }}
+                      className="ring-lux rounded-full border border-mist bg-cloud px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-ink disabled:opacity-50">
+                      {mirroring ? 'Organizing…' : 'Organize photos → storage'}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Scraped car table — AI-extracted from the fleet page; edit then bulk-create */}

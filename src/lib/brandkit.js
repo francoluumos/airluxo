@@ -30,6 +30,15 @@ export async function uploadBrandAsset(partnerId, file, folder = 'brand-logos') 
   return supabase.storage.from('brand-assets').getPublicUrl(path).data.publicUrl;
 }
 
+// Mirror a partner's car pictures from external (scraped) URLs into our brand-assets
+// bucket, under <partnerId>/cars/<listingId>/. Idempotent. Returns a summary.
+export async function mirrorPartnerPhotos(partnerId, listingId = null) {
+  const { data, error } = await supabase.functions.invoke('partner-mirror-photos', { body: { partner_id: partnerId, listing_id: listingId } });
+  if (error) throw new Error(data?.error || error.message || 'Mirror failed.');
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 // Partner self-update (Design tab).
 export async function updateMyBrandKit(brandKit) {
   const { data, error } = await supabase.rpc('partner_update_brand_kit', { p_brand_kit: brandKit });

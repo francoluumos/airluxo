@@ -101,6 +101,20 @@ Separate from language: use **IP/region geolocation** for region-aware defaults 
   - _Remaining follow-up:_ pick-up address on the booking confirmation + ICS event.
   - **Address autocomplete uses the Swiss Federal geo API (`api3.geo.admin.ch`) — Switzerland-only.** Free, no key. **To onboard international partners we must switch to Google Places (or another global geocoder):** create a Google Cloud key with billing + Places API, swap the provider in `src/lib/geocode.js` (keep the same parsed shape: street/number/zip/city/country/lat/lng), and relax the CH-only assumption (the form already has a Country selector). geo.admin.ch returns nothing for non-CH addresses, so int'l partners currently can't autofill.
 
+## Partner app — handover / return protocol + guest feedback (future)
+Mobile app (or mobile-web) for the partner — and, where noted, the guest — that turns car
+**handover and return** into a structured, evidence-backed flow: condition, mileage, fuel
+and damages logged with photo/video proof, reducing disputes and speeding turnaround.
+Teased as the "Mobile Übergabe-App" on the partner landing roadmap; functionality below.
+See also `BRAINSTORM.md`.
+- **Return process (condition capture):**
+  - **Exterior video scan** — guided walk-around video of the exterior, timestamped + attached to the booking as the canonical return-condition record.
+  - **Interior photos** — seats / dash / boot shots to document state on return.
+  - **Defect / damage logging** — mark scratches, dents, chips: tag each (ideally pinned to a body location), photo + note + severity → a damage list tied to the booking.
+  - **Gauge photo → mileage + fuel** — photograph the instrument cluster to log odometer (km) + fuel level (later: OCR/vision auto-reads the numbers); diffed against pickup.
+- **Guest feedback page** — a page the guest reaches right after the trip (link/QR at return, or push) to rate the experience + leave comments while fresh; feeds the dashboard / trip ratings.
+- **Open questions:** pickup-vs-return parity (baseline to diff against); who operates it (partner staff vs guest self-service vs both) + e-signature + licence scan; heavy media storage (reuse `brand-assets/<id>/cars/<listing>/…` or a dedicated handover bucket + retention); native shell vs mobile-web capture; how the damage list becomes a chargeable claim (deposit hold, guest acknowledgement, deductible).
+
 ## Fleet (priority: after Stripe Increment 2, then after the driver's-licence check)
 - **Manual car blocking / internal hold.** From the dashboard (per car in My fleet), let the partner block a car for specific date ranges so it can't be booked — e.g. maintenance, owner use, servicing. Each block captures **who blocked it (name)** and a **reason**. Blocks are **unbookable** dates (marketplace availability respects them) and appear in the **Calendar** and **Bookings** views flagged as *internally blocked* (visually distinct from guest bookings). Likely a `car_blocks` table (listing_id, start_date, end_date, blocked_by_name, reason, created_by) with the calendar/booking views merging blocks + bookings.
 
