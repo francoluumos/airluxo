@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AIRLUXO — Partner-Pitch</title>
+<meta name="description" content="AIRLUXO baut Luxus-Autovermietungen eine erstklassige Buchungs-Website, ein Payment-Gateway und ein Management-Dashboard." />
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0b0b0c; --void:#060607; --coal:#141416; --graphite:#26262a;
+    --paper:#f6f5f1; --cloud:#ffffff; --mist:#e6e3db;
+    --stone:#6f6b63; --ash:#a8a49a;
+    --gold:#b89150; --gold-soft:#d8b878; --go:#3c9a5f;
+    --display:"Clash Display",ui-sans-serif,system-ui,sans-serif;
+    --sans:"Satoshi",ui-sans-serif,system-ui,sans-serif;
+    --maxw:1160px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--sans);background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5}
+  .wm{font-family:var(--display);font-weight:600;letter-spacing:-.02em}
+  .wm .g{color:var(--gold)}
+  h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:-.02em;line-height:1.02}
+  .eyebrow{font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;font-weight:700;color:var(--stone)}
+  .gold{color:var(--gold)}
+  .muted{color:var(--stone)}
+  a{color:inherit}
+
+  .deck{height:100vh;overflow-y:scroll;scroll-snap-type:y mandatory;scroll-behavior:smooth}
+  .slide{min-height:100vh;scroll-snap-align:start;display:flex;align-items:center;position:relative;padding:96px 32px 72px;overflow:hidden}
+  .inner{width:100%;max-width:var(--maxw);margin:0 auto}
+  .dark{background:var(--ink);color:var(--paper)}
+  .dark .muted{color:var(--ash)} .dark .eyebrow{color:var(--ash)}
+  .void{background:radial-gradient(120% 90% at 70% 10%,#15151a 0%,var(--void) 60%);color:var(--paper)}
+  .void .muted,.void .eyebrow{color:var(--ash)}
+
+  .bar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+       padding:16px 32px;background:rgba(11,11,12,.72);backdrop-filter:blur(14px);border-bottom:1px solid var(--graphite)}
+  .bar .wm{font-size:1.25rem;color:var(--paper)}
+  .bar .actions{display:flex;align-items:center;gap:10px}
+  .bar .cta{font-size:.82rem;font-weight:700;text-decoration:none;background:var(--gold);color:var(--ink);
+       padding:9px 18px;border-radius:999px;transition:transform .2s,background .2s;border:0;cursor:pointer;font-family:var(--sans)}
+  .bar .cta:hover{background:var(--gold-soft);transform:translateY(-1px)}
+  .bar .ghost{background:transparent;color:var(--paper);border:1px solid var(--graphite)}
+  .bar .ghost:hover{border-color:var(--ash);background:transparent}
+
+  .dots{position:fixed;right:22px;top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:11px}
+  .dots button{width:9px;height:9px;border-radius:999px;border:0;background:rgba(111,107,99,.35);cursor:pointer;padding:0;transition:all .25s}
+  .dots button.on{background:var(--gold);transform:scale(1.35)}
+
+  .kicker{font-size:clamp(2.6rem,6vw,5rem);line-height:.96}
+  .h2{font-size:clamp(2rem,4.4vw,3.4rem)}
+  .lead{font-size:clamp(1.05rem,1.6vw,1.3rem);max-width:42ch}
+  .big{font-family:var(--display);font-weight:600;letter-spacing:-.015em;font-size:clamp(1.6rem,3.1vw,2.4rem);line-height:1.08;max-width:20ch}
+
+  .grid{display:grid;gap:24px}
+  .two{grid-template-columns:1.05fr .95fr;align-items:center}
+  .three{grid-template-columns:repeat(3,1fr)}
+  .four{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:860px){.two,.three,.four{grid-template-columns:1fr}.dots{display:none}}
+
+  .card{border:1px solid var(--mist);background:var(--cloud);border-radius:20px;padding:28px}
+  .dark .card,.void .card{border-color:var(--graphite);background:var(--coal)}
+  .card h3{font-size:1.2rem;margin-bottom:8px}
+  .card p{font-size:.95rem;color:var(--stone)}
+  .dark .card p,.void .card p{color:var(--ash)}
+
+  .btn{display:inline-flex;align-items:center;gap:9px;font-weight:700;text-decoration:none;border-radius:999px;padding:15px 30px;font-size:.95rem;transition:transform .2s,background .2s;border:0;cursor:pointer;font-family:var(--sans)}
+  .btn-gold{background:var(--gold);color:var(--ink)} .btn-gold:hover{background:var(--gold-soft);transform:translateY(-2px)}
+  .btn-ghost{border:1px solid var(--graphite);color:var(--paper);background:transparent} .btn-ghost:hover{border-color:var(--ash)}
+
+  ul.ticks{list-style:none;display:grid;gap:11px;margin-top:18px}
+  ul.ticks li{display:flex;gap:11px;align-items:flex-start;font-size:.98rem}
+  ul.ticks .tk{flex:0 0 auto;width:20px;height:20px;border-radius:999px;background:rgba(184,145,80,.16);color:var(--gold);
+    display:grid;place-items:center;font-size:.7rem;margin-top:1px}
+
+  .feat{display:flex;gap:16px;align-items:flex-start;padding:18px 0;border-top:1px solid var(--mist)}
+  .dark .feat,.void .feat{border-color:var(--graphite)}
+  .feat .ix{flex:0 0 auto;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:rgba(184,145,80,.14);color:var(--gold);font-family:var(--display);font-weight:700}
+  .feat h3{font-size:1.05rem} .feat p{font-size:.92rem;color:var(--stone)} .dark .feat p,.void .feat p{color:var(--ash)}
+
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:860px){.plans{grid-template-columns:1fr}}
+  .plan{border:1px solid var(--mist);border-radius:20px;padding:26px;background:var(--cloud);display:flex;flex-direction:column}
+  .plan.pop{border-color:var(--gold);box-shadow:0 30px 70px -50px rgba(184,145,80,.7);position:relative}
+  .plan .tag{position:absolute;top:-12px;left:26px;background:var(--gold);color:var(--ink);font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:5px 12px;border-radius:999px}
+  .plan .price{font-family:var(--display);font-weight:600;font-size:2.6rem;line-height:1;margin:6px 0}
+  .plan .price small{font-size:.95rem;color:var(--stone);font-family:var(--sans);font-weight:500}
+  .plan .comm{font-size:.9rem;color:var(--gold);font-weight:700;margin-bottom:14px}
+  .plan ul{list-style:none;display:grid;gap:9px;margin-top:8px;font-size:.9rem;color:var(--stone)}
+  .plan ul li::before{content:"—　";color:var(--gold)}
+
+  .stat{display:flex;flex-direction:column}
+  .stat b{font-family:var(--display);font-size:clamp(1.8rem,3vw,2.6rem);font-weight:600}
+  .stat span{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--stone)}
+  .dark .stat span,.void .stat span{color:var(--ash)}
+
+  .soon{font-size:.66rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(184,145,80,.4);border-radius:999px;padding:4px 10px}
+  .stepn{font-family:var(--display);font-size:2rem;font-weight:600;color:var(--gold)}
+
+  .rise{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+  .rise.in{opacity:1;transform:none}
+  .rise.d1{transition-delay:.08s}.rise.d2{transition-delay:.16s}.rise.d3{transition-delay:.24s}.rise.d4{transition-delay:.32s}
+  @media(prefers-reduced-motion:reduce){.rise{opacity:1;transform:none;transition:none}.deck{scroll-behavior:auto}}
+
+  .foot{position:absolute;bottom:26px;left:32px;right:32px;display:flex;justify-content:space-between;font-size:.74rem;color:var(--stone)}
+  .dark .foot,.void .foot{color:var(--ash)}
+  .num{font-variant-numeric:tabular-nums}
+
+  /* ---- PDF / print: one slide per landscape page, keep colours ---- */
+  @media print{
+    @page{size:A4 landscape;margin:0}
+    .bar,.dots{display:none!important}
+    html,body{height:auto}
+    .deck{height:auto;overflow:visible;scroll-snap-type:none;display:block}
+    .slide{min-height:auto;height:auto;page-break-after:always;break-after:page;padding:54px 60px;display:flex}
+    .slide:last-child{page-break-after:auto}
+    .rise{opacity:1!important;transform:none!important}
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .kicker{font-size:3.4rem}.h2{font-size:2.4rem}
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span class="wm">AIR<span class="g">LUXO</span></span>
+  <div class="actions">
+    <button class="cta ghost" onclick="window.print()" title="Als PDF speichern">PDF ↓</button>
+    <a class="cta" href="mailto:hello@airluxo.ch?subject=AIRLUXO%20Partnerschaft">Gespräch buchen →</a>
+  </div>
+</div>
+
+<nav class="dots" id="dots" aria-label="Folien"></nav>
+
+<main class="deck" id="deck">
+
+  <!-- 1 · HERO -->
+  <section class="slide void" data-label="Intro">
+    <div class="inner">
+      <div class="eyebrow rise">Für die Luxus-Autovermietungen der Schweiz</div>
+      <h1 class="kicker rise d1" style="margin-top:18px">Ihre Vermietung,<br><span class="gold" style="font-style:italic">online in Tagen.</span></h1>
+      <p class="lead muted rise d2" style="margin-top:22px">AIRLUXO baut Ihnen eine erstklassige Buchungs-Website, ein sicheres Payment-Gateway und ein Management-Dashboard — in Ihrer Marke, auf unserer Engine. Sie behalten die Schlüssel, wir betreiben die Technik.</p>
+      <div class="rise d3" style="margin-top:34px;display:flex;gap:14px;flex-wrap:wrap">
+        <a class="btn btn-gold" href="mailto:hello@airluxo.ch?subject=AIRLUXO%20Partnerschaft">Meine Website bauen →</a>
+        <a class="btn btn-ghost" href="#deck" onclick="go(1);return false;">So funktioniert's</a>
+      </div>
+    </div>
+    <div class="foot"><span class="wm" style="font-size:.9rem">AIR<span class="g">LUXO</span></span><span>Partner-Pitch · 2026</span></div>
+  </section>
+
+  <!-- 2 · THE SHIFT -->
+  <section class="slide" data-label="Der Wandel">
+    <div class="inner">
+      <div class="eyebrow rise">Der Wandel</div>
+      <h2 class="h2 rise d1" style="margin-top:14px;max-width:20ch">Ihre Autos sind aussergewöhnlich.<br>Ihr Buchungserlebnis sollte es auch sein.</h2>
+      <div class="grid two" style="margin-top:40px">
+        <div class="rise d2">
+          <p class="big">Wer einen Lamborghini mietet, will keine DM, kein PDF und keine Banküberweisung.</p>
+          <p class="muted" style="margin-top:18px;max-width:48ch">Gäste erwarten: stöbern, Daten wählen, bezahlen, bestätigen — in Minuten, auf einer Seite, die so edel wirkt wie das Auto. Die meisten Luxusvermieter arbeiten mit generischen Vorlagen, WhatsApp und manueller Administration. Diese Reibung kostet Buchungen.</p>
+        </div>
+        <div class="grid rise d3" style="gap:14px">
+          <div class="card"><h3>Generisches Wix / Insta-DMs</h3><p>Keine Echtzeit-Verfügbarkeit, keine Online-Zahlung, keine Vertrauenssignale.</p></div>
+          <div class="card"><h3>Manuelle Administration</h3><p>Kalender im Kopf, Rechnungen von Hand, Kautionen am Telefon hinterhergejagt.</p></div>
+          <div class="card"><h3>Verlorene Premium-Gäste</h3><p>Kaufbereite Fahrer springen ab, wenn die Buchung nicht sofort und sicher ist.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · WHAT YOU GET -->
+  <section class="slide dark" data-label="Was wir liefern">
+    <div class="inner">
+      <div class="eyebrow rise">Was wir liefern</div>
+      <h2 class="h2 rise d1" style="margin-top:14px">Eine komplette Luxus-Vermietungsplattform — in Ihrer Marke.</h2>
+      <div class="grid three rise d2" style="margin-top:42px">
+        <div class="card">
+          <div class="feat" style="border:0;padding:0;align-items:center"><div class="ix">◆</div><div><h3>Ihre Website</h3></div></div>
+          <p style="margin-top:14px">Eine auf Luxus-Autovermietung spezialisierte Seite in <b style="color:var(--paper)">Ihren Farben, Schriften und Ihrem Logo</b> — Hero, Flotte, Fahrzeugdetail, alles. In Tagen aus Ihrer bestehenden Seite gebaut, auf Ihrer eigenen Domain.</p>
+        </div>
+        <div class="card">
+          <div class="feat" style="border:0;padding:0;align-items:center"><div class="ix">⛨</div><div><h3>Payment-Gateway</h3></div></div>
+          <p style="margin-top:14px">Sichere Online-Zahlungen &amp; Kautionen integriert (Stripe). Gäste zahlen vorab; <b style="color:var(--paper)">Auszahlungen auf Ihr IBAN</b> nach jeder Miete. Kein Hinterherjagen von Überweisungen.</p>
+        </div>
+        <div class="card">
+          <div class="feat" style="border:0;padding:0;align-items:center"><div class="ix">▤</div><div><h3>Partner-Dashboard</h3></div></div>
+          <p style="margin-top:14px">Ein Ort für <b style="color:var(--paper)">Inserate, Preise, Verfügbarkeit, Buchungen und Auszahlungen</b> — mit Echtzeit-Kalendersync und Analytics.</p>
+        </div>
+      </div>
+      <p class="muted rise d3" style="margin-top:32px;max-width:64ch">Layout, Buchungsfluss und Sicherheit sind AIRLUXOs bewährtes System. Nur die Marke ist Ihre — es sieht aus wie <i>Sie</i> und funktioniert wie eine Plattform, die Jahre gebraucht hätte.</p>
+    </div>
+  </section>
+
+  <!-- 4 · DASHBOARD -->
+  <section class="slide" data-label="Dashboard">
+    <div class="inner">
+      <div class="grid two">
+        <div class="rise">
+          <div class="eyebrow">Das Partner-Dashboard</div>
+          <h2 class="h2" style="margin-top:14px;max-width:16ch">Ihre ganze Flotte von einem Bildschirm.</h2>
+          <p class="muted" style="margin-top:18px;max-width:44ch">Alles in Selbstbedienung — kein Entwickler, keine Agentur, kein Warten auf uns.</p>
+        </div>
+        <div class="rise d2">
+          <div class="feat"><div class="ix">01</div><div><h3>Inserate &amp; Fotos</h3><p>Fahrzeuge mit Spezifikationen, Galerien und Studio-Thumbnails hinzufügen — oder die ganze Flotte in einem Schritt importieren.</p></div></div>
+          <div class="feat"><div class="ix">02</div><div><h3>Preise &amp; Regeln</h3><p>Tagespreise, Kautionen, Kilometer, grenzüberschreitend und Lieferung festlegen — pro Auto, zu Ihren Bedingungen.</p></div></div>
+          <div class="feat"><div class="ix">03</div><div><h3>Buchungen &amp; Kalender</h3><p>Echtzeit-Verfügbarkeit, ICS-Sync, sofortige Bestätigungen — keine Doppelbuchungen.</p></div></div>
+          <div class="feat"><div class="ix">04</div><div><h3>Auszahlungen &amp; Analytics</h3><p>Einnahmen, Auslastung und Trends sehen; Auszahlungen auf Ihr IBAN nach jeder Miete.</p></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · DEMAND -->
+  <section class="slide dark" data-label="Nachfrage">
+    <div class="inner">
+      <div class="eyebrow rise">Nicht nur Software — Nachfrage</div>
+      <h2 class="h2 rise d1" style="margin-top:14px;max-width:20ch">Gelistet auf Ihrer Seite <span class="gold">und</span> im AIRLUXO-Marktplatz.</h2>
+      <div class="grid two" style="margin-top:40px;align-items:start">
+        <div class="rise d2">
+          <p class="big" style="color:var(--paper)">Ihre Flotte, präsentiert geprüften Schweizer Fahrern, die aktiv etwas Selteneres als eine Limousine suchen.</p>
+          <ul class="ticks" style="margin-top:24px">
+            <li><span class="tk">✓</span> Sichtbarkeit auf airluxo.ch + Ihrer eigenen Marken-Website</li>
+            <li><span class="tk">✓</span> AIRLUXO-Content &amp; Lifecycle-Marketing, das Buchungen bringt</li>
+            <li><span class="tk">✓</span> Verifizierte, versicherte Mieter — Qualität statt Masse</li>
+          </ul>
+        </div>
+        <div class="grid four rise d3" style="grid-template-columns:1fr 1fr;gap:22px">
+          <div class="stat"><b class="num">Tage</b><span>Bis live</span></div>
+          <div class="stat"><b class="num">0%</b><span>Inseratsgebühren</span></div>
+          <div class="stat"><b class="num">24h</b><span>Auszahlung nach Miete</span></div>
+          <div class="stat"><b class="num">CHF&nbsp;0</b><span>Zum Start</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · PRICING -->
+  <section class="slide" data-label="Konditionen">
+    <div class="inner">
+      <div class="eyebrow rise">Einfache Konditionen · Abonnemente</div>
+      <h2 class="h2 rise d1" style="margin-top:14px">Fair, transparent, keine Bindung.</h2>
+      <div class="plans rise d2" style="margin-top:40px">
+        <div class="plan">
+          <div class="eyebrow">Free</div>
+          <div class="price">CHF&nbsp;0<small> /Mt.</small></div>
+          <div class="comm">15% Kommission</div>
+          <p class="muted" style="font-size:.85rem">Bis 3 Autos · Einstieg</p>
+          <ul><li>KI-Studio-Thumbnails</li><li>Kalendersync (ICS)</li><li>Standard-Platzierung</li></ul>
+        </div>
+        <div class="plan pop">
+          <span class="tag">Beliebteste</span>
+          <div class="eyebrow">Pro</div>
+          <div class="price">CHF&nbsp;49<small> /Mt.</small></div>
+          <div class="comm">9% Kommission</div>
+          <p class="muted" style="font-size:.85rem">Bis 25 Autos · für wachsende Flotten</p>
+          <ul><li>Priorisierte Platzierung</li><li>Performance-Analytics</li><li>Schnellere Auszahlungen</li></ul>
+        </div>
+        <div class="plan">
+          <div class="eyebrow">Max</div>
+          <div class="price">CHF&nbsp;199<small> /Mt.</small></div>
+          <div class="comm">3% Kommission</div>
+          <p class="muted" style="font-size:.85rem">Unbegrenzte Autos · für grosse Anbieter</p>
+          <ul><li>Featured-Platzierung</li><li>Team-Mitglieder · API</li><li>Dedizierter Support</li></ul>
+        </div>
+      </div>
+      <p class="muted rise d3" style="margin-top:26px;font-size:.92rem">Gäste zahlen eine kleine Servicegebühr — <b>nicht Sie</b>. Keine Inseratsgebühren, keine Bindung, Auszahlungen auf Ihr IBAN nach jeder Miete.</p>
+    </div>
+  </section>
+
+  <!-- 7 · ONBOARDING -->
+  <section class="slide dark" data-label="Live gehen">
+    <div class="inner">
+      <div class="eyebrow rise">Von Ihrer Seite zu live — in Tagen</div>
+      <h2 class="h2 rise d1" style="margin-top:14px">Vier Schritte. Den Grossteil übernehmen wir.</h2>
+      <div class="grid four rise d2" style="margin-top:44px">
+        <div class="card"><div class="stepn">1</div><h3 style="margin-top:8px">Seite teilen</h3><p>Wir lesen Marke, Flotte und Texte automatisch.</p></div>
+        <div class="card"><div class="stepn">2</div><h3 style="margin-top:8px">Wir bauen</h3><p>Ihre Marken-Website + Dashboard, mit Ihren Autos befüllt.</p></div>
+        <div class="card"><div class="stepn">3</div><h3 style="margin-top:8px">Sie prüfen</h3><p>Preise, Fotos und Texte anpassen — Freigabe per privater Vorschau.</p></div>
+        <div class="card"><div class="stepn">4</div><h3 style="margin-top:8px">Live gehen</h3><p>Auf Ihrer eigenen Domain veröffentlichen. Buchungen &amp; Zahlungen starten.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 · ROADMAP -->
+  <section class="slide" data-label="Roadmap">
+    <div class="inner">
+      <div class="eyebrow rise">Auf der Roadmap</div>
+      <h2 class="h2 rise d1" style="margin-top:14px;max-width:22ch">Nach dem Start wird's nur stärker.</h2>
+      <div class="grid two rise d2" style="margin-top:40px;gap:22px">
+        <div class="card">
+          <span class="soon">Demnächst</span>
+          <h3 style="margin-top:16px;font-size:1.4rem">Mobile Übergabe-App</h3>
+          <p style="margin-top:10px">Digitale <b>Annahme &amp; Rückgabe</b> auf dem Handy: Foto-Schadensprotokoll, Tank &amp; Kilometer, Führerausweis-Scan und E-Signatur — ein sauberer, beweissicherer Nachweis für jede Abholung und Rückgabe.</p>
+        </div>
+        <div class="card">
+          <span class="soon">Demnächst</span>
+          <h3 style="margin-top:16px;font-size:1.4rem">Smart Pricing</h3>
+          <p style="margin-top:10px">Dynamische Tagespreise nach Nachfrage, Saison und Events — Ihre Autos erzielen automatisch den richtigen Preis, ohne dass Sie den Kalender beobachten.</p>
+        </div>
+      </div>
+      <p class="muted rise d3" style="margin-top:26px;font-size:.92rem">Ihr Abonnement wächst mit der Plattform — neue Tools kommen zu den Partnern, sobald sie live gehen.</p>
+    </div>
+  </section>
+
+  <!-- 9 · CTA -->
+  <section class="slide void" data-label="Kontakt">
+    <div class="inner" style="text-align:center">
+      <div class="eyebrow rise" style="text-align:center">Lassen Sie uns bauen</div>
+      <h2 class="kicker rise d1" style="margin-top:16px">Sehen Sie <span class="gold" style="font-style:italic">Ihren</span> Auftritt,<br>live, in Ihrer Marke.</h2>
+      <p class="lead muted rise d2" style="margin:22px auto 0">Wir bauen eine private Vorschau Ihrer Marken-Website — Ihre Autos, Ihre Farben — bevor Sie sich zu irgendetwas verpflichten.</p>
+      <div class="rise d3" style="margin-top:36px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
+        <a class="btn btn-gold" href="mailto:hello@airluxo.ch?subject=AIRLUXO%20Partnerschaft">Gespräch buchen →</a>
+        <a class="btn btn-ghost" href="https://airluxo.ch" target="_blank" rel="noreferrer">airluxo.ch besuchen</a>
+      </div>
+      <p class="muted rise d4" style="margin-top:40px;font-size:.85rem">hello@airluxo.ch · airluxo.ch · Schweiz</p>
+    </div>
+    <div class="foot"><span class="wm" style="font-size:.9rem">AIR<span class="g">LUXO</span></span><span>Ihre Marke. Unsere Engine.</span></div>
+  </section>
+
+</main>
+
+<script>
+  const deck=document.getElementById('deck');
+  const slides=[...document.querySelectorAll('.slide')];
+  const dotsWrap=document.getElementById('dots');
+  slides.forEach((s,i)=>{
+    const b=document.createElement('button');
+    b.title=s.dataset.label||('Folie '+(i+1));
+    b.addEventListener('click',()=>go(i));
+    dotsWrap.appendChild(b);
+  });
+  const dots=[...dotsWrap.children];
+  function go(i){ if(slides[i]) slides[i].scrollIntoView({behavior:'smooth'}); }
+  const io=new IntersectionObserver((es)=>{
+    es.forEach(e=>{
+      if(e.isIntersecting){
+        const i=slides.indexOf(e.target);
+        dots.forEach((d,j)=>d.classList.toggle('on',j===i));
+        e.target.querySelectorAll('.rise').forEach(el=>el.classList.add('in'));
+      }
+    });
+  },{root:deck,threshold:.55});
+  slides.forEach(s=>io.observe(s));
+  slides[0].querySelectorAll('.rise').forEach(el=>el.classList.add('in'));
+  function current(){ return Math.round(deck.scrollTop/window.innerHeight); }
+  addEventListener('keydown',(e)=>{
+    if(['ArrowDown','PageDown',' '].includes(e.key)){ e.preventDefault(); go(Math.min(current()+1,slides.length-1)); }
+    if(['ArrowUp','PageUp'].includes(e.key)){ e.preventDefault(); go(Math.max(current()-1,0)); }
+    if(e.key==='Home'){ go(0); } if(e.key==='End'){ go(slides.length-1); }
+  });
+  // reveal everything before printing so no slide is blank in the PDF
+  addEventListener('beforeprint',()=>document.querySelectorAll('.rise').forEach(el=>el.classList.add('in')));
+</script>
+</body>
+</html>

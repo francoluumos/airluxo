@@ -10,6 +10,12 @@ import { AuthProvider, useAuth } from './lib/auth.jsx';
 import MobileLicence from './components/MobileLicence.jsx';
 import Embed from './components/Embed.jsx';
 import PartnerSite from './components/PartnerSite.jsx';
+import PartnerLanding from './components/PartnerLanding.jsx';
+
+// Phase 1 = partner acquisition: airluxo.ch shows the partner value-proposition landing
+// and the consumer booking marketplace stays hidden. Flip VITE_CONSUMER_LIVE=true (Phase 2)
+// to launch the consumer marketplace. Partner white-label sites + dashboards are unaffected.
+const CONSUMER_LIVE = import.meta.env.VITE_CONSUMER_LIVE === 'true';
 import Docs from './components/Docs.jsx';
 import ResetPassword from './components/ResetPassword.jsx';
 import PrivacyPolicy from './components/PrivacyPolicy.jsx';
@@ -56,7 +62,9 @@ function Shell() {
       <div className="grain" />
 
       {route === 'home' && (
-        <Home onOpenCar={setActiveCar} onPartner={goPartner} onAccount={goAccount} />
+        CONSUMER_LIVE
+          ? <Home onOpenCar={setActiveCar} onPartner={goPartner} onAccount={goAccount} />
+          : <PartnerLanding onPartner={goPartner} />
       )}
 
       {/* Partner area is auth-gated: no session → login, session → dashboard */}
