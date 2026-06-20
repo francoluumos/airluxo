@@ -1380,6 +1380,8 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
   const [newLogoUrl, setNewLogoUrl] = useState('');            // brand-strip: paste-a-logo-URL field
   const [uploadingLogo, setUploadingLogo] = useState(false);  // brand-strip: file upload in flight
   const [showLogoPicker, setShowLogoPicker] = useState(false);// brand-strip: scraped-image picker open
+  const [newHeroUrl, setNewHeroUrl] = useState('');           // centered-hero background: paste-URL field
+  const [uploadingHero, setUploadingHero] = useState(false);  // centered-hero background: upload in flight
   const [savingSite, setSavingSite] = useState(false);
   const [legal, setLegal] = useState({});
   const [savingLegal, setSavingLegal] = useState(false);
@@ -1861,13 +1863,67 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
               <div className="mt-4">
                 <span className="mb-1.5 block text-xs font-semibold text-stone">Hero layout</span>
                 <div className="flex gap-2">
-                  {[['split', 'Split (with image)'], ['centered', 'Centered (no image)']].map(([v, label]) => (
+                  {[['split', 'Split (with image)'], ['centered', 'Centered']].map(([v, label]) => (
                     <button key={v} type="button" onClick={() => setLayoutState((l) => ({ ...l, hero: v }))}
                       className={`ring-lux rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${layout.hero === v ? 'border-ink bg-ink text-cloud' : 'border-mist bg-cloud text-ink hover:border-ink'}`}>
                       {label}
                     </button>
                   ))}
                 </div>
+
+                {/* Centered hero can sit over a full-bleed image or video background. */}
+                {layout.hero === 'centered' && (
+                  <div className="mt-3 rounded-xl border border-mist bg-paper/40 p-3">
+                    <span className="mb-1.5 block text-xs font-semibold text-stone">Hero background</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[['none', 'None'], ['image', 'Image'], ['video', 'Video']].map(([v, label]) => (
+                        <button key={v} type="button"
+                          onClick={() => setLayoutState((l) => ({ ...l, heroMedia: v === 'none' ? { type: 'none', url: '' } : { ...l.heroMedia, type: v } }))}
+                          className={`ring-lux rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${(layout.heroMedia?.type || 'none') === v ? 'border-ink bg-ink text-cloud' : 'border-mist bg-cloud text-ink hover:border-ink'}`}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {(layout.heroMedia?.type === 'image' || layout.heroMedia?.type === 'video') && (
+                      <div className="mt-2.5 space-y-2">
+                        {layout.heroMedia.url && (
+                          <div className="relative h-24 w-full overflow-hidden rounded-lg border border-mist bg-cloud">
+                            {layout.heroMedia.type === 'video'
+                              ? <video src={layout.heroMedia.url} muted className="h-full w-full object-cover" />
+                              : <img src={layout.heroMedia.url} alt="" className="h-full w-full object-cover" />}
+                            <button type="button" aria-label="Remove background"
+                              onClick={() => setLayoutState((l) => ({ ...l, heroMedia: { type: l.heroMedia.type, url: '' } }))}
+                              className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ink/80 text-cloud">
+                              <Icon.X width={12} height={12} />
+                            </button>
+                          </div>
+                        )}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="ring-lux cursor-pointer rounded-full border border-mist bg-cloud px-3 py-1.5 text-xs font-semibold text-ink hover:border-ink">
+                            {uploadingHero ? 'Uploading…' : `Upload ${layout.heroMedia.type}`}
+                            <input type="file" accept={layout.heroMedia.type === 'video' ? 'video/*' : 'image/*'} className="hidden" disabled={uploadingHero}
+                              onChange={async (e) => {
+                                const file = (e.target.files || [])[0]; e.target.value = '';
+                                if (!file) return;
+                                setUploadingHero(true); setErr('');
+                                try {
+                                  const url = await uploadBrandAsset(partnerId, file, 'hero');
+                                  setLayoutState((l) => ({ ...l, heroMedia: { type: l.heroMedia.type, url } }));
+                                } catch (e2) { setErr(e2.message || 'Upload failed.'); }
+                                finally { setUploadingHero(false); }
+                              }} />
+                          </label>
+                          <input value={newHeroUrl} onChange={(e) => setNewHeroUrl(e.target.value)} placeholder={layout.heroMedia.type === 'video' ? 'https://…/clip.mp4' : 'https://…/photo.jpg'}
+                            className="ring-lux w-56 rounded-xl border border-mist bg-cloud px-3 py-1.5 text-xs outline-none transition-colors focus:border-ink" />
+                          <button type="button" disabled={!newHeroUrl.trim()}
+                            onClick={() => { const u = newHeroUrl.trim(); if (u) { setLayoutState((l) => ({ ...l, heroMedia: { type: l.heroMedia.type, url: u } })); setNewHeroUrl(''); } }}
+                            className="ring-lux rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-cloud disabled:opacity-50">Set</button>
+                        </div>
+                        <p className="text-[0.7rem] text-stone">A dark scrim is added automatically for legibility. Videos autoplay muted + looped. Saved on publish.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Brand strip — text names (default) vs the partner's own logo set. */}

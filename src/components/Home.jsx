@@ -54,6 +54,8 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
   const layout = partner?.layout || { show: { stats: true, marquee: true, map: true }, hero: 'split', marquee: 'text', brandLogos: [] };
   const show = layout.show;
   const heroCentered = partner && layout.hero === 'centered';
+  // Centered hero can sit over a full-bleed image/video background (partner-set).
+  const heroMedia = (heroCentered && layout.heroMedia && layout.heroMedia.url) ? layout.heroMedia : null;
   // Logo variant of the brand strip — partner sites can show brand logos instead of names.
   const marqueeLogos = (partner && layout.marquee === 'logos' && Array.isArray(layout.brandLogos) ? layout.brandLogos : []);
   const [legalView, setLegalView] = useState(null); // partner footer legal overlay
@@ -204,9 +206,19 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
 
       {/* ============ HERO ============ */}
       <section className="relative overflow-hidden">
-        <div className={`mx-auto grid max-w-[1240px] items-center gap-10 px-5 pb-10 pt-14 sm:px-8 lg:pb-16 lg:pt-20 ${heroCentered ? 'lg:max-w-[820px] text-center' : 'lg:grid-cols-[1.05fr_0.95fr]'}`}>
+        <div className="relative">
+          {/* Centered-hero background (partner-set image or video) with a legibility scrim. */}
+          {heroMedia && (
+            <div className="pointer-events-none absolute inset-0 -z-0">
+              {heroMedia.type === 'video'
+                ? <video src={heroMedia.url} autoPlay muted loop playsInline className="h-full w-full object-cover" />
+                : <img src={heroMedia.url} alt="" className="h-full w-full object-cover" />}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/45 to-black/75" />
+            </div>
+          )}
+        <div className={`relative z-10 mx-auto grid max-w-[1240px] items-center gap-10 px-5 pb-10 pt-14 sm:px-8 lg:pb-16 lg:pt-20 ${heroCentered ? 'lg:max-w-[820px] text-center' : 'lg:grid-cols-[1.05fr_0.95fr]'} ${heroMedia ? 'min-h-[76vh] text-white' : ''}`}>
           <motion.div variants={stagger} initial="hidden" animate="show" className={heroCentered ? 'mx-auto flex flex-col items-center' : ''}>
-            <motion.div variants={rise} className="eyebrow flex items-center gap-2.5 text-stone">
+            <motion.div variants={rise} className={`eyebrow flex items-center gap-2.5 ${heroMedia ? 'text-white/70' : 'text-stone'}`}>
               <span className="h-1.5 w-1.5 rounded-full bg-go" />
               {partner ? partner.company_name : 'Switzerland · 8 cantons · one marketplace'}
             </motion.div>
@@ -222,7 +234,7 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
 
             {/* On a partner site only show their own tagline — never the AIRLUXO marketplace copy. */}
             {(!partner || partner.hero?.sub) && (
-              <motion.p variants={rise} className={`mt-6 max-w-md text-[1.05rem] leading-relaxed text-stone ${heroCentered ? 'mx-auto' : ''}`}>
+              <motion.p variants={rise} className={`mt-6 max-w-md text-[1.05rem] leading-relaxed ${heroMedia ? 'text-white/80' : 'text-stone'} ${heroCentered ? 'mx-auto' : ''}`}>
                 {partner ? partner.hero?.sub : t('home.heroSubtitle')}
               </motion.p>
             )}
@@ -309,6 +321,7 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
             </motion.div>
           </motion.div>
           )}
+        </div>
         </div>
 
         {/* brand marquee */}

@@ -21,18 +21,26 @@ export const DEFAULT_LAYOUT = {
     map: true,      // "fleet across Switzerland" map
   },
   hero: 'split',    // 'split' (image beside copy) | 'centered' (copy centred, no hero image)
+  heroMedia: { type: 'none', url: '' }, // centered-hero background: 'none' | 'image' | 'video'
   marquee: 'text',  // brand strip variant: 'text' (brand names) | 'logos' (logo images)
   brandLogos: [],   // logo image URLs shown when marquee === 'logos' (same strip height)
 };
 
-// Keep only well-formed https/relative image URLs (brand-kit values are partner-set, so
-// never trust them raw — drop javascript:/data: and anything non-string).
+// Keep only a well-formed https/relative URL (brand-kit values are partner-set, so never
+// trust them raw — drop javascript:/data: and anything non-string).
+function cleanUrl(u) {
+  const s = typeof u === 'string' ? u.trim() : '';
+  return s && (/^https:\/\//i.test(s) || s.startsWith('/')) ? s : '';
+}
 function cleanLogoUrls(arr) {
   if (!Array.isArray(arr)) return [];
-  return arr
-    .map((u) => (typeof u === 'string' ? u.trim() : ''))
-    .filter((u) => u && (/^https:\/\//i.test(u) || u.startsWith('/')))
-    .slice(0, 24);
+  return arr.map(cleanUrl).filter(Boolean).slice(0, 24);
+}
+function cleanHeroMedia(m) {
+  const o = m && typeof m === 'object' ? m : {};
+  const url = cleanUrl(o.url);
+  const type = o.type === 'image' || o.type === 'video' ? o.type : 'none';
+  return url && type !== 'none' ? { type, url } : { type: 'none', url: '' };
 }
 
 // Merge a stored layout over the defaults (shallow + nested `show`), tolerating partial
@@ -42,6 +50,7 @@ export function mergeLayout(layout) {
   return {
     show: { ...DEFAULT_LAYOUT.show, ...(l.show && typeof l.show === 'object' ? l.show : {}) },
     hero: l.hero === 'centered' ? 'centered' : 'split',
+    heroMedia: cleanHeroMedia(l.heroMedia),
     marquee: l.marquee === 'logos' ? 'logos' : 'text',
     brandLogos: cleanLogoUrls(l.brandLogos),
   };

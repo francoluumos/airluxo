@@ -30,8 +30,9 @@ export default function Nav({ onHome, onPartner, onAccount, dark = false, partne
         <div className="flex items-center gap-2.5">
           {partner ? (
             // Partner white-label: a single, right-aligned CTA into the fleet — keeps the
-            // header balanced (logo left, action right) instead of a lone centred link.
-            <a href="#fleet" className={`ring-lux rounded-full px-5 py-2 text-sm font-semibold transition-colors ${tone.btn}`}>
+            // header balanced (logo left, action right). Brand-gold pill (matches the
+            // "Book now" CTA in the Brand & pitch preview): bg-gold + page-bg-colour text.
+            <a href="#fleet" className="ring-lux rounded-full bg-gold px-5 py-2 text-sm font-semibold text-paper transition-opacity hover:opacity-90">
               {t('site.explore')}
             </a>
           ) : (
