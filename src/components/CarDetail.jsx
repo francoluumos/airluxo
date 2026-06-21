@@ -424,15 +424,17 @@ export default function CarDetail({ car, onClose }) {
                 ⤢ {photos.length} photos
               </button>
             )}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/65 via-transparent to-transparent" />
-            <div className="absolute bottom-5 left-5 right-5 flex items-end justify-between text-cloud sm:left-7 sm:right-7">
+            {/* Photo scrim — always dark with light text (a literal black, not the themed
+                `ink`, which inverts to white on a dark partner theme and washes the title out). */}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+            <div className="absolute bottom-5 left-5 right-5 flex items-end justify-between text-white sm:left-7 sm:right-7">
               <div>
-                <div className="eyebrow text-cloud/70">{car.category} · {car.location}</div>
+                <div className="eyebrow text-white/70">{car.category} · {car.location}</div>
                 <h2 className="font-display mt-1.5 text-[clamp(1.8rem,4vw,3rem)] leading-none">
                   {car.make} {car.model}
                 </h2>
               </div>
-              <div className="hidden items-center gap-1.5 rounded-full bg-cloud/15 px-3 py-1.5 text-sm font-bold backdrop-blur sm:flex">
+              <div className="hidden items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-sm font-bold backdrop-blur sm:flex">
                 <Icon.Star className="text-gold-soft" width={14} height={14} /> {car.rating != null ? `${car.rating.toFixed(2)} · ${car.trips} trips` : 'New listing'}
               </div>
             </div>
