@@ -14,6 +14,17 @@ import { startIngest, latestIngestJob, partnerBrandReview, applyListingPhotos, c
 import { setPartnerSite, slugify, mapSiteConfig, mergeLayout, setPartnerLegal, addPartnerDomain, listPartnerDomains, setDomainVerified, removePartnerDomain } from '../lib/site.js';
 import { LEGAL_FIELDS, seedLegal, buildLegalPages } from '../lib/legal.js';
 
+// Starter FAQ seeds for a partner site (German — the primary CH market). Founder edits/
+// translates after; "Add examples" appends these to the partner's FAQ list.
+const FAQ_EXAMPLES = [
+  { q: 'Welche Voraussetzungen gelten für die Miete?', a: 'Mindestalter 25 Jahre, ein seit mindestens 3 Jahren gültiger Führerausweis und eine Kreditkarte auf den Namen des Fahrers für die Kaution.' },
+  { q: 'Ist eine Versicherung inbegriffen?', a: 'Ja, alle Fahrzeuge sind vollkasko­versichert. Eine reduzierte Selbstbeteiligung (Excess) ist optional dazubuchbar.' },
+  { q: 'Wie funktioniert die Kaution?', a: 'Die Kaution wird bei der Abholung auf Ihrer Kreditkarte vorautorisiert (nicht belastet) und nach schadenfreier Rückgabe wieder freigegeben.' },
+  { q: 'Wie viele Kilometer sind inbegriffen?', a: 'Im Tagespreis ist ein Freikilometer-Kontingent enthalten; zusätzlich gefahrene Kilometer werden zu einem fixen Satz pro Kilometer verrechnet.' },
+  { q: 'Liefern Sie das Fahrzeug?', a: 'Auf Wunsch liefern und holen wir das Fahrzeug an Ihre Wunschadresse. Lieferung und Abholung sind gegen einen Aufpreis je nach Distanz möglich.' },
+  { q: 'Kann ich ins Ausland fahren?', a: 'Fahrten ins benachbarte Ausland sind nach vorgängiger Absprache und Freigabe möglich. Bitte teilen Sie uns Ihre Reisepläne vor der Buchung mit.' },
+];
+
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString('de-CH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
 
@@ -2015,10 +2026,14 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
 
               {/* FAQ — partner-authored Q&A accordion shown before the footer. */}
               <div className="mt-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold text-stone">FAQ <span className="font-normal">({(layout.faq || []).length})</span></span>
-                  <button type="button" onClick={() => setLayoutState((l) => ({ ...l, faq: [...(l.faq || []), { q: '', a: '' }] }))}
-                    className="ring-lux rounded-full border border-mist bg-cloud px-3 py-1 text-xs font-semibold text-ink hover:border-ink">+ Add question</button>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setLayoutState((l) => ({ ...l, faq: [...(l.faq || []), ...FAQ_EXAMPLES] }))}
+                      className="ring-lux rounded-full border border-mist bg-cloud px-3 py-1 text-xs font-semibold text-stone hover:border-ink hover:text-ink">Add examples</button>
+                    <button type="button" onClick={() => setLayoutState((l) => ({ ...l, faq: [...(l.faq || []), { q: '', a: '' }] }))}
+                      className="ring-lux rounded-full border border-mist bg-cloud px-3 py-1 text-xs font-semibold text-ink hover:border-ink">+ Add question</button>
+                  </div>
                 </div>
                 {(layout.faq || []).length === 0
                   ? <p className="mt-1.5 text-xs text-stone">No FAQ yet — add questions in the partner&apos;s language; they show as an accordion before the footer.</p>
