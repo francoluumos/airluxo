@@ -112,6 +112,7 @@ export const en = {
   'home.fullyInsured': 'Fully insured',
   'home.zeroExcessOption': 'CHF 0 excess option',
   'home.whereToFind': 'Where to find them',
+  'home.faqTitle': 'Frequently asked questions',
   'home.becomePartner': 'Become a partner',
   'footer.tagline': "Switzerland's marketplace for extraordinary cars. Made in Geneva.",
   'footer.newsletterHeading': 'New arrivals, rare drives',

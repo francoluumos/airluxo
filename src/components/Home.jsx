@@ -58,6 +58,9 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
   const heroMedia = (heroCentered && layout.heroMedia && layout.heroMedia.url) ? layout.heroMedia : null;
   // Logo variant of the brand strip — partner sites can show brand logos instead of names.
   const marqueeLogos = (partner && layout.marquee === 'logos' && Array.isArray(layout.brandLogos) ? layout.brandLogos : []);
+  // Partner-authored FAQ (accordion before the footer).
+  const partnerFaq = (partner && Array.isArray(layout.faq)) ? layout.faq : [];
+  const [openFaq, setOpenFaq] = useState(0);
   const [legalView, setLegalView] = useState(null); // partner footer legal overlay
   const [cat, setCat] = useState('All');
   const [q, setQ] = useState('');
@@ -474,6 +477,31 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
               document.getElementById('fleet')?.scrollIntoView({ behavior: 'smooth' });
             }}
           />
+        </div>
+      </section>
+      )}
+
+      {/* ============ FAQ (partner-authored) ============ */}
+      {partnerFaq.length > 0 && (
+      <section id="faq" className="mx-auto max-w-[820px] px-5 pb-16 sm:px-8 lg:pb-24">
+        <div className="eyebrow text-gold">FAQ</div>
+        <h2 className="font-display mt-2 text-[clamp(1.8rem,3.4vw,2.6rem)] leading-[1.04]">{t('home.faqTitle')}</h2>
+        <div className="mt-8 divide-y divide-mist border-y border-mist">
+          {partnerFaq.map((it, i) => {
+            const open = openFaq === i;
+            return (
+              <div key={i}>
+                <button type="button" onClick={() => setOpenFaq(open ? -1 : i)}
+                  className="ring-lux flex w-full items-center justify-between gap-6 py-5 text-left">
+                  <span className="font-display text-lg">{it.q}</span>
+                  <span className={`shrink-0 text-2xl font-light text-gold transition-transform ${open ? 'rotate-45' : ''}`}>+</span>
+                </button>
+                <div className={`grid transition-all duration-300 ${open ? 'grid-rows-[1fr] pb-5 opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                  <p className="overflow-hidden whitespace-pre-line text-[1.02rem] leading-relaxed text-stone">{it.a}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
       )}

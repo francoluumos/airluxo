@@ -2012,6 +2012,41 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
                   </div>
                 )}
               </div>
+
+              {/* FAQ — partner-authored Q&A accordion shown before the footer. */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-stone">FAQ <span className="font-normal">({(layout.faq || []).length})</span></span>
+                  <button type="button" onClick={() => setLayoutState((l) => ({ ...l, faq: [...(l.faq || []), { q: '', a: '' }] }))}
+                    className="ring-lux rounded-full border border-mist bg-cloud px-3 py-1 text-xs font-semibold text-ink hover:border-ink">+ Add question</button>
+                </div>
+                {(layout.faq || []).length === 0
+                  ? <p className="mt-1.5 text-xs text-stone">No FAQ yet — add questions in the partner&apos;s language; they show as an accordion before the footer.</p>
+                  : (
+                    <div className="mt-2 space-y-2">
+                      {layout.faq.map((it, i) => (
+                        <div key={i} className="rounded-xl border border-mist bg-paper/40 p-2.5">
+                          <div className="flex items-start gap-2">
+                            <span className="mt-2 text-xs font-bold text-stone">{i + 1}.</span>
+                            <div className="flex-1 space-y-1.5">
+                              <input value={it.q} placeholder="Question"
+                                onChange={(e) => setLayoutState((l) => ({ ...l, faq: l.faq.map((x, idx) => idx === i ? { ...x, q: e.target.value } : x) }))}
+                                className="ring-lux w-full rounded-lg border border-mist bg-cloud px-2.5 py-1.5 text-sm font-semibold outline-none focus:border-ink" />
+                              <textarea value={it.a} placeholder="Answer" rows={2}
+                                onChange={(e) => setLayoutState((l) => ({ ...l, faq: l.faq.map((x, idx) => idx === i ? { ...x, a: e.target.value } : x) }))}
+                                className="ring-lux w-full resize-y rounded-lg border border-mist bg-cloud px-2.5 py-1.5 text-sm outline-none focus:border-ink" />
+                            </div>
+                            <button type="button" aria-label="Remove" onClick={() => setLayoutState((l) => ({ ...l, faq: l.faq.filter((_, idx) => idx !== i) }))}
+                              className="ring-lux mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-mist text-stone hover:border-ink hover:text-ink">
+                              <Icon.X width={11} height={11} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                <p className="mt-1.5 text-[0.7rem] text-stone">Saved on publish / republish.</p>
+              </div>
             </section>
 
             {/* Own-domain (multi-tenant CNAME) */}

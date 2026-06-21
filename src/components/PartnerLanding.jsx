@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useI18n } from '../lib/i18n.jsx';
 import { PLANS, PLAN_ORDER } from '../lib/plans.js';
@@ -12,7 +13,7 @@ const EASE = [0.23, 1, 0.32, 1];
 
 const COPY = {
   de: {
-    nav: { platform: 'Plattform', terms: 'Konditionen', roadmap: 'Roadmap', login: 'Partner-Login', cta: 'Gespräch buchen' },
+    nav: { platform: 'Plattform', terms: 'Konditionen', roadmap: 'Roadmap', faq: 'FAQ', login: 'Partner-Login', cta: 'Gespräch buchen' },
     hero: {
       eyebrow: 'Für Luxus-Autovermietungen in der Schweiz',
       h1a: 'Ihre Vermietung,', h1b: 'online in Tagen.',
@@ -75,6 +76,17 @@ const COPY = {
         ['Smart Pricing', 'Dynamische Tagespreise nach Nachfrage, Saison und Events, automatisch.'],
       ],
     },
+    faq: {
+      eyebrow: 'FAQ', h2: 'Häufige Fragen',
+      items: [
+        ['Was kostet AIRLUXO?', 'Ein monatliches Abonnement (Free / Pro / Max, siehe Konditionen). Gäste zahlen eine kleine Servicegebühr, nicht Sie. Keine Inseratsgebühren, keine Einrichtungskosten.'],
+        ['Wie lange dauert es, bis ich live bin?', 'In der Regel wenige Tage: Sie teilen Ihre bestehende Seite, wir bauen Ihre Marken-Website und das Dashboard, Sie prüfen, wir gehen live.'],
+        ['Behalte ich meine Marke?', 'Ja. Ihre Farben, Schriften, Ihr Logo und Ihre eigene Domain. AIRLUXO liefert nur die Engine darunter.'],
+        ['Wie funktionieren Zahlungen und Auszahlungen?', 'Gäste zahlen sicher online vorab (Stripe), inklusive Kaution. Auszahlungen auf Ihr IBAN nach jeder Miete, kein Hinterherjagen von Überweisungen.'],
+        ['Gibt es eine Vertragsbindung?', 'Nein. Keine Mindestlaufzeit, monatlich kündbar.'],
+        ['Kann ich meine eigene Domain nutzen?', 'Ja. Ihre Website läuft auf Ihrer eigenen Domain (CNAME), nicht auf einer AIRLUXO-Subdomain.'],
+      ],
+    },
     cta: { h2a: 'Sehen Sie Ihren Auftritt,', h2b: 'live, in Ihrer Marke.', lead: 'Wir bauen eine private Vorschau Ihrer Marken-Website, bevor Sie sich zu etwas verpflichten.', cta1: 'Gespräch buchen' },
     footer: {
       tagline: 'Ihre Marke. Unsere Engine.',
@@ -84,7 +96,7 @@ const COPY = {
     },
   },
   en: {
-    nav: { platform: 'Platform', terms: 'Pricing', roadmap: 'Roadmap', login: 'Partner login', cta: 'Book a call' },
+    nav: { platform: 'Platform', terms: 'Pricing', roadmap: 'Roadmap', faq: 'FAQ', login: 'Partner login', cta: 'Book a call' },
     hero: {
       eyebrow: 'For luxury-car rental companies in Switzerland',
       h1a: 'Your rental brand,', h1b: 'online in days.',
@@ -147,6 +159,17 @@ const COPY = {
         ['Smart pricing', 'Dynamic daily rates by demand, season and events, automatically.'],
       ],
     },
+    faq: {
+      eyebrow: 'FAQ', h2: 'Frequently asked questions',
+      items: [
+        ['What does AIRLUXO cost?', 'A monthly subscription (Free / Pro / Max — see Pricing). Guests pay a small service fee, not you. No listing fees, no setup costs.'],
+        ['How long until I’m live?', 'Usually a few days: share your existing site, we build your branded website and dashboard, you review, we go live.'],
+        ['Do I keep my brand?', 'Yes. Your colours, fonts, logo and your own domain. AIRLUXO is just the engine underneath.'],
+        ['How do payments and payouts work?', 'Guests pay securely online up front (Stripe), deposit included. Payouts to your IBAN after every trip, no chasing bank transfers.'],
+        ['Is there a contract or commitment?', 'No. No minimum term, cancel monthly.'],
+        ['Can I use my own domain?', 'Yes. Your site runs on your own domain (CNAME), not an AIRLUXO subdomain.'],
+      ],
+    },
     cta: { h2a: 'See your storefront,', h2b: 'live, in your brand.', lead: 'We’ll build a private preview of your branded site before you commit to a thing.', cta1: 'Book a call' },
     footer: {
       tagline: 'Your brand. Our engine.',
@@ -170,6 +193,7 @@ export default function PartnerLanding({ onPartner }) {
     ? { hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0.3 } } }
     : { hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } } };
   const hover = reduce ? {} : { whileHover: { y: -2 }, whileTap: { scale: 0.98 } };
+  const [openFaq, setOpenFaq] = useState(0); // landing FAQ accordion (first open)
 
   // Reusable dark section wrapper with scroll-reveal + stagger.
   const Sec = ({ id, bg = 'bg-ink', children }) => (
@@ -189,6 +213,7 @@ export default function PartnerLanding({ onPartner }) {
             <a href="#platform" className="transition-colors hover:text-paper">{c.nav.platform}</a>
             <a href="#terms" className="transition-colors hover:text-paper">{c.nav.terms}</a>
             <a href="#roadmap" className="transition-colors hover:text-paper">{c.nav.roadmap}</a>
+            <a href="#faq" className="transition-colors hover:text-paper">{c.nav.faq}</a>
           </nav>
           <div className="flex items-center gap-4">
             <button onClick={onPartner} className="ring-lux hidden text-sm font-semibold text-ash transition-colors hover:text-paper sm:block">{c.nav.login}</button>
@@ -311,6 +336,29 @@ export default function PartnerLanding({ onPartner }) {
               <p className="mt-3 text-sm leading-relaxed text-ash">{p}</p>
             </motion.div>
           ))}
+        </div>
+      </Sec>
+
+      {/* FAQ */}
+      <Sec id="faq" bg="bg-ink">
+        <motion.div variants={item} className="eyebrow text-gold">{c.faq.eyebrow}</motion.div>
+        <motion.h2 variants={item} className="font-display mt-3 text-3xl font-semibold tracking-tight sm:text-[2.7rem]">{c.faq.h2}</motion.h2>
+        <div className="mt-12 divide-y divide-graphite/70 border-y border-graphite/70">
+          {c.faq.items.map(([q, a], i) => {
+            const open = openFaq === i;
+            return (
+              <motion.div variants={item} key={q}>
+                <button type="button" onClick={() => setOpenFaq(open ? -1 : i)}
+                  className="ring-lux flex w-full items-center justify-between gap-6 py-6 text-left">
+                  <span className="font-display text-lg text-paper sm:text-xl">{q}</span>
+                  <span className={`shrink-0 text-2xl font-light text-gold transition-transform ${open ? 'rotate-45' : ''}`}>+</span>
+                </button>
+                <div className={`grid transition-all duration-300 ${open ? 'grid-rows-[1fr] pb-6 opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                  <p className="overflow-hidden max-w-[68ch] text-[1.02rem] leading-relaxed text-ash">{a}</p>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </Sec>
 

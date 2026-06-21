@@ -25,7 +25,20 @@ export const DEFAULT_LAYOUT = {
   heroMedia: { type: 'none', url: '' }, // centered-hero background: 'none' | 'image' | 'video'
   marquee: 'text',  // brand strip variant: 'text' (brand names) | 'logos' (logo images)
   brandLogos: [],   // logo image URLs shown when marquee === 'logos' (same strip height)
+  faq: [],          // partner-site FAQ: [{ q, a }] — renders an accordion before the footer
 };
+
+// Sanitise the FAQ list (partner-set content): trim, cap lengths + count, drop empties.
+function cleanFaq(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((it) => ({
+      q: typeof it?.q === 'string' ? it.q.slice(0, 160) : '',
+      a: typeof it?.a === 'string' ? it.a.slice(0, 800) : '',
+    }))
+    .filter((it) => it.q.trim() || it.a.trim())
+    .slice(0, 12);
+}
 
 // Keep only a well-formed https/relative URL (brand-kit values are partner-set, so never
 // trust them raw — drop javascript:/data: and anything non-string).
@@ -55,6 +68,7 @@ export function mergeLayout(layout) {
     heroMedia: cleanHeroMedia(l.heroMedia),
     marquee: l.marquee === 'logos' ? 'logos' : 'text',
     brandLogos: cleanLogoUrls(l.brandLogos),
+    faq: cleanFaq(l.faq),
   };
 }
 
