@@ -65,9 +65,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const reelKey = Deno.env.get("REEL_ANALYZE_KEY"); // dedicated bearer for the local reel-reverse-engineer skill
     const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-    // Auth: cron (service-role key) OR an admin user — same pattern as content-scrape.
-    let authed = bearer && bearer === serviceKey;
+    // Auth: cron (service-role key) OR the dedicated skill key OR an admin user — same posture as content-scrape.
+    let authed = !!bearer && (bearer === serviceKey || (!!reelKey && bearer === reelKey));
     if (!authed && bearer) {
       const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
         global: { headers: { Authorization: `Bearer ${bearer}` } },
@@ -103,15 +104,22 @@ Deno.serve(async (req) => {
       return Array.isArray(items) ? items : [];
     }
 
+    // Single reel URL → the general instagram-scraper takes directUrls (the reel-scraper
+    // actor only accepts usernames). Try each attempt, tolerate per-attempt failures.
+    const attempts: Array<[string, unknown]> = [
+      ["apify~instagram-scraper", { directUrls: [reelUrl], resultsType: "posts", resultsLimit: 1, addParentData: false }],
+      ["apify~instagram-scraper", { directUrls: [reelUrl], resultsType: "details", resultsLimit: 1 }],
+    ];
     let items: any[] = [];
-    try {
-      items = await apify("apify~instagram-reel-scraper", { directUrls: [reelUrl], resultsLimit: 1 });
-      if (items.length === 0) items = await apify("apify~instagram-scraper", { directUrls: [reelUrl], resultsType: "posts", resultsLimit: 1 });
-    } catch (e) {
-      return json({ error: String((e as Error)?.message || e) }, 502);
+    let scrapeErr = "";
+    for (const [actor, input] of attempts) {
+      try {
+        items = await apify(actor, input);
+        if (items.length > 0) break;
+      } catch (e) { scrapeErr = String((e as Error)?.message || e); }
     }
     const it = items[0];
-    if (!it) return json({ error: "Apify returned no item for that reel URL" }, 404);
+    if (!it) return json({ error: scrapeErr || "Apify returned no item for that reel URL" }, scrapeErr ? 502 : 404);
 
     const videoUrl: string | null = it.videoUrl || it.video_url || it.videoUrlHd || null;
     if (!videoUrl) return json({ error: "No videoUrl in Apify result", sample_keys: Object.keys(it) }, 502);
