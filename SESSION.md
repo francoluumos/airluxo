@@ -6,18 +6,18 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 
 ---
 
-## ▶ Pick up here — as of 2026-06-21
+## ▶ Pick up here — as of 2026-06-25
 
 **Immediate / open loose ends:**
-1. **Promote staging → prod** when ready: `git push origin staging:main`. A big batch is staging-only (`ea9027c`→`bda7c4c`): landing redesign + AIRLUXO legal pages, the whole partner-site polish (dark-theme theming, per-partner layout, logo brand strip, car-photo mirroring, hero media, FAQ, dashboard logo). Migrations + edge fns are already on the **shared prod project**, so the frontend promote is the remaining step. Prod still password-gated.
-2. **⚠️ Rotate the `sbp_` token** (used all session) — https://supabase.com/dashboard/account/tokens
-3. **Set Edition's logo** — still empty. Paste the URL (in the log entry below) into Brand & pitch → Logo URL → Apply, **or** re-analyze (the ingest logo fix is now deployed). Once set it also brands the **partner dashboard** sidebar.
-4. **`LegalPage.jsx` placeholders** — confirm AIRLUXO SA street / UID / represented-by before the landing goes live.
+1. **⚠️ Rotate the `sbp_` token** `sbp_e046…` — used all session (migrations, edge-fn deploys, set the `REEL_ANALYZE_KEY` secret) and pasted in chat: https://supabase.com/dashboard/account/tokens. (Prior `sbp_bb406…` too, if not already rotated.)
+2. **Reel rethink (PARKED)** — Franco rejected the AI reel: looks synthetic, mood doesn't match. His direction: **all scenes the same as the original**, mood/grade-matched, likely a stronger model than `seedance1_5`. The skill (`alx-reel-reverse-engineering`) + edge fn (`reel-analyze`) are built and **work end-to-end**; ~**9.8 Higgsfield credits** left. Working assets + production sheets in `~/Desktop/Reels/`.
+3. **`LegalPage.jsx` placeholders** — confirm AIRLUXO SA street / UID / represented-by before the acquisition landing goes live.
+4. **Optional: next-car-poll dashboard** — the new poll writes to `car_suggestions` (owner/admin readable via RLS), but there's no UI to view submissions yet. Note the DB column is named `type` but now holds a free-text **model** string — rename to `model` (small migration) when building that view.
 
 **Optional follow-ups (flagged, not built):**
-- **Brand-logo mirroring to storage** — picked/pasted marquee logos load slowly off Wix CDN; mirror them into `brand-assets/<id>/brand-logos/` (like the car-photo mirror) for speed. Needs a small edge fn + deploy (browser can't fetch cross-origin Wix images to re-upload).
-- **Per-partner login branding** — login is generic (pre-auth). Would need partner-specific login URLs (their own domain → their login).
-- **Verify the photo mirror** on Edition end-to-end (run "Organize photos → storage", confirm `listings.photos` now point at `…/cars/<listing>/`).
+- **Brand-logo mirroring to storage** — picked/pasted marquee logos load slowly off Wix CDN; mirror them into `brand-assets/<id>/brand-logos/` (like the car-photo mirror) for speed. Needs a small edge fn + deploy.
+- **Loyalty card label on partner sites** — the account page now shows the partner logo, but the membership card still reads "AIRLUXO MEMBER" (platform loyalty branding). Relabel per-partner if desired.
+- **Per-partner login branding** — the AuthModal (pre-auth) is still generic AIRLUXO.
 
 **THE deferred topic — partner-site operating-cost model (for pricing / P&L):**
 - Build a **cost calc for running the custom partner sites + dashboards**: Vercel, **Supabase** (DB/storage/egress/edge-fn invocations), **Firecrawl** credits per ingest, **Gemini**, **Apify**, **Resend**, **Higgsfield**, **Drive**, domains/TLS. Output a **per-partner monthly opex** + fixed overhead.
@@ -36,6 +36,16 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 ---
 
 ## Log (newest first)
+
+### 2026-06-22 → 25 — Reel reverse-engineer engine + Edition site: next-car poll, customer login/wishlist, scrollbar fixes
+- **Promoted the whole 2026-06-20→21 partner-polish batch to prod** — last session it was staging-only; this session pushed `staging → main`. Caught a footgun: `origin/staging` was stale at `cd01587` (a `git push origin staging:main` updates **main**, not the **staging** branch the staging deploy tracks) — now both branches at `c2757ba`.
+- **Reel reverse-engineer engine (new):** `reel-analyze` edge fn — scrapes an Instagram reel via **Apify** (`APIFY_API`) + breaks it down with **Gemini** (Files API, `GEMINI_API_KEY`), returns a structured blueprint (transcript / hook / visual guideline / pacing / audio / emotional arc). Keys stay server-side; the local **`alx-reel-reverse-engineering`** skill calls it. Auth: a dedicated **`REEL_ANALYZE_KEY`** function secret (the legacy service-role JWT didn't match the project's new `sb_secret_…` keys), stored locally at `~/.airluxo-reel-analyze.key`. Deployed + verified end-to-end on a real reel (1.36M-view @itisbainz). Skills installed this session: `find-skills`, `skill-creator`, `alx-reel-reverse-engineering` (in `.agents/skills/`, gitignored).
+- **Reel generation tried + REJECTED** — built one variant (Porsche × romantic escape) with Higgsfield: hero frame (`gpt_image_2`) → POV/freedom frames (`nano_banana_2`) → 4 clips (`seedance1_5`, 4.8 cr each) → stitched 16s preview w/ burned-in text (PIL overlays + ffmpeg, since this ffmpeg lacks drawtext). **40 → 9.8 credits.** Franco: synthetic, mood off → **parked** for a rethink (scenes matching the original). CLI gotcha: pass **local file paths** or **upload IDs** to media flags, not job UUIDs; uploads are flaky in parallel (do them sequentially / pre-upload).
+- **Edition site — next-car poll (new feature):** "Which car should we add next?" panel below the fleet — **Brand** select (aspirational marques, custom chevron) + free-text **Model** + optional email. New `car_suggestions` table (RLS owner/admin read) + `suggest-car` edge fn (anon write via service role, **published-partner guard**). Gated by `site_config.layout.show.suggestCar` (default on, **partner-only**) with a toggle in Design → Layout. **Migration applied + fn deployed.** Helper `src/lib/suggestions.js`; brands in `data.js`.
+- **Customer login + wishlist on partner sites** — both already existed on the marketplace but were stubbed out (`onAccount={()=>{}}`). Now the **AccountMenu** renders in the partner header (`hidePartner` hides marketplace "list your cars"), and `PartnerSite` **route-switches** to `CustomerAccount` (not an overlay — that was causing a width shift). The wishlist heart already saved; this exposes sign-in + the Saved view.
+- **Partner logo on the account page** — `CustomerAccount` takes a `brand` prop; partner sites pass their logo/name so the account header isn't the AIRLUXO wordmark.
+- **Scrollbar / layout-shift fixes** — `body { overflow-x: hidden }` (clips a transient horizontal scrollbar that stole space + painted a white corner; safe for the sticky top:0 nav), transparent scrollbar track/corner, and the account route-switch above (the real width-shift cause: two mounted pages = two scrollbars).
+- **Deploys this session:** edge fns `reel-analyze` (new) + `suggest-car` (new); migration `20260625_car_suggestions.sql` (applied via Management API); function secret `REEL_ANALYZE_KEY` set. Frontend on **`staging` AND `main`** (tip `c2757ba`). Changelog (`docs.js`) updated. Installed **ffmpeg** via brew.
 
 ### 2026-06-20 → 21 — Partner white-label polish: theming, logos, hero media, FAQ, dashboard logo
 - **Picked up the orphaned `LegalPage.jsx`** (AIRLUXO's own Impressum/AGB, DE/EN) → wired `?impressum`/`?agb` routes in `App.jsx` (alongside `?privacy`); shipped with the dark-editorial **PartnerLanding redesign**. ⚠️ `LegalPage` company details are **placeholders** (street, UID `CHE-123.456.789`, represented-by) — confirm before launch. (`5475638`)
