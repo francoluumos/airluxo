@@ -1859,6 +1859,7 @@ function ReviewView({ partnerId, companyName, onBack, toPipeline }) {
                   ['stats', 'Hero stats row', 'Marketplace counts (240+ cars, 36 companies) — usually off for a single partner.'],
                   ['marquee', 'Brand strip', 'The scrolling luxury-brand names under the hero.'],
                   ['map', 'Fleet map', '“The fleet across Switzerland” map section.'],
+                  ['suggestCar', 'Next-car poll', '“Which car should we add next?” — visitors vote a brand/type below the fleet.'],
                 ].map(([k, label, hint]) => (
                   <label key={k} className="flex cursor-pointer items-start gap-3">
                     <input type="checkbox" checked={!!layout.show[k]}

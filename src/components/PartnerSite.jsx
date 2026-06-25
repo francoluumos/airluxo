@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { AnimatePresence } from 'motion/react';
 import Home from './Home.jsx';
 import CarDetail from './CarDetail.jsx';
+import CustomerAccount from './CustomerAccount.jsx';
 import AuthModal from './AuthModal.jsx';
 import { useAuth } from '../lib/auth.jsx';
 import { brandKitToVars, loadBrandFont } from '../lib/brandkit.js';
@@ -15,6 +16,7 @@ export default function PartnerSite({ slugOrKey, host }) {
   const { authModal, closeAuth } = useAuth();
   const [site, setSite] = useState(undefined); // undefined = loading, null = not found
   const [active, setActive] = useState(null);
+  const [account, setAccount] = useState(null); // { tab } when the account view is open
 
   useEffect(() => {
     let on = true;
@@ -49,7 +51,12 @@ export default function PartnerSite({ slugOrKey, host }) {
 
   return (
     <div style={rootStyle} className="min-h-screen bg-paper text-ink">
-      <Home partner={partner} onOpenCar={setActive} onPartner={() => {}} onAccount={() => {}} />
+      <Home partner={partner} onOpenCar={setActive} onPartner={() => {}} onAccount={(tab = 'trips') => { setAccount({ tab }); window.scrollTo(0, 0); }} />
+      {account && (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-paper">
+          <CustomerAccount initialTab={account.tab} onExit={() => setAccount(null)} onOpenCar={(car) => { setAccount(null); setActive(car); }} />
+        </div>
+      )}
       <AnimatePresence>
         {active && <CarDetail car={active} onClose={() => setActive(null)} />}
       </AnimatePresence>

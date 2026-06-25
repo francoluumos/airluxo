@@ -19,6 +19,7 @@ export const DEFAULT_LAYOUT = {
     stats: true,    // hero stats row (marketplace counts — usually off for a single partner)
     marquee: true,  // generic luxury brand strip under the hero
     map: true,      // "fleet across Switzerland" map
+    suggestCar: true, // "what car should be up next?" poll below the fleet (partner sites only)
   },
   hero: 'split',    // 'split' (image beside copy) | 'centered' (copy centred, no hero image)
   heroEyebrow: '',  // small gold kicker above the headline (e.g. "Drive your dream")

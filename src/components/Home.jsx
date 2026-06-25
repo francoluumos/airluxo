@@ -4,7 +4,8 @@ import Nav from './Nav.jsx';
 import CarCard from './CarCard.jsx';
 import CarImage from './CarImage.jsx';
 import { Icon } from './Icons.jsx';
-import { CARS, CATEGORIES, CITIES, STEPS, FEES } from '../lib/data.js';
+import { CARS, CATEGORIES, CITIES, STEPS, FEES, SUGGEST_BRANDS, SUGGEST_TYPES } from '../lib/data.js';
+import { submitCarSuggestion } from '../lib/suggestions.js';
 import { fetchPublicListings, mapListing, fetchFleetPins, fetchPartnerSiteListings } from '../lib/listings.js';
 import { LEGAL_TABS } from '../lib/legal.js';
 import { fetchFleetAvailability } from '../lib/bookings.js';
@@ -61,6 +62,24 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
   // Partner-authored FAQ (accordion before the footer).
   const partnerFaq = (partner && Array.isArray(layout.faq)) ? layout.faq : [];
   const [openFaq, setOpenFaq] = useState(0);
+  // "What car should be up next?" poll — partner white-label sites only.
+  const showSuggest = !!partner && show.suggestCar !== false;
+  const [suggest, setSuggest] = useState({ brand: '', type: '', email: '' });
+  const [suggestState, setSuggestState] = useState('idle'); // idle | sending | done | error
+  const [suggestErr, setSuggestErr] = useState('');
+  const submitSuggest = async (e) => {
+    e.preventDefault();
+    if (!suggest.brand || suggestState === 'sending') return;
+    setSuggestState('sending'); setSuggestErr('');
+    try {
+      await submitCarSuggestion({ partnerId: partner.id, brand: suggest.brand, type: suggest.type, email: suggest.email });
+      setSuggestState('done');
+      track('next_car_suggested', { partner: partner.id, brand: suggest.brand, type: suggest.type || null });
+    } catch (err) {
+      setSuggestErr(err?.message || 'Could not send — try again.');
+      setSuggestState('error');
+    }
+  };
   const [legalView, setLegalView] = useState(null); // partner footer legal overlay
   const [cat, setCat] = useState('All');
   const [q, setQ] = useState('');
@@ -453,6 +472,77 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
           </div>
         )}
       </section>
+
+      {/* ============ NEXT-CAR POLL (partner sites) ============ */}
+      {showSuggest && (
+      <section id="suggest-car" className="mx-auto max-w-[820px] px-5 pb-16 sm:px-8 lg:pb-24">
+        <div className="rounded-[var(--radius-card)] border border-mist bg-cloud px-6 py-10 sm:px-10">
+          <div className="eyebrow text-gold">Your call</div>
+          <h2 className="font-display mt-2 text-[clamp(1.6rem,3.2vw,2.4rem)] leading-[1.05]">
+            Which car should we add next?
+          </h2>
+          <p className="mt-2 max-w-prose text-sm text-stone">
+            Tell us the dream and we’ll chase it down. Leave an email and we’ll let you know the day it lands.
+          </p>
+
+          {suggestState === 'done' ? (
+            <div className="mt-7 flex items-start gap-3 rounded-2xl border border-gold/30 bg-gold/10 px-5 py-5">
+              <Icon.Check width={20} height={20} className="mt-0.5 shrink-0 text-gold" />
+              <div>
+                <div className="font-display text-lg text-ink">Noted — thank you.</div>
+                <div className="text-sm text-stone">Your vote is in. The more requests a car gets, the sooner it joins the fleet.</div>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={submitSuggest} className="mt-7 grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-stone">Brand</span>
+                <select
+                  value={suggest.brand}
+                  onChange={(e) => setSuggest((s) => ({ ...s, brand: e.target.value }))}
+                  required
+                  className="ring-lux w-full rounded-full border border-mist bg-paper px-4 py-2.5 text-sm text-ink outline-none focus:border-ink"
+                >
+                  <option value="" disabled>Pick a brand…</option>
+                  {SUGGEST_BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-stone">Type <span className="font-normal">(optional)</span></span>
+                <select
+                  value={suggest.type}
+                  onChange={(e) => setSuggest((s) => ({ ...s, type: e.target.value }))}
+                  className="ring-lux w-full rounded-full border border-mist bg-paper px-4 py-2.5 text-sm text-ink outline-none focus:border-ink"
+                >
+                  <option value="">Any type</option>
+                  {SUGGEST_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
+                </select>
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1.5 block text-xs font-semibold text-stone">Email <span className="font-normal">(optional — we’ll ping you when it arrives)</span></span>
+                <input
+                  type="email"
+                  value={suggest.email}
+                  onChange={(e) => setSuggest((s) => ({ ...s, email: e.target.value }))}
+                  placeholder="you@email.com"
+                  className="ring-lux w-full rounded-full border border-mist bg-paper px-4 py-2.5 text-sm text-ink outline-none placeholder:text-stone focus:border-ink"
+                />
+              </label>
+              <div className="flex items-center gap-3 sm:col-span-2">
+                <button
+                  type="submit"
+                  disabled={!suggest.brand || suggestState === 'sending'}
+                  className="ring-lux rounded-full bg-gold px-6 py-2.5 text-sm font-semibold text-paper transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {suggestState === 'sending' ? 'Sending…' : 'Submit my pick'}
+                </button>
+                {suggestState === 'error' && <span className="text-sm text-red-600">{suggestErr}</span>}
+              </div>
+            </form>
+          )}
+        </div>
+      </section>
+      )}
 
       {/* ============ MAP ============ */}
       {show.map && (

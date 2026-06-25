@@ -29,12 +29,15 @@ export default function Nav({ onHome, onPartner, onAccount, dark = false, partne
 
         <div className="flex items-center gap-2.5">
           {partner ? (
-            // Partner white-label: a single, right-aligned CTA into the fleet — keeps the
-            // header balanced (logo left, action right). Brand-gold pill (matches the
-            // "Book now" CTA in the Brand & pitch preview): bg-gold + page-bg-colour text.
-            <a href="#fleet" className="ring-lux rounded-full bg-gold px-5 py-2 text-sm font-semibold text-paper transition-opacity hover:opacity-90">
-              {t('site.explore')}
-            </a>
+            // Partner white-label: a brand-gold "Explore" CTA into the fleet (matches the
+            // "Book now" pill in the Brand & pitch preview), plus the customer account menu
+            // (log in / Saved / trips) — host-recruitment items hidden via `hidePartner`.
+            <>
+              <a href="#fleet" className="ring-lux rounded-full bg-gold px-5 py-2 text-sm font-semibold text-paper transition-opacity hover:opacity-90">
+                {t('site.explore')}
+              </a>
+              <AccountMenu onAccount={onAccount} dark={dark} hidePartner />
+            </>
           ) : (
             <>
               <button

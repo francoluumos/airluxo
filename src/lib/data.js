@@ -168,6 +168,16 @@ export const CARS = [
 
 export const CATEGORIES = ['All', 'Sport', 'Exotic', 'GT', 'SUV'];
 
+// "Suggest the next car" poll (partner white-label sites). Aspirational marques a visitor
+// can vote to see next — deliberately broad (not the partner's current fleet). Body types
+// reuse the fleet CATEGORIES plus a couple of obvious extras.
+export const SUGGEST_BRANDS = [
+  'Ferrari', 'Lamborghini', 'Porsche', 'McLaren', 'Aston Martin', 'Bentley',
+  'Rolls-Royce', 'Mercedes-AMG', 'BMW M', 'Audi RS', 'Maserati', 'Bugatti',
+  'Range Rover', 'Tesla', 'Lotus', 'Other',
+];
+export const SUGGEST_TYPES = ['Sport', 'Exotic', 'GT', 'SUV', 'Convertible', 'Sedan'];
+
 export const CITIES = [
   'Zürich', 'Geneva', 'Lugano', 'Lausanne', 'Basel', 'Bern', 'St. Moritz', 'Zermatt', 'Gstaad',
 ];

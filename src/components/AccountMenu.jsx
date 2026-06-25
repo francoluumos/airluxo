@@ -8,7 +8,9 @@ import { useT } from '../lib/i18n.jsx';
 // Logged-out → log in / sign up + list-your-cars. Logged-in → trips / saved /
 // account + sign out. Uses the auth context directly; `onAccount(tab)` and
 // `onPartner` are navigation callbacks from the Shell.
-export default function AccountMenu({ onAccount, onPartner, dark = false }) {
+// `hidePartner` drops the marketplace "list your cars" / partner-dashboard items — used on
+// partner white-label sites, where host recruitment is AIRLUXO-only.
+export default function AccountMenu({ onAccount, onPartner, dark = false, hidePartner = false }) {
   const { session, customer, isPartner, openAuth, signOut } = useAuth();
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -57,14 +59,13 @@ export default function AccountMenu({ onAccount, onPartner, dark = false }) {
                 <Item onClick={go(() => onAccount('saved'))}>{t('menu.saved')}</Item>
                 <Item onClick={go(() => onAccount('account'))}>{t('menu.account')}</Item>
                 <Divider />
-                <Item onClick={go(onPartner)}>{isPartner ? t('menu.partnerDashboard') : t('site.listYourCars')}</Item>
+                {!hidePartner && <Item onClick={go(onPartner)}>{isPartner ? t('menu.partnerDashboard') : t('site.listYourCars')}</Item>}
                 <Item onClick={go(signOut)}>{t('menu.logOut')}</Item>
               </>
             ) : (
               <>
                 <Item bold onClick={go(() => openAuth())}>{t('menu.logInSignUp')}</Item>
-                <Divider />
-                <Item onClick={go(onPartner)}>{t('site.listYourCars')}</Item>
+                {!hidePartner && <><Divider /><Item onClick={go(onPartner)}>{t('site.listYourCars')}</Item></>}
               </>
             )}
           </motion.div>

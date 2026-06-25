@@ -73,6 +73,7 @@ export const DOCS = {
       },
     ],
     changelog: [
+      { date: '2026-06-25', version: 'Next-car poll & site sign-in', items: ['Your white-label site can now ask visitors “Which car should we add next?” — they vote a brand + type (and optionally leave an email) in a panel below your fleet. Toggle it under Design → Layout → Next-car poll. Visitors can also sign in and save cars to a wishlist directly on your site (account menu, top-right).'] },
       { date: '2026-06-17', version: 'Design — your brand', items: ['New Design tab: set your brand colour, accent, font and logo — they style your AIRLUXO storefront & booking page (the layout stays AIRLUXO; only the brand changes), with a live preview.'] },
       { date: '2026-06-05', version: 'Setup guide', items: ['A step-by-step setup guide now greets new partners — a guided tour of the dashboard with a spotlight on each area. Leave anytime, and replay it from Settings → Guide & changelog.'] },
       { date: '2026-06-04', version: 'AI car descriptions', items: ['List a car now has a Description field with a “Generate with AI” button (luxury, evocative tone). The description appears on the booking page. Delivery address now autocompletes Swiss addresses.'] },
