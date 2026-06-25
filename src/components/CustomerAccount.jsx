@@ -26,7 +26,9 @@ const TABS = [
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function CustomerAccount({ initialTab = 'trips', onExit, onOpenCar }) {
+// `brand` (partner white-label sites): { logo_url, company_name } — replaces the AIRLUXO
+// wordmark in the header so the account page stays on the partner's brand.
+export default function CustomerAccount({ initialTab = 'trips', onExit, onOpenCar, brand = null }) {
   const { customer } = useAuth();
   const tr = useT();
   const [tab, setTab] = useState(initialTab);
@@ -36,7 +38,13 @@ export default function CustomerAccount({ initialTab = 'trips', onExit, onOpenCa
     <div className="min-h-screen bg-paper">
       <header className="sticky top-0 z-40 border-b border-mist bg-paper/80 backdrop-blur-xl">
         <div className="mx-auto flex h-[68px] max-w-[1100px] items-center justify-between px-5 sm:px-8">
-          <button onClick={onExit} className="ring-lux wordmark text-[1.35rem] text-ink">AIR<span className="text-gold">LUXO</span></button>
+          <button onClick={onExit} className="ring-lux flex items-center text-ink">
+            {brand?.logo_url
+              ? <img src={brand.logo_url} alt={brand.company_name || ''} className="h-8 max-w-[180px] object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              : brand?.company_name
+                ? <span className="font-display text-[1.2rem]">{brand.company_name}</span>
+                : <span className="wordmark text-[1.35rem]">AIR<span className="text-gold">LUXO</span></span>}
+          </button>
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
             <button onClick={onExit} className="ring-lux flex items-center gap-1.5 text-sm font-semibold text-stone transition-colors hover:text-ink">

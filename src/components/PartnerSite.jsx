@@ -54,7 +54,7 @@ export default function PartnerSite({ slugOrKey, host }) {
       <Home partner={partner} onOpenCar={setActive} onPartner={() => {}} onAccount={(tab = 'trips') => { setAccount({ tab }); window.scrollTo(0, 0); }} />
       {account && (
         <div className="fixed inset-0 z-[60] overflow-y-auto bg-paper">
-          <CustomerAccount initialTab={account.tab} onExit={() => setAccount(null)} onOpenCar={(car) => { setAccount(null); setActive(car); }} />
+          <CustomerAccount initialTab={account.tab} onExit={() => setAccount(null)} onOpenCar={(car) => { setAccount(null); setActive(car); }} brand={{ logo_url: partner.logo_url, company_name: partner.company_name }} />
         </div>
       )}
       <AnimatePresence>
