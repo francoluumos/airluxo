@@ -47,6 +47,11 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-feature-settings: "ss01", "cv01";
+  /* Kill any transient horizontal scrollbar (a stray wide element / off-screen
+     animation): it would steal vertical space and make the page "jump smaller",
+     and paints a white scrollbar-corner. Clips X only — sticky top:0 (vertical
+     axis) is unaffected; the page scroller stays on <html>. */
+  overflow-x: hidden;
 }
 
 /* --- typography helpers --- */
@@ -121,6 +126,11 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #d4d0c4;
+}
+/* Transparent track + corner so no white box paints (esp. on dark partner themes). */
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* --- focus ring --- */
