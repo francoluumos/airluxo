@@ -51,11 +51,12 @@ export default function PartnerSite({ slugOrKey, host }) {
 
   return (
     <div style={rootStyle} className="min-h-screen bg-paper text-ink">
-      <Home partner={partner} onOpenCar={setActive} onPartner={() => {}} onAccount={(tab = 'trips') => { setAccount({ tab }); window.scrollTo(0, 0); }} />
-      {account && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto bg-paper">
-          <CustomerAccount initialTab={account.tab} onExit={() => setAccount(null)} onOpenCar={(car) => { setAccount(null); setActive(car); }} brand={{ logo_url: partner.logo_url, company_name: partner.company_name }} />
-        </div>
+      {/* Route-switch (not overlay) — mirrors the marketplace shell so only one page is
+          ever mounted: no second scrollbar, no width shift when opening the account. */}
+      {account ? (
+        <CustomerAccount initialTab={account.tab} onExit={() => setAccount(null)} onOpenCar={(car) => { setAccount(null); setActive(car); }} brand={{ logo_url: partner.logo_url, company_name: partner.company_name }} />
+      ) : (
+        <Home partner={partner} onOpenCar={setActive} onPartner={() => {}} onAccount={(tab = 'trips') => { setAccount({ tab }); window.scrollTo(0, 0); }} />
       )}
       <AnimatePresence>
         {active && <CarDetail car={active} onClose={() => setActive(null)} />}
