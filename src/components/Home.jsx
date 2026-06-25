@@ -4,7 +4,7 @@ import Nav from './Nav.jsx';
 import CarCard from './CarCard.jsx';
 import CarImage from './CarImage.jsx';
 import { Icon } from './Icons.jsx';
-import { CARS, CATEGORIES, CITIES, STEPS, FEES, SUGGEST_BRANDS, SUGGEST_TYPES } from '../lib/data.js';
+import { CARS, CATEGORIES, CITIES, STEPS, FEES, SUGGEST_BRANDS } from '../lib/data.js';
 import { submitCarSuggestion } from '../lib/suggestions.js';
 import { fetchPublicListings, mapListing, fetchFleetPins, fetchPartnerSiteListings } from '../lib/listings.js';
 import { LEGAL_TABS } from '../lib/legal.js';
@@ -64,7 +64,7 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
   const [openFaq, setOpenFaq] = useState(0);
   // "What car should be up next?" poll — partner white-label sites only.
   const showSuggest = !!partner && show.suggestCar !== false;
-  const [suggest, setSuggest] = useState({ brand: '', type: '', email: '' });
+  const [suggest, setSuggest] = useState({ brand: '', model: '', email: '' });
   const [suggestState, setSuggestState] = useState('idle'); // idle | sending | done | error
   const [suggestErr, setSuggestErr] = useState('');
   const submitSuggest = async (e) => {
@@ -72,9 +72,10 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
     if (!suggest.brand || suggestState === 'sending') return;
     setSuggestState('sending'); setSuggestErr('');
     try {
-      await submitCarSuggestion({ partnerId: partner.id, brand: suggest.brand, type: suggest.type, email: suggest.email });
+      // The DB column is `type`; we now collect a free-text model and store it there.
+      await submitCarSuggestion({ partnerId: partner.id, brand: suggest.brand, type: suggest.model.trim(), email: suggest.email });
       setSuggestState('done');
-      track('next_car_suggested', { partner: partner.id, brand: suggest.brand, type: suggest.type || null });
+      track('next_car_suggested', { partner: partner.id, brand: suggest.brand, model: suggest.model.trim() || null });
     } catch (err) {
       setSuggestErr(err?.message || 'Could not send — try again.');
       setSuggestState('error');
@@ -497,26 +498,28 @@ export default function Home({ onOpenCar, onPartner, onAccount, partner = null }
             <form onSubmit={submitSuggest} className="mt-7 grid gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-stone">Brand</span>
-                <select
-                  value={suggest.brand}
-                  onChange={(e) => setSuggest((s) => ({ ...s, brand: e.target.value }))}
-                  required
-                  className="ring-lux w-full rounded-full border border-mist bg-paper px-4 py-2.5 text-sm text-ink outline-none focus:border-ink"
-                >
-                  <option value="" disabled>Pick a brand…</option>
-                  {SUGGEST_BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
-                </select>
+                <div className="relative">
+                  <select
+                    value={suggest.brand}
+                    onChange={(e) => setSuggest((s) => ({ ...s, brand: e.target.value }))}
+                    required
+                    className="ring-lux w-full appearance-none rounded-full border border-mist bg-paper px-4 py-2.5 pr-10 text-sm text-ink outline-none focus:border-ink"
+                  >
+                    <option value="" disabled>Pick a brand…</option>
+                    {SUGGEST_BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                  <svg className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-stone" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                </div>
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-stone">Type <span className="font-normal">(optional)</span></span>
-                <select
-                  value={suggest.type}
-                  onChange={(e) => setSuggest((s) => ({ ...s, type: e.target.value }))}
-                  className="ring-lux w-full rounded-full border border-mist bg-paper px-4 py-2.5 text-sm text-ink outline-none focus:border-ink"
-                >
-                  <option value="">Any type</option>
-                  {SUGGEST_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
-                </select>
+                <span className="mb-1.5 block text-xs font-semibold text-stone">Model <span className="font-normal">(optional)</span></span>
+                <input
+                  type="text"
+                  value={suggest.model}
+                  onChange={(e) => setSuggest((s) => ({ ...s, model: e.target.value.slice(0, 40) }))}
+                  placeholder="e.g. Continental GT"
+                  className="ring-lux w-full rounded-full border border-mist bg-paper px-4 py-2.5 text-sm text-ink outline-none placeholder:text-stone focus:border-ink"
+                />
               </label>
               <label className="block sm:col-span-2">
                 <span className="mb-1.5 block text-xs font-semibold text-stone">Email <span className="font-normal">(optional — we’ll ping you when it arrives)</span></span>
