@@ -10,13 +10,7 @@
 // Returns: { skip:true } | { clientSecret, paymentIntentId, breakdown }
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-
-// Must mirror src/lib/data.js FEES
-const GUEST_SERVICE = 0.12;
-// Per-plan host commission — must mirror src/lib/plans.js
-const COMMISSION: Record<string, number> = { free: 0.15, pro: 0.09, max: 0.03 };
-// Loyalty points → CHF redemption rate — must mirror src/lib/loyalty.js POINTS_PER_CHF_REDEEMED
-const POINTS_REDEEM_RATE = 10;
+import { computeQuote } from "../_shared/pricing.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -56,175 +50,39 @@ async function getAuthUser(req: Request): Promise<{ id: string; email: string } 
   }
 }
 
-// Loyalty "Keys" tier perks by completed-trip count. MUST mirror src/lib/loyalty.js TIERS.
-function tierPerks(trips: number) {
-  if (trips >= 10) return { key: "noir", serviceWaived: true, freeProtection: true, freeDelivery: true };
-  if (trips >= 5) return { key: "platinum", serviceWaived: false, freeProtection: true, freeDelivery: true };
-  if (trips >= 2) return { key: "gold", serviceWaived: false, freeProtection: false, freeDelivery: true };
-  return { key: "silver", serviceWaived: false, freeProtection: false, freeDelivery: false };
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { listing_id, rate_id, quantity, cross_border, delivery, protection, start_date, end_date, pickup_time, return_time, promo_code, redeem_points } = await req.json();
-    if (!listing_id) return json({ error: "listing_id required" }, 400);
+    const body = await req.json();
+    if (!body?.listing_id) return json({ error: "listing_id required" }, 400);
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: listing } = await admin
-      .from("listings")
-      .select("partner_id, make, model, price_per_day, rate_tiers, cross_border_allowed, cross_border_fee, delivery_available, delivery_fee, protection_available, protection_fee, deposit_amount, location_id, status")
-      .eq("id", listing_id).maybeSingle();
-    if (!listing || listing.status === "Draft") return json({ error: "Listing not available" }, 404);
-
-    const { data: partner } = await admin
-      .from("partners").select("stripe_account_id, stripe_charges_enabled, plan").eq("id", listing.partner_id).maybeSingle();
-    if (!partner?.stripe_account_id || !partner.stripe_charges_enabled) {
-      return json({ skip: true, reason: "partner_not_connected" });
-    }
-
-    // ---- authoritative price, from the listing ----
-    const qty = Math.min(30, Math.max(1, Math.floor(Number(quantity) || 1)));
-    let unit = Number(listing.price_per_day) || 0;
-    if (rate_id && rate_id !== "day") {
-      const idx = parseInt(String(rate_id).slice(1), 10);
-      const tiers = Array.isArray(listing.rate_tiers) ? listing.rate_tiers : [];
-      if (Number.isInteger(idx) && tiers[idx] && Number(tiers[idx].price) > 0) unit = Number(tiers[idx].price);
-    }
-    const base = unit * qty;
-    const cbFee = cross_border && listing.cross_border_allowed ? Number(listing.cross_border_fee || 0) : 0;
-    const delFee = delivery && listing.delivery_available ? Number(listing.delivery_fee || 0) : 0;
-
-    // after-hours surcharge — authoritative, from the car's pick-up location
-    let ahFee = 0;
-    if (listing.location_id && (pickup_time || return_time)) {
-      const { data: loc } = await admin
-        .from("partner_locations").select("opening_hours, allow_after_hours, after_hours_fee").eq("id", listing.location_id).maybeSingle();
-      if (loc?.allow_after_hours && loc.opening_hours && Number(loc.after_hours_fee) > 0) {
-        const DOW = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-        const outside = (dateStr: string, t: string) => {
-          if (!dateStr || !t) return false;
-          const d = loc.opening_hours[DOW[new Date(`${dateStr}T00:00:00Z`).getUTCDay()]];
-          if (!d) return false;
-          if (d.closed) return true;
-          return (d.open && t < d.open) || (d.close && t > d.close);
-        };
-        if (outside(start_date, pickup_time) || outside(end_date || start_date, return_time)) ahFee = Number(loc.after_hours_fee);
-      }
-    }
-
-    // Damage protection — a partner-keeps pass-through. Deliberately kept OUT of the
-    // subtotal so it carries no guest service fee and no host commission: the guest
-    // pays it and the partner receives 100% of it.
-    const protFee = protection && listing.protection_available ? Number(listing.protection_fee || 0) : 0;
-
-    const addons = cbFee + delFee + ahFee;
-    const subtotal = base + addons;
-    if (subtotal <= 0) return json({ error: "Invalid price" }, 400);
-
-    // availability guard — refuse to take payment for taken dates
-    if (start_date) {
-      const nend = end_date || start_date;
-      const overlaps = (s: string, e: string) => !(nend < s || start_date > (e || s));
-      const [{ data: bk }, { data: bl }] = await Promise.all([
-        admin.from("bookings").select("start_date, end_date, status").eq("listing_id", listing_id),
-        admin.from("car_blocks").select("start_date, end_date").eq("listing_id", listing_id),
-      ]);
-      const conflict = (bk || []).some((b) => b.status !== "Declined" && b.status !== "Cancelled" && overlaps(b.start_date, b.end_date))
-        || (bl || []).some((b) => overlaps(b.start_date, b.end_date));
-      if (conflict) return json({ error: "Those dates are no longer available.", unavailable: true });
-    }
-
-    const service = Math.round(subtotal * GUEST_SERVICE);
-    const total = subtotal + service + protFee;
-    const hostRate = COMMISSION[partner.plan as string] ?? COMMISSION.free;
-    // Partner net = commissionable subtotal less host commission, plus the full protection fee.
-    let partnerNet = (subtotal - Math.round(subtotal * hostRate)) + protFee;
-
-    // ---- promo / referral code (authoritative): discount + affiliate commission ----
-    // Discount validity (incl. max-uses) is computed by the validate_promo RPC; we
-    // read the code row for funding + commission. Funding decides who absorbs it:
-    //   platform → discount comes out of AIRLUXO's app fee (clamped to it)
-    //   partner  → discount comes out of the partner payout (clamped to it)
-    // Commission is recorded only (paid to the affiliate out of band).
-    let discount = 0, commission = 0, appliedCode: string | null = null;
-    const codeRaw = typeof promo_code === "string" ? promo_code.trim().toUpperCase() : "";
-    if (codeRaw) {
-      const { data: vp } = await admin.rpc("validate_promo", { p_code: codeRaw, p_subtotal: subtotal });
-      const v = Array.isArray(vp) ? vp[0] : vp;
-      if (v?.valid) {
-        const { data: pc } = await admin
-          .from("promo_codes").select("funded_by, commission_type, commission_value, commission_base").eq("code", codeRaw).maybeSingle();
-        discount = Math.max(0, Math.round(Number(v.discount) || 0));
-        appliedCode = codeRaw;
-        if (pc && pc.commission_type !== "none") {
-          const cbase = pc.commission_base === "total" ? total : subtotal;
-          commission = pc.commission_type === "percent"
-            ? Math.round(cbase * Number(pc.commission_value) / 100)
-            : Math.round(Number(pc.commission_value));
-        }
-        if (pc?.funded_by === "partner") {
-          discount = Math.min(discount, partnerNet);   // never push payout below 0
-          partnerNet = partnerNet - discount;
-        } else {
-          discount = Math.min(discount, total - partnerNet); // never push app fee below 0
-        }
-      }
-    }
-
-    // ---- member benefits (tier comps + points), all AIRLUXO-funded ----
-    // Tier perks (free protection/delivery, Noir service-fee waiver) and a points
-    // credit come out of AIRLUXO's own margin only — clamped so the partner payout
-    // is paid in full and the app fee never goes below 0.
     const authUser = await getAuthUser(req);
-    let tierComp = 0, tierKey: string | null = null, loyaltyCredit = 0, pointsRedeemed = 0;
-    const aluxoMargin = Math.max(0, (total - discount) - partnerNet); // app fee before benefits
-    if (authUser) {
-      const { count } = await admin.from("bookings").select("id", { count: "exact", head: true })
-        .eq("status", "Completed").or(`user_id.eq.${authUser.id},guest_email.ilike.${authUser.email}`);
-      const perks = tierPerks(count ?? 0);
-      tierKey = perks.key;
-      let comp = 0;
-      if (perks.serviceWaived) comp += service;
-      if (perks.freeProtection) comp += protFee;
-      if (perks.freeDelivery) comp += delFee;
-      tierComp = Math.min(comp, aluxoMargin);
 
-      const reqPoints = Math.max(0, Math.floor(Number(redeem_points) || 0));
-      if (reqPoints > 0) {
-        const { data: cust } = await admin.from("customers").select("loyalty_points").eq("id", authUser.id).maybeSingle();
-        const bal = Math.max(0, Math.floor(Number(cust?.loyalty_points) || 0));
-        const usable = Math.min(reqPoints, bal);
-        const remaining = Math.max(0, aluxoMargin - tierComp); // points draw from what's left of the margin
-        const credit = Math.min(Math.floor(usable / POINTS_REDEEM_RATE), remaining);
-        if (credit > 0) { loyaltyCredit = credit; pointsRedeemed = credit * POINTS_REDEEM_RATE; }
-      }
-    }
-
-    const finalTotal = total - discount - tierComp - loyaltyCredit;
-    const appFee = finalTotal - partnerNet;
+    // Authoritative price — recomputed from the listing in the shared pricing module.
+    const q = await computeQuote(admin, body, authUser);
+    if ("unavailable" in q) return json({ error: q.error, unavailable: true });
+    if ("error" in q) return json({ error: q.error }, q.status);
+    // Partner not connected to Stripe → no charge possible; client books without payment.
+    if (!q.connected || !q.partner) return json({ skip: true, reason: "partner_not_connected" });
 
     const pi = await stripe("payment_intents", {
-      amount: String(Math.round(finalTotal * 100)),
+      amount: String(Math.round(q.finalTotal * 100)),
       currency: "chf",
       capture_method: "manual",
       "automatic_payment_methods[enabled]": "true",
-      application_fee_amount: String(Math.round(appFee * 100)),
-      "transfer_data[destination]": partner.stripe_account_id,
-      "metadata[listing_id]": String(listing_id),
-      description: `AIRLUXO — ${listing.make} ${listing.model}`,
+      application_fee_amount: String(Math.round(q.appFee * 100)),
+      "transfer_data[destination]": q.partner.stripe_account_id,
+      "metadata[listing_id]": String(body.listing_id),
+      // Authoritative total, in cents — capture/create-booking reconcile against this.
+      "metadata[total_cents]": String(Math.round(q.finalTotal * 100)),
+      description: `AIRLUXO — ${q.listing.make} ${q.listing.model}`,
     });
 
     return json({
       clientSecret: pi.client_secret,
       paymentIntentId: pi.id,
-      breakdown: {
-        base_amount: base, addons_amount: addons, service_fee: service, total_amount: finalTotal,
-        discount_amount: discount, promo_code: appliedCode, affiliate_commission: commission,
-        protection_fee: protFee, deposit_amount: protFee > 0 ? Number(listing.deposit_amount || 0) : 0,
-        loyalty_credit: loyaltyCredit, points_redeemed: pointsRedeemed,
-        tier: tierKey, tier_comp: tierComp,
-      },
+      breakdown: q.breakdown,
     });
   } catch (e) {
     return json({ error: String((e as Error)?.message || e) }, 500);

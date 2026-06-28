@@ -13,6 +13,7 @@
 // Returns: { ok, metadata: {...}, analysis: {...} }
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { fetchBytesSafe } from "../_shared/safefetch.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -136,14 +137,11 @@ Deno.serve(async (req) => {
       short_code: shortCode,
     };
 
-    // ---- 2. Download the video bytes -----------------------------------------
-    const vid = await fetch(videoUrl);
-    if (!vid.ok) return json({ error: `Video download failed ${vid.status}` }, 502);
-    const len = Number(vid.headers.get("content-length") || 0);
-    if (len && len > MAX_VIDEO_BYTES) return json({ error: `Video too large (${Math.round(len / 1e6)}MB)` }, 413);
-    const bytes = new Uint8Array(await vid.arrayBuffer());
-    if (bytes.length > MAX_VIDEO_BYTES) return json({ error: "Video too large" }, 413);
-    const mimeType = vid.headers.get("content-type")?.split(";")[0] || "video/mp4";
+    // ---- 2. Download the video bytes (SSRF-guarded; videoUrl is third-party) --
+    const vid = await fetchBytesSafe(videoUrl, { maxBytes: MAX_VIDEO_BYTES });
+    if (!vid) return json({ error: "Video download failed or URL not allowed" }, 502);
+    const bytes = vid.bytes;
+    const mimeType = vid.contentType && vid.contentType !== "application/octet-stream" ? vid.contentType : "video/mp4";
 
     // ---- 3. Upload to the Gemini Files API (resumable) -----------------------
     const startRes = await fetch(

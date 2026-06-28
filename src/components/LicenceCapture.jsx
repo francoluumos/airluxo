@@ -44,20 +44,22 @@ export default function LicenceCapture({ initial, onSaved, saveLabel = 'Save lic
   async function startPhoneHandoff() {
     setErr('');
     try {
-      const id = await createLicenceSession();
-      const url = `${window.location.origin}/?licence=${id}`;
+      const { id, read_token, submit_token } = await createLicenceSession();
+      // The QR carries the submit_token (the phone needs it to post results). The
+      // read_token stays on the desktop only, so the QR can't be used to read PII.
+      const url = `${window.location.origin}/?licence=${id}&lt=${submit_token}`;
       setQrDataUrl(await QRCode.toDataURL(url, { margin: 1, width: 240, color: { dark: '#0b0b0c', light: '#ffffff' } }));
       pollRef.current = true;
-      poll(id);
+      poll(id, read_token);
     } catch (e) { setErr(e.message || 'Could not start the phone hand-off.'); }
   }
 
-  async function poll(id) {
+  async function poll(id, readToken) {
     while (pollRef.current) {
       await new Promise((r) => setTimeout(r, 2500));
       if (!pollRef.current) break;
       try {
-        const s = await getLicenceSession(id);
+        const s = await getLicenceSession(id, readToken);
         if (s.status === 'done' && s.result) {
           setLicence(fromResult(s.result));
           setScanned(true);

@@ -39,20 +39,22 @@ export async function verifyLicence(file) {
 }
 
 // ---- desktop ↔ mobile hand-off ----
+// The id is not a credential: `get` needs the read_token (desktop only) and
+// `submit` needs the submit_token (carried in the QR to the phone).
 export async function createLicenceSession() {
   const { data, error } = await supabase.functions.invoke('licence-session', { body: { action: 'create' } });
   if (error) throw error;
-  return data.id;
+  return data; // { id, read_token, submit_token }
 }
 
-export async function getLicenceSession(id) {
-  const { data, error } = await supabase.functions.invoke('licence-session', { body: { action: 'get', id } });
+export async function getLicenceSession(id, readToken) {
+  const { data, error } = await supabase.functions.invoke('licence-session', { body: { action: 'get', id, read_token: readToken } });
   if (error) throw error;
   return data; // { status, result }
 }
 
-export async function submitLicenceSession(id, result) {
-  const { data, error } = await supabase.functions.invoke('licence-session', { body: { action: 'submit', id, result } });
+export async function submitLicenceSession(id, submitToken, result) {
+  const { data, error } = await supabase.functions.invoke('licence-session', { body: { action: 'submit', id, submit_token: submitToken, result } });
   if (error) throw error;
   return data;
 }

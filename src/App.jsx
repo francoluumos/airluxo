@@ -93,9 +93,9 @@ function Shell() {
 
 export default function App() {
   const params = new URLSearchParams(window.location.search);
-  // Phone hand-off for licence capture: ?licence=<sessionId> renders the mobile page.
+  // Phone hand-off for licence capture: ?licence=<sessionId>&lt=<submitToken> renders the mobile page.
   const licenceSession = params.get('licence');
-  if (licenceSession) return <MobileLicence sessionId={licenceSession} />;
+  if (licenceSession) return <MobileLicence sessionId={licenceSession} submitToken={params.get('lt')} />;
   // White-label embed for partner sites: ?embed=<partnerId>.
   const embedPartner = params.get('embed');
   if (embedPartner) return <Embed partnerId={embedPartner} previewToken={params.get('preview')} />;

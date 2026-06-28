@@ -5,7 +5,7 @@ import { verifyLicence, submitLicenceSession } from '../lib/licence.js';
 // Phone-only page opened by scanning the QR on the desktop booking flow
 // (?licence=<sessionId>). Captures the licence, extracts fields, and submits
 // them back to the desktop session.
-export default function MobileLicence({ sessionId }) {
+export default function MobileLicence({ sessionId, submitToken }) {
   const [step, setStep] = useState('capture'); // capture | review | done
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -35,7 +35,7 @@ export default function MobileLicence({ sessionId }) {
     if (!f.first_name.trim() || !f.last_name.trim() || !f.number.trim()) { setErr('Name and licence number are required.'); return; }
     setBusy(true);
     try {
-      await submitLicenceSession(sessionId, {
+      await submitLicenceSession(sessionId, submitToken, {
         first_name: f.first_name.trim() || null,
         last_name: f.last_name.trim() || null,
         birth_date: f.birth_date.trim() || null,

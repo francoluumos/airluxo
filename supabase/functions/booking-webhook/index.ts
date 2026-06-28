@@ -5,10 +5,12 @@
 //
 // Payload is HMAC-SHA256 signed with the partner's webhook_secret so they can
 // verify authenticity: header  X-AIRLUXO-Signature: sha256=<hex>.
-// verify_jwt OFF (guests create bookings unauthenticated); test mode reads the
-// partner's JWT from the Authorization header to identify them.
+// verify_jwt OFF. Auth is enforced here: the caller must be the booking's partner
+// (JWT) OR the service role (internal server-to-server, e.g. create-booking). An
+// anonymous caller can no longer trigger PII delivery by naming a booking_id.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { hostIsPublic } from "../_shared/safefetch.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -59,26 +61,45 @@ Deno.serve(async (req) => {
   let event = body.event || "booking.updated";
   let payload: unknown;
 
-  if (body.test) {
-    // identify the partner from their dashboard JWT
-    const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+  // Identify the caller up front. Service-role bearer = trusted internal call.
+  // Otherwise the bearer must be a partner's JWT (anon key → no user → rejected).
+  const authHeader = req.headers.get("Authorization") || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const isService = !!token && token === serviceKey;
+  let callerId: string | null = null;
+  if (!isService) {
     if (!token) return json({ error: "unauthorized" }, 401);
     const { data: { user } } = await db.auth.getUser(token);
     if (!user) return json({ error: "unauthorized" }, 401);
-    partnerId = user.id;
+    callerId = user.id;
+  }
+
+  if (body.test) {
+    // partner sends a sample to their own endpoint — must be an authenticated partner
+    if (!callerId) return json({ error: "unauthorized" }, 401);
+    partnerId = callerId;
     event = "webhook.test";
     payload = SAMPLE;
   } else {
     if (!body.booking_id) return json({ error: "booking_id required" }, 400);
     const { data: b } = await db.from("bookings").select("*").eq("id", body.booking_id).maybeSingle();
     if (!b) return json({ error: "booking not found" }, 404);
+    // Non-service callers may only deliver their OWN bookings' events.
+    if (!isService && b.partner_id !== callerId) return json({ error: "forbidden" }, 403);
     partnerId = b.partner_id;
     payload = bookingPayload(b);
   }
 
   const { data: p } = await db.from("partners").select("webhook_url, webhook_secret, webhook_enabled").eq("id", partnerId).maybeSingle();
   if (!p || !p.webhook_enabled || !p.webhook_url) return json({ skipped: "webhook not configured" });
+
+  // SSRF guard: only deliver to a public https host (never internal/metadata IPs).
+  let target: URL;
+  try { target = new URL(p.webhook_url); } catch { return json({ skipped: "invalid webhook_url" }); }
+  if (target.protocol !== "https:" || target.username || target.password || !(await hostIsPublic(target.hostname))) {
+    return json({ skipped: "webhook_url not allowed" });
+  }
 
   const envelope = JSON.stringify({ event, delivery_id: crypto.randomUUID(), sent_at: new Date().toISOString(), booking: payload });
   const headers: Record<string, string> = { "Content-Type": "application/json", "X-AIRLUXO-Event": event };

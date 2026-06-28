@@ -177,38 +177,32 @@ export default function CarDetail({ car, onClose }) {
   }
   function clearPromo() { setPromo(null); setPromoInput(''); setPromoErr(''); }
 
-  function buildPayload(piId, payStatus, bd) {
+  // The payload sends the pricing INPUTS (rate/qty/add-ons/dates/promo/points) — never
+  // amounts. create-booking recomputes every money field server-side and verifies the
+  // PaymentIntent, so nothing financial here is trusted. The rest is descriptive only.
+  function buildPayload(piId) {
     return {
+      // pricing inputs (must mirror what createPaymentIntent sent, so the server
+      // recomputes the same total the PaymentIntent was authorized for)
       listing_id: car.id,
-      user_id: user?.id ?? null,
-      guest_name: `${licence.first_name.trim()} ${licence.last_name.trim()}`.trim(),
-      guest_email: guest.email.trim(),
-      guest_phone: guest.phone.trim(),
+      rate_id: rateId,
+      quantity: qty,
+      cross_border: crossBorder && !!car.cross_border_allowed,
+      delivery: delivery && !!car.delivery_available,
+      protection: protection && !!car.protection_available,
       start_date: startISO,
       end_date: endISO,
       pickup_time: pickupTime,
       return_time: isDay ? returnTime : pickupTime,
-      rate_label: rate.label,
-      quantity: qty,
-      cross_border: crossBorder && !!car.cross_border_allowed,
-      delivery: delivery && !!car.delivery_available,
+      promo_code: promo?.code || null,
+      redeem_points: usePoints ? loyaltyPoints : 0,
+      payment_intent_id: piId,
+      // descriptive (non-financial)
+      guest_name: `${licence.first_name.trim()} ${licence.last_name.trim()}`.trim(),
+      guest_email: guest.email.trim(),
+      guest_phone: guest.phone.trim(),
       delivery_address: delivery ? (deliveryAddr.trim() || null) : null,
-      protection: protection && !!car.protection_available,
-      // partner-keeps fee (recorded separately from addons_amount, which is commissionable)
-      protection_fee: bd ? (bd.protection_fee ?? 0) : protectionFee,
-      // the security deposit this protection waives, recorded for the trip record
-      deposit_amount: (protection && car.protection_available) ? (car.deposit_amount || 0) : 0,
-      // prefer server-recomputed amounts (authoritative) when a payment ran
-      base_amount: bd ? bd.base_amount : base,
-      addons_amount: bd ? bd.addons_amount : (crossBorderFee + deliveryFee + afterHoursFee),
-      service_fee: bd ? bd.service_fee : serviceFee,
-      total_amount: bd ? bd.total_amount : discountedTotal,
-      promo_code: bd ? (bd.promo_code ?? null) : (promo?.code || null),
-      discount_amount: bd ? (bd.discount_amount ?? 0) : discount,
-      affiliate_commission: bd ? (bd.affiliate_commission ?? 0) : 0,
-      // only redeem points when the authoritative payment path ran (server validated)
-      points_redeemed: bd ? (bd.points_redeemed ?? 0) : 0,
-      loyalty_credit: bd ? (bd.loyalty_credit ?? 0) : 0,
+      rate_label: rate.label,
       licence_verified: true,
       licence: {
         first_name: licence.first_name.trim() || null,
@@ -218,15 +212,12 @@ export default function CarDetail({ car, onClose }) {
         categories: licence.categories.split(',').map((s) => s.trim()).filter(Boolean),
         number: licence.number.trim() || null,
       },
-      stripe_payment_intent_id: piId,
-      payment_status: payStatus,
-      status: 'Pending',
     };
   }
 
-  async function finalize(piId, payStatus, bd) {
+  async function finalize(piId) {
     try {
-      await createBooking(buildPayload(piId, payStatus, bd));
+      await createBooking(buildPayload(piId));
       track('booking_confirmed', { listing_id: car.id, make: car.make, model: car.model });
       // Newsletter consent (affirmative). Records the subscriber by email in the SSOT
       // (newsletter_subscribers) and mirrors Resend — works for guests too, and links
@@ -349,7 +340,7 @@ export default function CarDetail({ car, onClose }) {
     setBusy(true);
     try {
       // No Stripe key configured → book without payment (graceful fallback).
-      if (!getStripe()) { await finalize(null, 'none'); return; }
+      if (!getStripe()) { await finalize(null); return; }
       const res = await createPaymentIntent({
         listingId: car.id,
         rateId,
@@ -366,7 +357,7 @@ export default function CarDetail({ car, onClose }) {
       });
       if (res.unavailable) { setErr('Those dates are no longer available — please pick another range.'); return; }
       // Partner not connected to Stripe yet → book without payment.
-      if (res.skip) { await finalize(null, 'none'); return; }
+      if (res.skip) { await finalize(null); return; }
       setClientSecret(res.clientSecret);
       setPaymentIntentId(res.paymentIntentId);
       setServerBreakdown(res.breakdown || null);
@@ -699,7 +690,7 @@ export default function CarDetail({ car, onClose }) {
                 ) : phase === 'payment' && clientSecret ? (
                   <div className="mt-4 border-t border-mist pt-4">
                     <div className="mb-3 text-[0.65rem] uppercase tracking-wider text-stone">Payment · authorise {chf(serverBreakdown?.total_amount ?? discountedTotal)}</div>
-                    <PaymentStep clientSecret={clientSecret} onPaid={() => finalize(paymentIntentId, 'authorized', serverBreakdown)} onError={setErr} />
+                    <PaymentStep clientSecret={clientSecret} onPaid={() => finalize(paymentIntentId)} onError={setErr} />
                   </div>
                 ) : phase === 'licence' ? (
                   <div className="mt-4 border-t border-mist pt-4">

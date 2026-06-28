@@ -18,14 +18,28 @@ const cors = {
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-async function stripe(path: string, params?: Record<string, string>) {
+async function stripe(path: string, params?: Record<string, string>, idempotencyKey?: string) {
   const sk = Deno.env.get("STRIPE_SECRET_KEY");
   if (!sk) throw new Error("STRIPE_SECRET_KEY not configured");
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${sk}`,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
   const r = await fetch(`https://api.stripe.com/v1/${path}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${sk}`, "Content-Type": "application/x-www-form-urlencoded" },
+    headers,
     body: params ? new URLSearchParams(params).toString() : undefined,
   });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data?.error?.message || `Stripe ${r.status}`);
+  return data;
+}
+
+async function stripeGet(path: string) {
+  const sk = Deno.env.get("STRIPE_SECRET_KEY");
+  if (!sk) throw new Error("STRIPE_SECRET_KEY not configured");
+  const r = await fetch(`https://api.stripe.com/v1/${path}`, { headers: { Authorization: `Bearer ${sk}` } });
   const data = await r.json();
   if (!r.ok) throw new Error(data?.error?.message || `Stripe ${r.status}`);
   return data;
@@ -54,27 +68,41 @@ Deno.serve(async (req) => {
     let refunded_amount = b.refunded_amount ?? null;
     const pi = b.stripe_payment_intent_id;
 
+    // Reconcile against Stripe before moving money — never trust the DB row's
+    // amount/status alone. The PI is the source of truth for what was authorized
+    // and what was actually captured.
+    const realPI = pi ? await stripeGet(`payment_intents/${pi}`) : null;
+
     if (pi && status === "Confirmed" && b.payment_status === "authorized") {
-      await stripe(`payment_intents/${pi}/capture`);
+      if (realPI?.status !== "requires_capture") {
+        return json({ error: `Cannot capture — PaymentIntent is ${realPI?.status}` }, 409);
+      }
+      await stripe(`payment_intents/${pi}/capture`, undefined, `capture:${booking_id}`);
       payment_status = "captured";
     } else if (pi && (status === "Declined" || status === "Cancelled")) {
       if (b.payment_status === "authorized") {
-        await stripe(`payment_intents/${pi}/cancel`);
+        if (realPI?.status === "requires_capture") {
+          await stripe(`payment_intents/${pi}/cancel`, undefined, `cancel:${booking_id}`);
+        }
         payment_status = "canceled";
       } else if (b.payment_status === "captured" || b.payment_status === "partially_refunded") {
-        const totalCents = Math.round(Number(b.total_amount) * 100);
+        // Cap the refund at what Stripe actually captured, not the (untrusted) row total.
+        const capturedCents = Number(realPI?.amount_received ?? 0) || Math.round(Number(b.total_amount) * 100);
+        const alreadyRefunded = Math.round(Number(b.refunded_amount ?? 0) * 100);
+        const refundable = Math.max(0, capturedCents - alreadyRefunded);
         const amt = refund_cents == null
-          ? totalCents
-          : Math.max(0, Math.min(totalCents, Math.round(Number(refund_cents))));
+          ? refundable
+          : Math.max(0, Math.min(refundable, Math.round(Number(refund_cents))));
         if (amt > 0) {
           await stripe("refunds", {
             payment_intent: pi,
             amount: String(amt),
             reverse_transfer: "true",
             refund_application_fee: "true",
-          });
-          payment_status = amt >= totalCents ? "refunded" : "partially_refunded";
-          refunded_amount = amt / 100;
+          }, `refund:${booking_id}:${alreadyRefunded + amt}`);
+          const totalRefunded = alreadyRefunded + amt;
+          payment_status = totalRefunded >= capturedCents ? "refunded" : "partially_refunded";
+          refunded_amount = totalRefunded / 100;
         }
       }
     }

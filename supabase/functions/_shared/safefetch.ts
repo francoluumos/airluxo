@@ -27,21 +27,21 @@ const isIpLiteral = (h: string) => /^[\d.]+$/.test(h) || h.includes(":");
 // Returns true only if the host is safe to fetch. Resolves DNS when the runtime supports
 // it (catches a domain pointing at a private IP); if Deno.resolveDns is unavailable, the
 // literal/host checks above still block the practical metadata/loopback vectors.
-async function hostIsPublic(host: string): Promise<boolean> {
+export async function hostIsPublic(host: string): Promise<boolean> {
   const h = host.replace(/^\[|\]$/g, "").toLowerCase();
   if (!h) return false;
   if (isIpLiteral(h)) return !isPrivateIp(h);
   if (BLOCKED_HOSTS.test(h)) return false;
   try {
     const resolve = (Deno as any).resolveDns;
-    if (typeof resolve !== "function") return true; // unsupported runtime → rely on literal checks
+    if (typeof resolve !== "function") return false; // can't verify → fail closed
     const a = await resolve(h, "A").catch(() => [] as string[]);
     const aaaa = await resolve(h, "AAAA").catch(() => [] as string[]);
     const ips = [...a, ...aaaa];
-    if (ips.length === 0) return true; // can't resolve → fetch will fail harmlessly anyway
+    if (ips.length === 0) return false; // can't resolve → fail closed
     return ips.every((ip: string) => !isPrivateIp(ip));
   } catch {
-    return true;
+    return false; // fail closed
   }
 }
 
@@ -67,4 +67,32 @@ export async function fetchImageSafe(srcUrl: string): Promise<{ bytes: Uint8Arra
   const bytes = new Uint8Array(await r.arrayBuffer());
   if (bytes.byteLength === 0 || bytes.byteLength > MAX_BYTES) return null;
   return { bytes, contentType: ct };
+}
+
+// SSRF-guarded fetch for arbitrary (non-image) bytes — e.g. a third-party video URL.
+// Same guards as fetchImageSafe (https-only, no creds, public host, no redirects),
+// plus a caller-supplied size cap that is enforced both via content-length and on the
+// actual bytes. Returns null if the URL is unsafe / too large / not OK.
+export async function fetchBytesSafe(
+  srcUrl: string,
+  opts: { maxBytes: number } = { maxBytes: MAX_BYTES },
+): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+  let u: URL;
+  try { u = new URL(srcUrl); } catch { return null; }
+  if (u.protocol !== "https:") return null;
+  if (u.username || u.password) return null;
+  if (!(await hostIsPublic(u.hostname))) return null;
+
+  let r: Response;
+  try { r = await fetch(u.toString(), { redirect: "manual" }); } catch { return null; }
+  if (r.status >= 300 && r.status < 400) return null; // refuse redirects (could target internal)
+  if (!r.ok) return null;
+
+  const len = Number(r.headers.get("content-length") || 0);
+  if (len && len > opts.maxBytes) return null;
+
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  if (bytes.byteLength === 0 || bytes.byteLength > opts.maxBytes) return null;
+  const contentType = (r.headers.get("content-type") || "").split(";")[0] || "application/octet-stream";
+  return { bytes, contentType };
 }

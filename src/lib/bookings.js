@@ -1,21 +1,15 @@
 import { supabase } from './supabase.js';
 
-// Create a reservation. partner_id + car_label are set server-side by a trigger,
-// so we only send listing-facing data. Works for anonymous guests (no account).
+// Create a reservation. Bookings are written ONLY by the create-booking edge
+// function (service role): it recomputes every price/payment field server-side and
+// verifies the PaymentIntent, so the client can't tamper with amounts or status.
+// partner_id + car_label are set by a DB trigger. Works for anonymous guests.
+// Notifications (partner email, guest confirmation, webhook) are fired server-side.
 export async function createBooking(payload) {
-  // Generate the id client-side: anonymous guests have no SELECT policy on
-  // bookings, so we can't read the row back (.select() would 401). Insert with
-  // return=minimal and use the known id for the notification.
-  const id = crypto.randomUUID();
-  const { error } = await supabase.from('bookings').insert({ id, ...payload });
+  const { data, error } = await supabase.functions.invoke('create-booking', { body: payload });
   if (error) throw error;
-  // fire-and-forget: email the partner (no-op if RESEND_API_KEY isn't set)
-  supabase.functions.invoke('booking-notify', { body: { booking_id: id } }).catch(() => {});
-  // fire-and-forget: email the guest a confirmation (no-op if RESEND_API_KEY isn't set)
-  supabase.functions.invoke('booking-confirm', { body: { booking_id: id } }).catch(() => {});
-  // fire-and-forget: deliver to the partner's webhook (no-op if none configured)
-  supabase.functions.invoke('booking-webhook', { body: { booking_id: id, event: 'booking.created' } }).catch(() => {});
-  return { id, ...payload };
+  if (data?.error) throw new Error(data.error);
+  return { id: data.id, ...payload };
 }
 
 // Capture a booking lead when the guest enters their email at checkout (basis for
