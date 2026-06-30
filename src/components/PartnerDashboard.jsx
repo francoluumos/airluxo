@@ -139,12 +139,11 @@ export default function PartnerDashboard({ onExit }) {
       <aside className={`fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col bg-void text-cloud transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${navOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between px-6 py-6">
           <button onClick={onExit} className="ring-lux flex items-center gap-2.5">
-            {/* The partner's own logo brands their dashboard; fall back to their own
-                company name as a wordmark — NOT the AIRLUXO mark (this is the partner's portal). */}
+            {/* The partner's own logo brands their dashboard; fall back to the AIRLUXO wordmark. */}
             {partner?.brand_kit?.logo_url
               ? <img src={partner.brand_kit.logo_url} alt={companyName} className="h-8 max-w-[180px] object-contain"
-                  onError={(e) => { e.currentTarget.replaceWith(Object.assign(document.createElement('span'), { className: 'wordmark text-[1.3rem]', textContent: companyName })); }} />
-              : <span className="wordmark text-[1.3rem]">{companyName}</span>}
+                  onError={(e) => { e.currentTarget.replaceWith(Object.assign(document.createElement('span'), { className: 'wordmark text-[1.3rem]', innerHTML: 'AIR<span class="text-gold-soft">LUXO</span>' })); }} />
+              : <span className="wordmark text-[1.3rem]">AIR<span className="text-gold-soft">LUXO</span></span>}
           </button>
           <button onClick={() => setNavOpen(false)} className="ring-lux text-ash lg:hidden"><Icon.X /></button>
         </div>
