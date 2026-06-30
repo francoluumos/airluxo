@@ -139,11 +139,12 @@ export default function PartnerDashboard({ onExit }) {
       <aside className={`fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col bg-void text-cloud transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${navOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between px-6 py-6">
           <button onClick={onExit} className="ring-lux flex items-center gap-2.5">
-            {/* The partner's own logo brands their dashboard; fall back to the AIRLUXO wordmark. */}
+            {/* The partner's own logo brands their dashboard; fall back to their own
+                company name as a wordmark — NOT the AIRLUXO mark (this is the partner's portal). */}
             {partner?.brand_kit?.logo_url
               ? <img src={partner.brand_kit.logo_url} alt={companyName} className="h-8 max-w-[180px] object-contain"
-                  onError={(e) => { e.currentTarget.replaceWith(Object.assign(document.createElement('span'), { className: 'wordmark text-[1.3rem]', innerHTML: 'AIR<span class="text-gold-soft">LUXO</span>' })); }} />
-              : <span className="wordmark text-[1.3rem]">AIR<span className="text-gold-soft">LUXO</span></span>}
+                  onError={(e) => { e.currentTarget.replaceWith(Object.assign(document.createElement('span'), { className: 'wordmark text-[1.3rem]', textContent: companyName })); }} />
+              : <span className="wordmark text-[1.3rem]">{companyName}</span>}
           </button>
           <button onClick={() => setNavOpen(false)} className="ring-lux text-ash lg:hidden"><Icon.X /></button>
         </div>
@@ -217,7 +218,7 @@ export default function PartnerDashboard({ onExit }) {
           </div>
         </div>
 
-        <div className="mx-auto max-w-[1100px] px-5 py-8 sm:px-8">
+        <div className="mx-auto max-w-[1600px] px-5 py-8 sm:px-8">
           {err && (
             <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>
           )}
@@ -372,7 +373,7 @@ function Overview({ listings, bookings, onAdd, setView }) {
 
   return (
     <div className="space-y-7">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 lg:grid-cols-4">
         <Kpi label={t('partner.kpi.activeListings')} value={loading ? '—' : `${active} / ${total}`} sub={total === 0 ? t('partner.kpi.listFirstCar') : t('partner.kpi.liveOnMarket')} good={total > 0} icon={<Icon.Car />} />
         <Kpi label={t('partner.kpi.bookings')} value={bookings === null ? '—' : num(bk.length)} sub={pending > 0 ? t('partner.kpi.awaitingReply', { n: pending }) : t('partner.kpi.allCaughtUp')} good={pending > 0} icon={<Icon.Calendar2 />} />
         <Kpi label={t('partner.kpi.netEarnings', { month: m.monthLabel })} value={chf(m.net)} sub={deltaTxt} good={m.net > 0} icon={<Icon.Wallet />} />
@@ -899,7 +900,7 @@ function Fleet({ listings, blocks, onAdd, reload }) {
   const [importOpen, setImportOpen] = useState(false);
 
   if (listings === null) {
-    return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2, 3].map((i) => <div key={i} className="h-[210px] rounded-[var(--radius-card)] border border-mist bg-cloud shimmer" />)}</div>;
+    return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="h-[210px] rounded-[var(--radius-card)] border border-mist bg-cloud shimmer" />)}</div>;
   }
 
   async function remove(id) {
@@ -929,7 +930,7 @@ function Fleet({ listings, blocks, onAdd, reload }) {
       {listings.length === 0 ? (
         <EmptyFleet onAdd={onAdd} />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {listings.map((c) => {
             const carBlocks = (blocks || []).filter((bk) => bk.listing_id === c.id);
             return (
