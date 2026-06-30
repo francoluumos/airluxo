@@ -372,7 +372,7 @@ function Overview({ listings, bookings, onAdd, setView }) {
 
   return (
     <div className="space-y-7">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:grid-cols-4">
         <Kpi label={t('partner.kpi.activeListings')} value={loading ? '—' : `${active} / ${total}`} sub={total === 0 ? t('partner.kpi.listFirstCar') : t('partner.kpi.liveOnMarket')} good={total > 0} icon={<Icon.Car />} />
         <Kpi label={t('partner.kpi.bookings')} value={bookings === null ? '—' : num(bk.length)} sub={pending > 0 ? t('partner.kpi.awaitingReply', { n: pending }) : t('partner.kpi.allCaughtUp')} good={pending > 0} icon={<Icon.Calendar2 />} />
         <Kpi label={t('partner.kpi.netEarnings', { month: m.monthLabel })} value={chf(m.net)} sub={deltaTxt} good={m.net > 0} icon={<Icon.Wallet />} />
@@ -899,7 +899,7 @@ function Fleet({ listings, blocks, onAdd, reload }) {
   const [importOpen, setImportOpen] = useState(false);
 
   if (listings === null) {
-    return <div className="grid gap-4 sm:grid-cols-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-[210px] rounded-[var(--radius-card)] border border-mist bg-cloud shimmer" />)}</div>;
+    return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2, 3].map((i) => <div key={i} className="h-[210px] rounded-[var(--radius-card)] border border-mist bg-cloud shimmer" />)}</div>;
   }
 
   async function remove(id) {
@@ -929,7 +929,7 @@ function Fleet({ listings, blocks, onAdd, reload }) {
       {listings.length === 0 ? (
         <EmptyFleet onAdd={onAdd} />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {listings.map((c) => {
             const carBlocks = (blocks || []).filter((bk) => bk.listing_id === c.id);
             return (
