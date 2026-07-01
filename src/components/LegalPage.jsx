@@ -4,13 +4,13 @@ import { useI18n } from '../lib/i18n.jsx';
 // Datenschutz is the existing PrivacyPolicy (?privacy). NOTE: address + UID below are
 // placeholders — confirm the registered company details before launch.
 const COMPANY = {
-  name: 'AIRLUXO SA',
-  street: '',                 // TODO confirm registered street + no.
-  city: 'Genf / Geneva',
+  name: 'AIRLUXO',
+  street: 'Golattenmattgasse 21',
+  city: '5000 Aarau',
   country: 'Schweiz / Switzerland',
-  uid: 'CHE-123.456.789',     // TODO confirm UID/MWST
+  uid: '',                    // TODO add UID/MWST if VAT-registered (was a placeholder)
   email: 'hello@airluxo.ch',
-  repBy: '',                  // TODO confirm represented-by
+  repBy: 'Franco Steiner',
 };
 
 const DOCS = {

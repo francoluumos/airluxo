@@ -9,7 +9,7 @@ const SECTIONS = [
     h: '1. Who we are',
     p: [
       'AIRLUXO ("we", "us") operates a marketplace that connects luxury-car rental companies in Switzerland with drivers. This policy explains what personal data we process, why, and your rights.',
-      'Controller: AIRLUXO SA, Geneva, Switzerland. Contact: privacy@airluxo.ch.',
+      'Controller: AIRLUXO (Franco Steiner), Golattenmattgasse 21, 5000 Aarau, Switzerland. Contact: privacy@airluxo.ch.',
     ],
   },
   {

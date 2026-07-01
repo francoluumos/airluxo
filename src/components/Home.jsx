@@ -804,7 +804,7 @@ function Footer({ onPartner, partner = null, onLegal }) {
           </div>
         </div>
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-mist pt-6 text-xs text-stone sm:flex-row sm:items-center">
-          <span>© 2026 AIRLUXO SA · CHE-123.456.789</span>
+          <span>© 2026 AIRLUXO · Franco Steiner, Aarau</span>
           <span className="flex items-center gap-1.5">
             <a href="/?privacy" target="_blank" rel="noreferrer" className="ring-lux transition-colors hover:text-ink">{t('footer.privacy')}</a> ·
             <span>{t('footer.terms')}</span> ·

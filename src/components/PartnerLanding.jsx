@@ -408,13 +408,14 @@ export default function PartnerLanding({ onPartner }) {
               <div className="eyebrow text-ash">{c.footer.colContact}</div>
               <ul className="mt-4 grid gap-2.5 text-sm text-ash">
                 <li><a href={MAILTO} className="transition-colors hover:text-paper">hello@airluxo.ch</a></li>
-                <li>AIRLUXO SA</li>
-                <li>Genf / Geneva, {c.footer.country}</li>
+                <li>AIRLUXO · Franco Steiner</li>
+                <li>Golattenmattgasse 21</li>
+                <li>5000 Aarau, {c.footer.country}</li>
               </ul>
             </div>
           </div>
           <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-graphite/70 pt-6 text-xs text-ash sm:flex-row">
-            <span>© {new Date().getFullYear()} AIRLUXO SA · {c.footer.rights}</span>
+            <span>© {new Date().getFullYear()} AIRLUXO · {c.footer.rights}</span>
             <div className="flex items-center rounded-full border border-graphite text-xs font-bold">
               {['de', 'en'].map((lc) => (
                 <button key={lc} onClick={() => setLocale(lc)}
