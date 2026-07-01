@@ -6,12 +6,13 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 
 ---
 
-## ▶ Pick up here — as of 2026-06-25
+## ▶ Pick up here — as of 2026-07-01
 
 **Immediate / open loose ends:**
 1. **⚠️ Rotate the `sbp_` token** `sbp_e046…` — used all session (migrations, edge-fn deploys, set the `REEL_ANALYZE_KEY` secret) and pasted in chat: https://supabase.com/dashboard/account/tokens. (Prior `sbp_bb406…` too, if not already rotated.)
 2. **Reel rethink (PARKED)** — Franco rejected the AI reel: looks synthetic, mood doesn't match. His direction: **all scenes the same as the original**, mood/grade-matched, likely a stronger model than `seedance1_5`. The skill (`alx-reel-reverse-engineering`) + edge fn (`reel-analyze`) are built and **work end-to-end**; ~**9.8 Higgsfield credits** left. Working assets + production sheets in `~/Desktop/Reels/`.
-3. **`LegalPage.jsx` placeholders** — confirm AIRLUXO SA street / UID / represented-by before the acquisition landing goes live.
+3. **`LegalPage.jsx` — mostly DONE (2026-07-01):** Impressum + footer + privacy controller now show **AIRLUXO · Franco Steiner, Golattenmattgasse 21, 5000 Aarau**. The fabricated UID `CHE-123.456.789` was **cleared** (line no longer renders). ⚠️ **Still open:** add the real **CHE UID/MWST** to `COMPANY.uid` in `LegalPage.jsx` if VAT/commercial-register registered — otherwise leaving it off is correct.
+4b. **Going public:** Franco is **removing the `SITE_PASSWORD` Vercel gate** to make airluxo.ch public. Note the var is scoped to **Production AND Preview together**, so a full delete also un-gates `staging.airluxo.ch` — to keep staging private, edit the var to Preview-only instead. Only `SITE_PASSWORD` controls the gate (`SITE_USER` is optional). Takes effect on next prod redeploy.
 4. **Optional: next-car-poll dashboard** — the new poll writes to `car_suggestions` (owner/admin readable via RLS), but there's no UI to view submissions yet. Note the DB column is named `type` but now holds a free-text **model** string — rename to `model` (small migration) when building that view.
 
 **Optional follow-ups (flagged, not built):**
@@ -36,6 +37,14 @@ This is the "where were we / what's next" pointer — see **BACKLOG.md** for the
 ---
 
 ## Log (newest first)
+
+### 2026-07-01 — airluxo.ch: partner dashboard carousel + commission wording + legal identity → Aarau
+- **Dashboard preview carousel (new)** on the airluxo.ch partner landing (`PartnerLanding.jsx` `#dashboard` section). New `src/components/DashboardCarousel.jsx`: 5 real backend screenshots (Overview, Fleet, Bookings, Calendar, Earnings) in a browser-chrome frame, auto-advancing (5s, pause on hover/focus, reduced-motion aware), prev/next + progress dots, DE/EN captions. Screenshots optimised via `sips` (JPEG q84, ≤1680px, ~1 MB total) into **`public/partner-preview/*.jpg`**.
+- **Commission wording fix** (`PartnerLanding.jsx` pricing note + "Was kostet AIRLUXO?" FAQ, **DE+EN**): the **partner** pays the commission (deducted from payout), **guests pay no extra service fee** — was wrongly stated as "Gäste zahlen eine kleine Servicegebühr, nicht Sie."
+- **Legal identity → AIRLUXO · Franco Steiner, Aarau:** footer (`PartnerLanding.jsx`), Impressum `COMPANY` (`LegalPage.jsx`, `repBy: 'Franco Steiner'`), privacy controller (`PrivacyPolicy.jsx`), consumer footer (`Home.jsx`) all changed from placeholder "AIRLUXO SA, Geneva". **Cleared the fake `CHE-123.456.789` UID** (see Pick-up #3 — add real one if registered).
+- **⚠️ Process correction:** I first built the carousel + commission fix in the **pitch deck** (`pitch/airluxo-partner-pitch.html`) by mistake — Franco wanted them on **airluxo.ch**. Reverted the pitch (`git checkout`), redid on the site. New memory **`airluxo-site-vs-pitch`**: partner marketing changes go in `PartnerLanding.jsx`, NOT the standalone pitch HTML.
+- **Still open (flagged, not changed):** `src/lib/docs.js:59` help-docs still says "Guests pay a 12% service fee" — booking-logic layer, outside the site-copy scope; reconcile if the fee model truly moved off guests.
+- **Deploys:** two commits, each promoted `staging → main` (fast-forward): `7e7e4a9` (carousel + commission) → `fb73757` (legal identity). Prod build passed locally each time (`vite build`). Both live on airluxo.ch.
 
 ### 2026-06-22 → 25 — Reel reverse-engineer engine + Edition site: next-car poll, customer login/wishlist, scrollbar fixes
 - **Promoted the whole 2026-06-20→21 partner-polish batch to prod** — last session it was staging-only; this session pushed `staging → main`. Caught a footgun: `origin/staging` was stale at `cd01587` (a `git push origin staging:main` updates **main**, not the **staging** branch the staging deploy tracks) — now both branches at `c2757ba`.
