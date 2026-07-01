@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useI18n } from '../lib/i18n.jsx';
 import { PLANS, PLAN_ORDER } from '../lib/plans.js';
+import DashboardCarousel from './DashboardCarousel.jsx';
 
 // AIRLUXO public site — PARTNER-ACQUISITION mode (Phase 1). A premium, dark-editorial
 // value proposition for luxury-car rental companies; the consumer marketplace stays hidden
@@ -57,7 +58,7 @@ const COPY = {
         pro: ['Priorisierte Platzierung', 'Performance-Analytics', 'Schnellere Auszahlungen'],
         max: ['Featured-Platzierung', 'Team-Mitglieder, API', 'Dedizierter Support'],
       },
-      note: 'Gäste zahlen eine kleine Servicegebühr, nicht Sie. Keine Inseratsgebühren, keine Bindung, Auszahlung auf Ihr IBAN nach jeder Miete.',
+      note: 'Die Kommission tragen Sie, nicht Ihre Gäste — sie wird direkt von Ihrer Auszahlung abgezogen. Keine Servicegebühr für Gäste, keine Inseratsgebühren, keine Bindung, Auszahlung auf Ihr IBAN nach jeder Miete.',
     },
     onboard: {
       h2: 'Von Ihrer Seite zu live, in Tagen.',
@@ -79,7 +80,7 @@ const COPY = {
     faq: {
       eyebrow: 'FAQ', h2: 'Häufige Fragen',
       items: [
-        ['Was kostet AIRLUXO?', 'Ein monatliches Abonnement (Free / Pro / Max, siehe Konditionen). Gäste zahlen eine kleine Servicegebühr, nicht Sie. Keine Inseratsgebühren, keine Einrichtungskosten.'],
+        ['Was kostet AIRLUXO?', 'Ein monatliches Abonnement (Free / Pro / Max, siehe Konditionen) plus eine Kommission pro Buchung, die von Ihrer Auszahlung abgezogen wird. Die Kommission tragen Sie, nicht Ihre Gäste. Keine Inseratsgebühren, keine Einrichtungskosten.'],
         ['Wie lange dauert es, bis ich live bin?', 'In der Regel wenige Tage: Sie teilen Ihre bestehende Seite, wir bauen Ihre Marken-Website und das Dashboard, Sie prüfen, wir gehen live.'],
         ['Behalte ich meine Marke?', 'Ja. Ihre Farben, Schriften, Ihr Logo und Ihre eigene Domain. AIRLUXO liefert nur die Engine darunter.'],
         ['Wie funktionieren Zahlungen und Auszahlungen?', 'Gäste zahlen sicher online vorab (Stripe), inklusive Kaution. Auszahlungen auf Ihr IBAN nach jeder Miete, kein Hinterherjagen von Überweisungen.'],
@@ -140,7 +141,7 @@ const COPY = {
         pro: ['Priority placement', 'Performance analytics', 'Faster payouts'],
         max: ['Featured placement', 'Team members, API', 'Dedicated support'],
       },
-      note: 'Guests pay a small service fee, not you. No listing fees, no lock-in, payouts to your IBAN after every trip.',
+      note: 'The commission is on you, not your guests — it’s deducted straight from your payout. No guest service fee, no listing fees, no lock-in, payouts to your IBAN after every trip.',
     },
     onboard: {
       h2: 'From your site to live, in days.',
@@ -162,7 +163,7 @@ const COPY = {
     faq: {
       eyebrow: 'FAQ', h2: 'Frequently asked questions',
       items: [
-        ['What does AIRLUXO cost?', 'A monthly subscription (Free / Pro / Max — see Pricing). Guests pay a small service fee, not you. No listing fees, no setup costs.'],
+        ['What does AIRLUXO cost?', 'A monthly subscription (Free / Pro / Max — see Pricing) plus a per-booking commission deducted from your payout. The commission is on you, not your guests. No listing fees, no setup costs.'],
         ['How long until I’m live?', 'Usually a few days: share your existing site, we build your branded website and dashboard, you review, we go live.'],
         ['Do I keep my brand?', 'Yes. Your colours, fonts, logo and your own domain. AIRLUXO is just the engine underneath.'],
         ['How do payments and payouts work?', 'Guests pay securely online up front (Stripe), deposit included. Payouts to your IBAN after every trip, no chasing bank transfers.'],
@@ -285,6 +286,9 @@ export default function PartnerLanding({ onPartner }) {
             ))}
           </div>
         </div>
+        <motion.div variants={item}>
+          <DashboardCarousel />
+        </motion.div>
       </Sec>
 
       {/* pricing */}
